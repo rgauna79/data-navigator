@@ -1,0 +1,63 @@
+Start Date	Room	SHIFT	Identifier	Status	Part Number	Description	Planned Qty	Start Date	Assigned To	Note	Location	Plant	Cleaning Times 	Down Time QA/LAB/ Warehouse	 Total Time Pre weighed per kit.  2 operators	Comments
+12/1/2023	A	DAY	76EF1B	Quarantined WIP	300601	OFBT OffBeat Candy Bar ALLERGEN: Peanut	"1,066.93 KG"	11/30/2023	Batching - Vineyard	101655 - 1	View		25	35 ( TEST )	50	
+12/1/2023	A	DAY	94C2BF	Quarantined WIP	300577	"OFBT Offbeat Aloha ALLERGENS: Tree Nut/Macadamia Nut, Cashew & Coconut"	961.44 KG	11/30/2023	Batching - Vineyard	101584 - 1	View		25	10 ( TEST )	50	
+12/1/2023	A	DAY	A47F7D	Quarantined WIP	300578	OFBT Offbeat Salted Caramel ALLERGENS: ALLERGENS: Tree Nuts/ Almond & Cashew	"1,050.95 KG"	11/30/2023	Batching - Vineyard	101617 - 1	View		25	10 ( TEST )	40	
+12/1/2023	B	DAY	N/A	N/A	N/A	R & D REQUEST	N/A	N/A	R & D SAMPLES	N/A	N/A		20	10 ( TEST )	15	
+12/1/2023	A	DAY	AEC269	Quarantined WIP	300579	OFBT Offbeat Cinnamon Bun ALLERGENS: Tree Nuts/ Almond & Cashew	"1,003.23 KG"	11/30/2023	Batching - Vineyard	101614 - 1	View		25	10 ( TEST )	45	
+12/1/2023	B	NIGHT	E1DB42	Quarantined WIP	300778	HEAL BioActive Multi	"1,438.8 KG"	11/29/2023	Batching - Springville	H4111 - 1 2/4	View				150	
+12/1/2023	B	NIGHT	87D560	Quarantined WIP	300778	HEAL BioActive Multi	"1,438.8 KG"	11/29/2023	BBatching - Springville	H4111 - 1 3/4	View		25	10 ( TEST )	150	
+12/4/2023	A	DAY	20961E	Quarantined WIP	300778	HEAL BioActive Multi	"1,438.8 KG"	11/29/2023	Batching - Springville	H4111 - 1 4/4	View		25	10 ( TEST )	180	
+12/4/2023	A	DAY	EE9128	Quarantined WIP	300297	YGLV Ningxia Red JP	"3,787.85 KG"	11/30/2023	Batching - Springville	23104851 - 1 & 23107784 - 1 6/11	View				45	
+12/4/2023	A	DAY	B79248	Quarantined WIP	300297	YGLV Ningxia Red JP	"3,787.85 KG"	11/30/2023	Batching - Springville	23104851 - 1 & 23107784 - 1 7/11	View		25	10 ( TEST )	45	
+12/4/2023	B	NIGHT	99FFDA	Quarantined WIP	300658	CYBK Vitamin B12	"1,118.7 KG"	12/4/2023	Batching - Vineyard	600 - 3 1/2	View				60	
+12/4/2023	B	NIGHT	FC5E91	Quarantined WIP	300658	CYBK Vitamin B12	"1,118.7 KG"	12/4/2023	Batching - Vineyard	600 - 3 2/2	View		25	10 ( TEST )	60	
+12/4/2023	B	NIGHT	4A916E	Quarantined WIP	300775	ENVL Body Vitality	322.11 KG	11/29/2023	Batching - Springville	200228 - 5 1/5	View				60	
+12/4/2023	B	NIGHT	650ABD	Quarantined WIP	300775	ENVL Body Vitality	322.11 KG	11/29/2023	Batching - Springville	200228 - 5 2/5	View				60	
+12/4/2023	B	NIGHT	188202	Quarantined WIP	300775	ENVL Body Vitality	322.11 KG	11/29/2023	Batching - Springville	200228 - 5 3/5	View		25	10 ( TEST )	60	
+12/5/2023	A	DAY	685378	Quarantined WIP	300775	ENVL Body Vitality	322.11 KG	11/29/2023	Batching - Springville	200228 - 5 4/5	View				60	
+12/5/2023	A	DAY	3CAE2E	Quarantined WIP	300775	ENVL Body Vitality	322.11 KG	11/29/2023	Batching - Springville	200228 - 5 5/5	View		25	10 ( TEST )	60	
+12/5/2023	A	DAY	851A45	Quarantined WIP	300659	CYBK Glutathione	470.73 KG	12/4/2023	Batching - Springville	591 - 3 & 665 - 1	View		25	10 ( TEST )	70	
+12/5/2023	A	DAY	32287D	Quarantined WIP	300356	MOME Gripe Water Original Bottle	"4,659.39 KG"	12/10/2023	Batching - St George	"4439 - 2 , 4439 - 4 & 4439 - 5 1/1"	View		25	10 ( TEST )	45	
+12/5/2023	B	NIGHT	400E0D	Quarantined WIP	300789	MOME Baby Cough Daytime	"5,227.4 KG"	12/12/2023	Batching St George	"4637 - 1 , 4637 - 2 , 4637 - 3 & 4637 - 4 1/1"	View		25	10 ( TEST )	40	
+12/5/2023	B	NIGHT	453D6B	Quarantined WIP	300659	CYBK Glutathione	526.88 KG	12/5/2023	Batching - Springville	591 - 3 & 665 - 1 1/4	View				60	
+12/5/2023	B	NIGHT	3AB7C0	Quarantined WIP	300659	CYBK Glutathione	526.88 KG	12/5/2023	Batching - Springville	591 - 3 & 665 - 1 2/4	View		BACK TO BACK (5)		60	
+12/5/2023	B	NIGHT	6B9361	Quarantined WIP	300659	CYBK Glutathione	526.88 KG	12/5/2023	Batching - Springville	591 - 3 & 665 - 1 3/4	View		BACK TO BACK (5)		60	
+12/5/2023	B	NIGHT	AF0AC0	Quarantined WIP	300659	CYBK Glutathione	526.88 KG	12/5/2023	Batching - Springville	591 - 3 & 665 - 1 4/4	View		BACK TO BACK (5)	35 ( CLEANING - TEST )	60	
+12/6/2023	A	DAY	270C28	Quarantined WIP	300312	YGLV Thieves Foaming Hand Soap Refill	"1,862.13 KG"	11/30/2023	Batching - Vineyard	23100778 - 2 Additional batch 1/3	View				40	
+12/6/2023	A	DAY	9A4C42	Quarantined WIP	300312	YGLV Thieves Foaming Hand Soap Refill	"1,862.13 KG"	11/30/2023	Batching - Vineyard	23100778 - 2 Additional batch 2/3	View		BACK TO BACK (5)		40	
+12/6/2023	A	DAY	ACF8C4	Quarantined WIP	300312	YGLV Thieves Foaming Hand Soap Refill	"1,862.13 KG"	11/30/2023	Batching - Vineyard	23100778 - 2 Additional batch 3/3	View		BACK TO BACK (5)		40	
+12/6/2023	A	DAY	2734A3	Quarantined WIP	300515	YGLV Lushious Lemon FHS 8 oz	"1,862.35 KG"	11/30/2023	Batching - Vineyard	23104720 - 1	View		BACK TO BACK (5)	40 ( CLEANING - TEST )	40	
+12/6/2023	A	DAY	3D7DE3	Quarantined WIP	300105	Rain Soul	"3,596.01 KG"	11/29/2023	Batching - Springville	R175 - 5 & 176 - 1 5/11	View				45	
+12/6/2023	A	DAY	A5E6BF	Quarantined WIP	300105	Rain Soul	"3,596.01 KG"	11/29/2023	Batching - Springville	R175 - 5 & 176 - 1 6/11	View		BACK TO BACK (5)		45	
+12/6/2023	A	DAY	B30116	Quarantined WIP	300105	Rain Soul	"3,596.01 KG"	11/29/2023	Batching - Springville	R175 - 5 & 176 - 1 7/11	View		BACK TO BACK (5)		45	
+12/6/2023	A	DAY	1F454F	Quarantined WIP	300105	Rain Soul	"3,596.01 KG"	11/29/2023	Batching - Springville	R175 - 5 & 176 - 1 8/11	View		BACK TO BACK (5)	35 ( CLEANING - TEST )	45	
+12/6/2023	B	NIGHT	1B3BFD	Quarantined WIP	300105	Rain Soul	"3,596.01 KG"	11/29/2023	Batching - Springville	R175 - 5 & 176 - 1 9/11	View				45	
+12/6/2023	B	NIGHT	11D9BC	Quarantined WIP	300105	Rain Soul	"3,596.01 KG"	11/29/2023	Batching - Springville	R175 - 5 & 176 - 1 10/11	View		BACK TO BACK (5)		45	
+12/6/2023	B	NIGHT	98F641	Quarantined WIP	300105	Rain Soul	"3,596.01 KG"	11/29/2023	Batching - Springville	R175 - 5 & 176 - 1 11/11	View		BACK TO BACK (5)	35 ( CLEANING - TEST )	45	
+12/6/2023	B	NIGHT	A9994E	Quarantined WIP	300297	YGLV Ningxia Red JP	"3,787.85 KG"	11/30/2023	BBatching - Springville	23104851 - 1 & 23107784 - 1 8/11	View				40	
+12/6/2023	B	NIGHT	E6EA37	Quarantined WIP	300297	YGLV Ningxia Red JP	"3,787.85 KG"	11/30/2023	BBatching - Springville	23104851 - 1 & 23107784 - 1 9/11	View		BACK TO BACK (5)		40	
+12/6/2023	B	NIGHT	1C1377	Quarantined WIP	300297	YGLV Ningxia Red JP	"3,787.85 KG"	11/30/2023	BBatching - Springville	23104851 - 1 & 23107784 - 1 10/11	View		BACK TO BACK (5)		40	
+12/6/2023	B	NIGHT	322FD2	Quarantined WIP	300297	YGLV Ningxia Red JP	"3,787.85 KG"	11/30/2023	BBatching - Springville	23104851 - 1 & 23107784 - 1 11/11	View		BACK TO BACK (5)	35 ( CLEANING - TEST )	40	
+12/7/2023	A	DAY	32B3F8	Quarantined WIP	300596	YGLV NingXia Nitro ALLERGENS: Tree Nut/Coconut & Milk	"1,863.4 KG"	11/30/2023	Batching - Springville	"23100596 - 3 , 23100597 - 1 , 23100596 - 2 & 23104398 - 1 7/10"	View				30	
+12/7/2023	A	DAY	E941D1	Quarantined WIP	300596	YGLV NingXia Nitro ALLERGENS: Tree Nut/Coconut & Milk	"1,863.4 KG"	11/30/2023	Batching - Springville	"23100596 - 3 , 23100597 - 1 , 23100596 - 2 & 23104398 - 1 8/10"	View		BACK TO BACK (5)		30	
+12/7/2023	A	DAY	E10710	Quarantined WIP	300596	YGLV NingXia Nitro ALLERGENS: Tree Nut/Coconut & Milk	"1,863.4 KG"	11/30/2023	Batching - Springville	"23100596 - 3 , 23100597 - 1 , 23100596 - 2 & 23104398 - 1 9/10"	View		BACK TO BACK (5)		30	
+12/7/2023	A	DAY	B66C9B	Quarantined WIP	300596	YGLV NingXia Nitro ALLERGENS: Tree Nut/Coconut & Milk	"1,863.4 KG"	11/30/2023	Batching - Springville	"23100596 - 3 , 23100597 - 1 , 23100596 - 2 & 23104398 - 1 10/10"	View		BACK TO BACK (5)	40 ( CLEANING - TEST )	30	
+12/7/2023	A	DAY	2B7825	Quarantined WIP	300652	CYBK Vitamin C	"1,691.48 KG"	12/8/2023	Batching - Springville	690 - 1 1/2	View				60	
+12/7/2023	A	DAY	A28E95	Quarantined WIP	300652	CYBK Vitamin C	"1,691.48 KG"	12/8/2023	Batching - Springville	690 - 1 2/2	View		BACK TO BACK (5)	35 ( CLEANING - TEST )	40	
+12/7/2023	B	NIGHT	FBA8EF	Quarantined WIP	300037	YGLV Thieves Hand Purifier	"1,012.5 KG"	12/10/2023	Batching - Springville	23105681 - 2 1/1	View		25	10 ( TEST )	30	
+12/7/2023	B	NIGHT	2DBE6E	Quarantined WIP	300475	MOME Vit D Org Drops	279.45 KG	12/12/2023	Batching - Vineyard	4566 - 3 & 4566 - 4 1/1	View		25	10 ( TEST )	15	
+12/7/2023	B	NIGHT	E4B0E7	Quarantined WIP	300665	Vitamin D3 Liquid A10701	126.3 KG	12/11/2023	Batching - Vineyard	2099059 - 1 & 2099160 - 1 1/1	View		25	10 ( TEST )	15	
+12/7/2023	B	NIGHT	CB4DBB	Quarantined WIP	300686	GURU Biotin Collagen	"1,070.16 KG"	12/3/2023	Batching - Vineyard	PO2139 - 3 1/1	View		25	10 ( TEST )	60	
+12/7/2023	B	NIGHT	89F965	Quarantined WIP	300656	CYBK Magnesium L-Threonate Allergen: Almond	"1,352.219 KG"	12/11/2023	Batching - Springville	617 - 6 & 617 - 3 1/3	View				60	
+12/7/2023	B	NIGHT	E52BB7	Quarantined WIP	300656	CYBK Magnesium L-Threonate Allergen: Almond	"1,352.219 KG"	12/11/2023	Batching - Springville	617 - 6 & 617 - 3 2/3	View		BACK TO BACK (5)		60	
+12/7/2023	B	NIGHT	E0AD34	Quarantined WIP	300656	CYBK Magnesium L-Threonate Allergen: Almond	"1,352.219 KG"	12/11/2023	Batching - Springville	617 - 6 & 617 - 3 3/3	View		BACK TO BACK (5)	35 ( CLEANING - TEST )	60	
+12/8/2023	A	DAY	27AFD8	Quarantined WIP	300246	JEUN Reserve Gel	"3,840.12 KG"	12/12/2023	Batching - Springville	6108 - 1 1/2	View				60	
+12/8/2023	A	DAY	760BDE	Quarantined WIP	300246	JEUN Reserve Gel	"3,840.12 KG"	12/12/2023	Batching - Springville	6108 - 1 2/2	View		BACK TO BACK (5)	40 ( CLEANING - TEST )	50	
+12/8/2023	A	DAY	57BB24	Quarantined WIP	300297	YGLV Ningxia Red JP	"1,893.93 KG"	12/12/2023	Batching - Springville	Test Run 1/1	View		25	10 ( TEST )	45	
+12/8/2023	B	DAY	58943D	Quarantined WIP	300740	Liquid Iron Complex A11543	823.68 KG	12/11/2023	Batching - Vineyard	2097597 - 1 & 2097602 - 1 1/1	View		25	10 ( TEST )	45	
+12/8/2023	A	DAY	801441	Quarantined WIP	300317	Riovida Burst ALLERGENS: Egg & Milk	"1,815 KG"	12/11/2023	Batching - Springville	47628 - 3 1/2	View				60	
+12/8/2023	A	DAY	9B94FE	Quarantined WIP	300317	Riovida Burst ALLERGENS: Egg & Milk	"1,815 KG"	12/11/2023	Batching - Springville	47628 - 3 2/2	View		BACK TO BACK (5)	60 ( CLEANING - TEST )	50	
+12/8/2023	B	NIGHT	65F732	Quarantined WIP	300720	Cal Mag Mint Liquid A11319	"1,198.81 KG"	12/12/2023	Batching - Vineyard	2097597 - 5 1/1	View		25	10 ( TEST )	60	
+12/8/2023	B	NIGHT	6F6C60	Quarantined WIP	300713	Liquid Iodine A11180	72.47 KG	12/11/2023	Batching - Vineyard	2098045 - 6 1/1	View		25	10 ( TEST )	30	
+12/8/2023	B	NIGHT	4BACDF	Quarantined WIP	300642	ONIT Alpha Brain Focus Shot-Tropical	"3,293.33 KG"	12/12/2023	Batching St George	3929O - 1 1/2	View				120	
+12/8/2023	B	NIGHT	9809A4	Quarantined WIP	300642	ONIT Alpha Brain Focus Shot-Tropical	"3,293.33 KG"	12/13/2023	Batching St George	3929O - 1 2/2	View		25	10 ( TEST )	120	
