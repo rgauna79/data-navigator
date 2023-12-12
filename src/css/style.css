@@ -11,6 +11,14 @@ html {
   max-width: 80% !important;
 }
 
+main {
+  min-width: 572px;
+}
+
 #tools {
+  display: none;
+}
+
+#sheetLoaderContainer {
   display: none;
 }
