@@ -21,4 +21,46 @@ main {
 
 #sheetLoaderContainer {
   display: none;
+  flex-direction: column;
+  /* align-items: center; */
+  text-align: center;
+  gap: 0.5rem !important;
+}
+
+#sheetLoaderContainer button {
+  margin-top: 8px;
+}
+
+/* Responsive Styles */
+@media only screen and (max-width: 600px) {
+  main {
+    min-width: auto;
+  }
+
+  /* #tools {
+    display: block;
+  } */
+
+  /* #sheetLoaderContainer {
+    display: block;
+  } */
+}
+
+@media only screen and (min-width: 600px) {
+  main {
+    max-width: 1024px;
+  }
+  #toolContainer {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+  }
+}
+
+/* Button Styles */
+
+.btn-primary {
+  /* width: 100%; */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

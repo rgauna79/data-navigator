@@ -70,7 +70,7 @@ function excelDateToJSDate(excelDate) {
 
   // Convert days to milliseconds and add to the start date
   const jsDate = new Date(
-    excelStartDate.getTime() + excelDate * 24 * 60 * 60 * 1000,
+    excelStartDate.getTime() + excelDate * 24 * 60 * 60 * 1000
   );
 
   return jsDate;
@@ -80,7 +80,7 @@ function parseSelectedSheet(content, selectedSheetName) {
   const workbook = XLSX.read(content, { type: "binary" });
   const excelData = XLSX.utils.sheet_to_json(
     workbook.Sheets[selectedSheetName],
-    { raw: false },
+    { raw: false }
   );
 
   // Convert Excel dates to JavaScript Date objects

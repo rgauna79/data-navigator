@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -26,12 +26,13 @@
         class="container mt-4 border border-white p-4 rounded"
       >
         <div class="container row mb-2 input-group" id="inputContainer">
-          <!-- <label class="text-center" for="fileInput" id="fileInputLabel">Choose file to convert</label> -->
           <input
             type="file"
-            class="form-control"
+            class="form-control rounded"
             id="fileInput"
             aria-describedby="readFile"
+            accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            capture="environment"
           />
           <span class="text-center" id="loadingMessage"></span>
         </div>
@@ -40,15 +41,17 @@
           <span class="d-flex text-start align-items-center"
             >Select sheet to show</span
           >
-          <select name="sheetDropdown" id="sheetDropdown">
+          <select name="sheetDropdown" id="sheetDropdown" class="p-2 rounded">
             <option value="-">Sheets</option>
           </select>
-          <button class="btn-primary btn" type="button" id="readFile">
-            Load sheet
-          </button>
-          <button class="btn-primary btn ms-auto" type="button" id="resetFile">
-            New File
-          </button>
+          <div id="btnContainer" class="d-flex justify-content-between w-100">
+            <button class="btn-primary btn" type="button" id="readFile">
+              Load sheet
+            </button>
+            <button class="btn-light btn ms-auto" type="button" id="resetFile">
+              New File
+            </button>
+          </div>
         </div>
       </section>
 
@@ -56,45 +59,40 @@
         class="container mt-2 border border-white p-4 rounded"
         id="tools"
       >
-        <div class="d-flex text-center gap-3">
-          <div class="justify-content-center" id="searchTable">
-            <select class="form-select" id="elementPages">
-              <option value="15">15</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-
-            <!-- <div class="input-group">
-            <span class="input-group-text" id="basic-addon1">Search</span>
-            <input type="text" class="form-control" placeholder="Insert text to search" aria-label="searchBox" aria-describedby="basic-addon1">
-          </div>   -->
-          </div>
-          <span class="d-flex text-start align-items-center flex-fill"
-            >Elements per page</span
-          >
-          <button
-            type="button"
-            class="col-2 btn btn-primary"
-            id="showHeadersBtn"
-          >
-            Create Reports
-          </button>
-          <div class="col-2" id="filterColumn">
-            <button
-              type="button"
-              class="btn btn-primary dropdown-toggle"
-              id="filterBtn"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
+        <div class="d-flex text-center gap-3 flex-column" id="toolContainer">
+          <div id="elementsPage" class="d-flex pe-4">
+            <div class="justify-content-center" id="searchTable">
+              <select class="form-select" id="elementPages">
+                <option value="15">15</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+            <span class="d-flex text-start align-items-center flex-fill ps-2"
+              >Elements per page</span
             >
-              Filter
+            <div class="col-2" id="filterColumn">
+              <button
+                type="button"
+                class="btn btn-light dropdown-toggle"
+                id="filterBtn"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                Filter
+              </button>
+              <ul
+                id="ulDropDown"
+                class="dropdown-menu p-2"
+                aria-labelledby="filterBtn"
+              ></ul>
+            </div>
+          </div>
+          <div id="btnContainer" class="d-flex justify-content-between">
+            <button type="button" class="btn btn-primary" id="showHeadersBtn">
+              Create Reports
             </button>
-            <ul
-              id="ulDropDown"
-              class="dropdown-menu p-2"
-              aria-labelledby="filterBtn"
-            ></ul>
           </div>
         </div>
       </section>

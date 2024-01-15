@@ -10,7 +10,12 @@ function displayData(localDataArray, elementPages) {
   section.innerHTML = "";
 
   const container = document.createElement("div");
-  container.classList.add("container", "table-responsive", "bg-secondary", "p-2");
+  container.classList.add(
+    "container",
+    "table-responsive",
+    "bg-secondary",
+    "p-2"
+  );
 
   const filterDropdown = document.getElementById("ulDropDown");
 
@@ -55,7 +60,7 @@ function displayData(localDataArray, elementPages) {
     "table-sm",
     "table-bordered",
     "table-hover",
-    "text-nowrap",
+    "text-nowrap"
   );
 
   const thead = document.createElement("thead");
