@@ -21,7 +21,7 @@ function handleFileInputChange() {
     "d-flex",
     "justify-content-center",
     "align-items-center",
-    "p-3"
+    "p-3",
   );
   loadingMessage.innerHTML = `Loading<div class="spinner-border m-2" role="status">
     <span class="visually-hidden">Loading...</span>
@@ -30,17 +30,15 @@ function handleFileInputChange() {
   if (fileInput.files.length === 0) {
     return;
   }
-  console.log("Before reading file: " + loadingMessage.innerHTML);
 
   readFileExcel(fileInput)
     .then((content) => {
-      console.log("Reading file: " + loadingMessage.innerHTML);
       const sheetNames = parseExcelFile(content);
       populateSheetDropDown(sheetNames);
       sheetLoaderContainer.classList.add(
         "d-flex",
         "justify-content-start",
-        "gap-4"
+        "gap-4",
       );
       inputContainer.classList.remove("input-group");
       inputContainer.style.display = "none";
@@ -94,7 +92,7 @@ function resetContent() {
   sheetLoaderContainer.classList.remove(
     "d-flex",
     "justify-content-start",
-    "gap-4"
+    "gap-4",
   );
   //loadingMessage.textContent = "";
   inputContainer.classList.add("input-group");
@@ -103,7 +101,7 @@ function resetContent() {
   sheetLoaderContainer.classList.remove(
     "d-flex",
     "justify-content-start",
-    "gap-4"
+    "gap-4",
   );
   document.getElementById("dataSection").innerHTML = "";
   fileInput.value = "";
