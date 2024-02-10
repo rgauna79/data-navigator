@@ -1,0 +1,11 @@
+import React, { useState } from "react";
+
+function ErrorPage() {
+  return (
+    <div>
+      <h1>Error Reader Page</h1>
+    </div>
+  );
+}
+
+export default ErrorPage;
