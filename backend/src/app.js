@@ -7,7 +7,7 @@ import UserRoutes from "./routes/user.routes.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
-const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+const frontendUrl = process.env.FRONTEND_URL || "https://93wx6l-5173.csb.app";
 
 console.log(frontendUrl);
 

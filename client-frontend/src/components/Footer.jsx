@@ -6,7 +6,7 @@ function Footer() {
 
   return (
     <footer
-      className="sticky bottom-0 text-center py-3 bg-gray-800 text-white w-full"
+      className="bottom-0 text-center py-3 bg-gray-800 text-white w-full"
       id="footerContainer"
     >
       <p id="footerText">

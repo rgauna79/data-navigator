@@ -22,7 +22,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/filereader" element={<FileReaderPage />} />
 
-          {/* <Route path="*" element={<ErrorPage />} /> */}
+          <Route path="*" element={<ErrorPage />} />
         </Routes>
         <Footer />
       </AuthProvider>
