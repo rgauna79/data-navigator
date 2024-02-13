@@ -57,7 +57,7 @@ function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-500">
+    <div className="flex-1 flex justify-center items-center bg-gray-500">
       <div className="max-w-md w-full bg-gray-800 p-8 rounded-lg shadow-lg">
         <h1 className="text-3xl font-bold mb-4 text-white">Profile</h1>
         {successMessage && (
