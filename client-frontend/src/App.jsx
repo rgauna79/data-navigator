@@ -9,6 +9,8 @@ import NavigationBar from "./components/NavigationBar.jsx";
 import FileReaderPage from "./pages/FileReaderPage.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
 import Footer from "./components/Footer.jsx";
+import ChartPage from "./pages/ChartPage.jsx";
+import Modal from "./components/Modal.jsx";
 
 function App() {
   return (
@@ -21,7 +23,8 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/filereader" element={<FileReaderPage />} />
-
+          <Route path="/charts" element={<ChartPage />} />
+          <Route path="/filereader/modal" element={<Modal />} />
           <Route path="*" element={<ErrorPage />} />
         </Routes>
         <Footer />

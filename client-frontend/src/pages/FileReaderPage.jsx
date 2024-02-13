@@ -12,6 +12,7 @@ import SheetSelect from "../components/TableXLXS/SheetSelect.jsx";
 import SearchBar from "../components/TableXLXS/SearchBar.jsx";
 import TableComponent from "../components/TableXLXS/Table.jsx";
 import PaginationComponent from "../components/TableXLXS/Pagination.jsx";
+import Modal from "../components/Modal.jsx";
 
 function FileExcelReader() {
   // State variables
@@ -20,6 +21,7 @@ function FileExcelReader() {
   const [workbook, setWorkbook] = useState(null);
   const [filterInput, setFilterInput] = useState("");
   const [selectedColumn, setSelectedColumn] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
   // Effect to update fileData when workbook or selectedSheet is changed
   useEffect(() => {
@@ -138,6 +140,15 @@ function FileExcelReader() {
     setSelectedColumn(e.target.value);
   };
 
+  // function to handle modal
+  const handleOpenModal = () => {
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+  };
+
   // Render component
   return (
     <div className="flex-1 flex-col justify-center items-center bg-gray-500 p-4">
@@ -164,6 +175,17 @@ function FileExcelReader() {
           selectedColumn={selectedColumn}
           handleColumnSelectChange={handleColumnSelectChange}
         />
+      )}
+      <button
+        id="openModalButton"
+        className="bg-blue-500 text-white p-2 rounded mt-4"
+        onClick={handleOpenModal}
+      >
+        Generate Report
+      </button>
+
+      {showModal && (
+        <Modal handleClose={handleCloseModal} columns={columns} data={data} />
       )}
       <section id="dataSection" className="mt-4 w-full">
         <div className="max-w-full overflow-x-auto">
