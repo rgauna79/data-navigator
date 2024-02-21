@@ -19,12 +19,20 @@ function NavigationBar() {
             Home
           </Link>
         </li>
-        {isLoggedIn && (
-          <li>
+        <li>
             <Link to="/filereader" className="text-white hover:text-gray-300">
               File Reader
             </Link>
           </li>
+        {isLoggedIn && (
+          <>
+          
+          <li>
+          <Link to="/savedfiles" className="text-white mx-3 hover:text-gray-300">
+              Saved Files
+            </Link>
+          </li>
+          </>
         )}
         <li className="ml-auto">
           {isLoggedIn ? (

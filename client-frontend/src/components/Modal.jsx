@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-function Modal({ handleClose, columns, data }) {
+function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [selectedOptions, setSelectedOptions] = useState({});
   const [typeReport, setTypeReport] = useState("");
@@ -33,11 +33,11 @@ function Modal({ handleClose, columns, data }) {
     if (selectedColumns.length > 0) {
       // if there are selected columns and options are selected navigate to charts
       navigate("/charts", {
-        state: { type: "statistics", selectedColumns, selectedOptions, data },
+        state: { type: "statistics", selectedColumns, selectedOptions, data, workbook, selectedSheet },
       });
     } else if (typeReport === "mostRepeated") {
       navigate("/charts", {
-        state: { type: "mostRepeated", selectedOptions, data },
+        state: { type: "mostRepeated", selectedOptions, data, workbook, selectedSheet },
       });
     }
     handleClose();
