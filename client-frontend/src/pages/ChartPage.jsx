@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate  } from "react-router-dom";
+
 
 function ChartPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     type,
     selectedColumns: initialSelectedColumns,
     selectedOptions: initialSelectedOptions,
+    workbook: initialWorkbook,
+    selectedSheet : initialSelectedSheet,
     data: initialData,
   } = location.state || {};
 
@@ -16,9 +20,19 @@ function ChartPage() {
   const [selectedOptions, setSelectedOptions] = useState(
     initialSelectedOptions || {},
   );
+  const [workbook, setworkbook] = useState(
+    initialWorkbook || [],
+  );
+  const [selectedSheet, setselectedSheet] = useState(
+    initialSelectedSheet || {},
+  );
   const [data, setData] = useState(initialData || []);
 
+   
+
+    
   useEffect(() => {
+    
     if (type === "statistics") {
       const filteredData = data.filter((row) => {
         return Object.entries(selectedOptions).every(([key, value]) => {
@@ -102,13 +116,14 @@ function ChartPage() {
           </div>
         )}
       </div>
-      <Link
-        to="/filereader"
+       <Link
+        to={(workbook != "") ? "/filereader" : "/savedfiles"}
         className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-2"
-        state={{ selectedColumns, selectedOptions, data }}
+        state={{ selectedColumns, selectedOptions, data, workbook, selectedSheet }}
       >
         Back
-      </Link>
+      </Link> 
+      
     </div>
   );
 }

@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { useDataContext } from "../context/DataContext.jsx";
+import { useAuth } from "../context/AuthContext";
 import {
   useGlobalFilter,
   useFilters,
@@ -16,15 +18,24 @@ import Modal from "../components/Modal.jsx";
 
 function FileExcelReader() {
   // State variables
+  const { handleSaveData: handleSaveDataContext } = useDataContext();
   const [fileData, setFileData] = useState(null);
   const [selectedSheet, setSelectedSheet] = useState("");
-  const [workbook, setWorkbook] = useState(null);
+  const [workbook, setWorkbook] = useState("");
   const [filterInput, setFilterInput] = useState("");
   const [selectedColumn, setSelectedColumn] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const { isLoggedIn } = useAuth();
 
+
+  useEffect(() => {
+    const { usr } = window.history.state || {};
+    if (usr && usr.selectedSheet) setSelectedSheet(usr.selectedSheet);
+    if (usr && usr.workbook) setWorkbook(usr.workbook);
+  }, []);
   // Effect to update fileData when workbook or selectedSheet is changed
   useEffect(() => {
+    
     if (workbook && selectedSheet) {
       const sheet = workbook.Sheets[selectedSheet];
       const json = XLSX.utils.sheet_to_json(sheet, { raw: false, header: 1 });
@@ -33,7 +44,7 @@ function FileExcelReader() {
     }
   }, [workbook, selectedSheet]);
 
-  // Function to
+  // Function to handle file upload
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) {
@@ -94,6 +105,7 @@ function FileExcelReader() {
   }, [fileData]);
 
   // Table instance
+
   const tableInstance = useTable(
     { columns, data, initialState: { pageSize: 15 } },
     useFilters,
@@ -149,6 +161,17 @@ function FileExcelReader() {
     setShowModal(false);
   };
 
+  const handleSaveData = () => {
+    {
+      const dataToSave = {
+        sheetName: selectedSheet,
+        data: fileData,
+      };
+
+      console.log("Data to save:", dataToSave);
+      handleSaveDataContext(dataToSave);
+    }
+  };
   // Render component
   return (
     <div className="flex-1 flex-col justify-center items-center bg-gray-500 p-4">
@@ -168,6 +191,7 @@ function FileExcelReader() {
         />
       </section>
       {fileData && (
+        <>
         <SearchBar
           filterInput={filterInput}
           handleFilterChange={handleFilterChange}
@@ -175,17 +199,33 @@ function FileExcelReader() {
           selectedColumn={selectedColumn}
           handleColumnSelectChange={handleColumnSelectChange}
         />
-      )}
-      <button
-        id="openModalButton"
-        className="bg-blue-500 text-white p-2 rounded mt-4"
-        onClick={handleOpenModal}
-      >
-        Generate Report
-      </button>
-
-      {showModal && (
-        <Modal handleClose={handleCloseModal} columns={columns} data={data} />
+      <section id="buttonSection" className="flex justify-between mt-2 w-full">
+        <button
+          id="openModalButton"
+          className="bg-blue-500 text-white p-2 rounded mt-4"
+          onClick={handleOpenModal}
+        >
+          Generate Report
+        </button>
+        {isLoggedIn && (<button
+          id="saveDataButton"
+          className="bg-blue-500 text-white p-2 rounded mt-4"
+          onClick={handleSaveData}
+        >
+          Save Data
+        </button>
+        )}
+        {showModal && (
+          <Modal
+            handleClose={handleCloseModal}
+            columns={columns}
+            data={data}
+            workbook={workbook}
+            selectedSheet={selectedSheet}
+          />
+        )}
+      </section>
+      </>
       )}
       <section id="dataSection" className="mt-4 w-full">
         <div className="max-w-full overflow-x-auto">
