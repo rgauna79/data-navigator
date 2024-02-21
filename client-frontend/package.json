@@ -8,9 +8,9 @@
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "install-client": "cd client && npm install",
-    "build-client": "cd client && npm run build",
-    "start-client": "cd client && npm run dev"
+    "install-client": "npm install",
+    "build-client": "npm run build",
+    "start-client": "npm run dev"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.11.8",
