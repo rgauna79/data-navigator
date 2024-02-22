@@ -44,7 +44,7 @@ if (process.env.NODE_ENV === "production") {
 
   app.get("*", (req, res) => {
     console.log(path.resolve(__dirname, "../client-frontend/dist"));
-    res.sendFile(path.resolvepath.resolve(__dirname, "../client-frontend/dist"));
+    res.sendFile(path.resolve(__dirname, "../client-frontend/dist"));
   });
 }
 
