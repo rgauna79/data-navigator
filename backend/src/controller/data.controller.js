@@ -1,17 +1,19 @@
 import DataModel from "../models/data.models.js";
 
 export const saveData = async (req, res) => {
-  const { sheetName, data } = req.body;
+  const { sheetName, fileData } = req.body;
+
   try {
+
     const existingData = await DataModel.findOne({ sheetName });
 
     if (existingData) {
-      existingData.fileData = data;
+      existingData.fileData = fileData;
       await existingData.save();
       return res.status(200).json({ message: "Data updated successfully" });
     } else {
-      const saveData = await DataModel.create({ sheetName, data });
 
+      const saveData = await DataModel.create({ sheetName, fileData });
       await saveData.save();
       return res.status(200).json({ message: "Data saved successfully" });
     }
