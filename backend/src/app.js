@@ -7,9 +7,15 @@ import UserRoutes from "./routes/user.routes.js";
 import DataRoutes from "./routes/data.routes.js";
 import cookieParser from "cookie-parser";
 import path from "path";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
 
 const app = express();
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 console.log(frontendUrl);
 
@@ -37,8 +43,8 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.resolve(__dirname, "../client-frontend/dist")));
 
   app.get("*", (req, res) => {
-    console.log(path.resolve(__dirname, "../client-frontend/dist/index.html"));
-    res.sendFile(path.resolve(__dirname, "../client-frontend/dist/index.html"));
+    console.log(path.resolve(__dirname, "../client-frontend/dist"));
+    res.sendFile(path.resolvepath.resolve(__dirname, "../client-frontend/dist"));
   });
 }
 
