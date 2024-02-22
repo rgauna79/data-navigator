@@ -1,12 +1,16 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner } from '@fortawesome/free-solid-svg-icons';
+
 
 function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -17,6 +21,7 @@ function LoginPage() {
   };
 
   const handleSubmit = async (e) => {
+    setIsLoading(true);
     e.preventDefault();
     try {
       await login(formData);
@@ -25,6 +30,7 @@ function LoginPage() {
     } catch (error) {
       setError("Invalid email or password");
     }
+    setIsLoading(false);
   };
 
   return (
@@ -65,7 +71,14 @@ function LoginPage() {
             type="submit"
             className="bg-blue-500 text-white px-4 py-2 rounded"
           >
-            Login
+            {isLoading ? (
+              <>
+              <FontAwesomeIcon icon={faSpinner} spin />
+              <span className="ml-2">Loading</span>
+              </>
+            ) : (
+              "Login"
+            )}
           </button>
         </form>
         <p className="mt-4 text-white">

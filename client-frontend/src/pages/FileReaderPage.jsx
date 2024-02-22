@@ -174,7 +174,7 @@ function FileExcelReader() {
   };
   // Render component
   return (
-    <div className="flex-1 flex-col justify-center items-center bg-gray-500 p-4">
+    <div className="flex-1 flex-col justify-center items-center bg-gray-500 p-4 text-black">
       <header id="headerContainer" className="text-center text-white mb-4">
         <h1>EXCEL READER</h1>
       </header>
