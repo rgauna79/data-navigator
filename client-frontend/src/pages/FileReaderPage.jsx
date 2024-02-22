@@ -165,7 +165,7 @@ function FileExcelReader() {
     {
       const dataToSave = {
         sheetName: selectedSheet,
-        data: fileData,
+        fileData: fileData,
       };
 
       console.log("Data to save:", dataToSave);
