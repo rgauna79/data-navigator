@@ -7,8 +7,7 @@ import UserRoutes from "./routes/user.routes.js";
 import DataRoutes from "./routes/data.routes.js";
 import cookieParser from "cookie-parser";
 import path from "path";
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+
 
 
 const app = express();
@@ -40,12 +39,11 @@ app.use("/api/data", DataRoutes);
 
 
 if (process.env.NODE_ENV === "production") {
-  const staticPath = path.resolve(__dirname, "../../client-frontend/dist");
-  app.use(express.static(staticPath));
+  app.use(express.static(path.resolve("client-frontend", "dist")));
 
   app.get("*", (req, res) => {
-    console.log(path.resolve(staticPath, "index.html"));
-    res.sendFile(path.resolve(staticPath, "index.html"));
+    console.log(path.resolve("client-frontend", "dist", "index.html"));
+    res.sendFile(path.resolve("client-frontend", "dist", "index.html"));
   });
 }
 
