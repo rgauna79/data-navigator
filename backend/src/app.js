@@ -6,6 +6,7 @@ import AuthRoutes from "./routes/auth.routes.js";
 import UserRoutes from "./routes/user.routes.js";
 import DataRoutes from "./routes/data.routes.js";
 import cookieParser from "cookie-parser";
+import path from "path";
 
 const app = express();
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
@@ -30,6 +31,16 @@ app.use("/api/users", UserRoutes);
 
 // Data management routes
 app.use("/api/data", DataRoutes);
+
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.resolve("client", "dist")));
+
+  app.get("*", (req, res) => {
+    console.log(path.resolve("client", "dist", "index.html"));
+    res.sendFile(path.resolve("client", "dist", "index.html"));
+  });
+}
 
 app.get("/", (req, res) => {
   res.send("API is running!");
