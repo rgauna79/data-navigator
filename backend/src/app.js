@@ -40,11 +40,12 @@ app.use("/api/data", DataRoutes);
 
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.resolve(__dirname, "../client-frontend/dist")));
+  const staticPath = path.resolve(__dirname, "../client-frontend/dist");
+  app.use(express.static(staticPath));
 
   app.get("*", (req, res) => {
-    console.log(path.resolve(__dirname, "../client-frontend/dist"));
-    res.sendFile(path.resolve(__dirname, "../client-frontend/dist"));
+    console.log(path.resolve(staticPath, "index.html"));
+    res.sendFile(path.resolve(staticPath, "index.html"));
   });
 }
 
