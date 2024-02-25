@@ -18,6 +18,16 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+div{
+  color:black;
+}
+
+input, select {
+  background-color: white;
+}
+
+
+
 label,
 h1 {
   color: white;

@@ -13,7 +13,6 @@ import ChartPage from "./pages/ChartPage.jsx";
 import Modal from "./components/Modal.jsx";
 import DbSheetPage from "./pages/DbSheetPage.jsx";
 import { DataProvider } from "./context/DataContext";
-
 function App() {
   return (
     <BrowserRouter>
