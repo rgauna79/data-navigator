@@ -27,7 +27,6 @@ function FileExcelReader() {
   const [showModal, setShowModal] = useState(false);
   const { isLoggedIn } = useAuth();
 
-
   useEffect(() => {
     const { usr } = window.history.state || {};
     if (usr && usr.selectedSheet) setSelectedSheet(usr.selectedSheet);
@@ -35,7 +34,6 @@ function FileExcelReader() {
   }, []);
   // Effect to update fileData when workbook or selectedSheet is changed
   useEffect(() => {
-    
     if (workbook && selectedSheet) {
       const sheet = workbook.Sheets[selectedSheet];
       const json = XLSX.utils.sheet_to_json(sheet, { raw: false, header: 1 });
@@ -174,13 +172,16 @@ function FileExcelReader() {
   };
   // Render component
   return (
-    <div className="flex-1 flex-col justify-center items-center bg-gray-500 p-4 text-black">
+    <div
+      className="flex-1 flex flex-col justify-center items-center bg-gray-500 p-4 text-black 
+      mx-4 py-4"
+    >
       <header id="headerContainer" className="text-center text-white mb-4">
         <h1>EXCEL READER</h1>
       </header>
       <section
         id="searchBox"
-        className="border border-white p-4 rounded w-full bg-white"
+        className="border border-white p-4 rounded lg:w-1/2 sm:w-full md:w-full  bg-white text-black"
       >
         <FileInputComponent handleFileChange={handleFileChange} />
         <SheetSelect
@@ -192,40 +193,44 @@ function FileExcelReader() {
       </section>
       {fileData && (
         <>
-        <SearchBar
-          filterInput={filterInput}
-          handleFilterChange={handleFilterChange}
-          columns={columns}
-          selectedColumn={selectedColumn}
-          handleColumnSelectChange={handleColumnSelectChange}
-        />
-      <section id="buttonSection" className="flex justify-between mt-2 w-full">
-        <button
-          id="openModalButton"
-          className="bg-blue-500 text-white p-2 rounded mt-4"
-          onClick={handleOpenModal}
-        >
-          Generate Report
-        </button>
-        {isLoggedIn && (<button
-          id="saveDataButton"
-          className="bg-blue-500 text-white p-2 rounded mt-4"
-          onClick={handleSaveData}
-        >
-          Save Data
-        </button>
-        )}
-        {showModal && (
-          <Modal
-            handleClose={handleCloseModal}
+          <SearchBar
+            filterInput={filterInput}
+            handleFilterChange={handleFilterChange}
             columns={columns}
-            data={data}
-            workbook={workbook}
-            selectedSheet={selectedSheet}
+            selectedColumn={selectedColumn}
+            handleColumnSelectChange={handleColumnSelectChange}
           />
-        )}
-      </section>
-      </>
+          <section
+            id="buttonSection"
+            className="flex justify-between mt-2 w-full"
+          >
+            <button
+              id="openModalButton"
+              className="bg-blue-500 text-white p-2 rounded mt-4"
+              onClick={handleOpenModal}
+            >
+              Generate Report
+            </button>
+            {isLoggedIn && (
+              <button
+                id="saveDataButton"
+                className="bg-blue-500 text-white p-2 rounded mt-4"
+                onClick={handleSaveData}
+              >
+                Save Data
+              </button>
+            )}
+            {showModal && (
+              <Modal
+                handleClose={handleCloseModal}
+                columns={columns}
+                data={data}
+                workbook={workbook}
+                selectedSheet={selectedSheet}
+              />
+            )}
+          </section>
+        </>
       )}
       <section id="dataSection" className="mt-4 w-full">
         <div className="max-w-full overflow-x-auto">
