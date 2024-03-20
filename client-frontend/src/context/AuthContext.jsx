@@ -7,6 +7,7 @@ import {
   logoutRequest,
 } from "../api/auth.js";
 import { useCookies } from "react-cookie";
+import Cookies from "js-cookie";
 
 const AuthContext = createContext();
 
@@ -24,7 +25,8 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [errors, setError] = useState(null);
   const [cookies, setCookie, removeCookie] = useCookies(["authToken"]);
-
+  // Cookies.set("authToken", cookies.authToken);
+  const isProduction = import.meta.env.NODE_ENV === "production";
   const signup = async (user) => {
     try {
       const response = await registerRequest(user);
@@ -46,9 +48,14 @@ export const AuthProvider = ({ children }) => {
       const response = await loginRequest(user);
       setIsLoggedIn(true);
       setUser(response.data);
-      setCookie("authToken", response.data.token, {
+      Cookies.set("authToken", response.data.token, {
         path: "/",
-      });
+        httponly: isProduction,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+      }); // setCookie("authToken", response.data.token, {
+      //   path: "/",
+      // });
     } catch (error) {
       if (error.response.data.message) {
         setError(error.response.data.message);
@@ -67,9 +74,10 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     async function checkLogin() {
-      const cookie = cookies.authToken;
-
+      // const cookie = cookies.authToken;
+      const cookie = Cookies.get("authToken");
       if (!cookie) {
+        alert("no cookie");
         setIsLoggedIn(false);
         setIsLoading(false);
         return setUser(null);
@@ -85,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       }
     }
     checkLogin();
-  }, [cookies.authToken]);
+  }, [Cookies]);
 
   const value = {
     user,
