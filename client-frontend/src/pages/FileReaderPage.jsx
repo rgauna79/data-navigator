@@ -15,6 +15,8 @@ import SearchBar from "../components/TableXLXS/SearchBar.jsx";
 import TableComponent from "../components/TableXLXS/Table.jsx";
 import PaginationComponent from "../components/TableXLXS/Pagination.jsx";
 import Modal from "../components/Modal.jsx";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 
 function FileExcelReader() {
   // State variables
@@ -26,11 +28,15 @@ function FileExcelReader() {
   const [selectedColumn, setSelectedColumn] = useState("");
   const [showModal, setShowModal] = useState(false);
   const { isLoggedIn } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const { usr } = window.history.state || {};
     if (usr && usr.selectedSheet) setSelectedSheet(usr.selectedSheet);
     if (usr && usr.workbook) setWorkbook(usr.workbook);
+
+    // set isLoading to false when fileInput is empty
+    if (!usr) setIsLoading(false);
   }, []);
   // Effect to update fileData when workbook or selectedSheet is changed
   useEffect(() => {
@@ -43,9 +49,13 @@ function FileExcelReader() {
   }, [workbook, selectedSheet]);
 
   // Function to handle file upload
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
     const file = e.target.files[0];
     if (!file) {
+      setIsLoading(false);
       return;
     }
     if (!file.name.endsWith(".xlsx")) {
@@ -55,6 +65,7 @@ function FileExcelReader() {
     const reader = new FileReader();
 
     reader.onload = async (e) => {
+      e.preventDefault();
       try {
         const wb = XLSX.read(e.target.result, { type: "binary" });
         setWorkbook(wb);
@@ -68,7 +79,9 @@ function FileExcelReader() {
         setFileData(json);
       } catch (error) {
         console.error("Error while reading file:", error);
+        setIsLoading(false);
       }
+      setIsLoading(false);
     };
     reader.readAsBinaryString(file);
   };
@@ -159,15 +172,22 @@ function FileExcelReader() {
     setShowModal(false);
   };
 
-  const handleSaveData = () => {
+  const handleSaveData = async (e) => {
     {
-      const dataToSave = {
-        sheetName: selectedSheet,
-        fileData: fileData,
-      };
+      e.preventDefault();
+      setIsLoading(true);
+      try {
+        const dataToSave = {
+          sheetName: selectedSheet,
+          fileData: fileData,
+        };
 
-      console.log("Data to save:", dataToSave);
-      handleSaveDataContext(dataToSave);
+        handleSaveDataContext(dataToSave);
+        alert(dataToSave.sheetName + " Saved successfully in database");
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error:", error);
+      }
     }
   };
   // Render component
@@ -184,12 +204,20 @@ function FileExcelReader() {
         className="border border-white p-4 rounded lg:w-1/2 sm:w-full md:w-full  bg-white text-black"
       >
         <FileInputComponent handleFileChange={handleFileChange} />
-        <SheetSelect
-          fileData={fileData}
-          workbook={workbook}
-          selectedSheet={selectedSheet}
-          handleSheetChange={handleSheetChange}
-        />
+        {isLoading && (
+          <div className="flex items-center mt-4 justify-center">
+            <FontAwesomeIcon icon={faSpinner} spin />
+            <span className="ml-2">Loading</span>
+          </div>
+        )}
+        {fileData && (
+          <SheetSelect
+            fileData={fileData}
+            workbook={workbook}
+            selectedSheet={selectedSheet}
+            handleSheetChange={handleSheetChange}
+          />
+        )}
       </section>
       {fileData && (
         <>
@@ -206,7 +234,7 @@ function FileExcelReader() {
           >
             <button
               id="openModalButton"
-              className="bg-blue-500 text-white p-2 rounded mt-4"
+              className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded mt-4 "
               onClick={handleOpenModal}
             >
               Generate Report
@@ -214,10 +242,17 @@ function FileExcelReader() {
             {isLoggedIn && (
               <button
                 id="saveDataButton"
-                className="bg-blue-500 text-white p-2 rounded mt-4"
+                className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded mt-4"
                 onClick={handleSaveData}
               >
-                Save Data
+                {isLoading ? (
+                  <>
+                    <FontAwesomeIcon icon={faSpinner} spin />
+                    <span className="ml-2">Saving</span>
+                  </>
+                ) : (
+                  "Save Data"
+                )}
               </button>
             )}
             {showModal && (
