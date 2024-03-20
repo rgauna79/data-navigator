@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "install-client": "npm install --production=false",
+    "install-client": "npm install",
     "build-client": "npm run build",
     "start-client": "npm run dev"
   },
