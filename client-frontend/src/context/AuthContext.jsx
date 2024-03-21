@@ -53,8 +53,8 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data);
       Cookies.set("authToken", response.data.token, {
         path: "/",
-        httponly: isProduction,
-        secure: isProduction,
+        HttpOnly: isProduction,
+        Secure: isProduction,
         sameSite: isProduction ? "none" : "lax",
       }); // setCookie("authToken", response.data.token, {
       //   path: "/",
