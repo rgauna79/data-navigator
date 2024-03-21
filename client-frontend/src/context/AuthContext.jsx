@@ -26,7 +26,8 @@ export const AuthProvider = ({ children }) => {
   const [errors, setError] = useState(null);
   const [cookies, setCookie, removeCookie] = useCookies(["authToken"]);
   // Cookies.set("authToken", cookies.authToken);
-  const isProduction = import.meta.env.NODE_ENV === "production";
+  const isProduction = import.meta.env.MODE_DEV === "production";
+  console.log("isProduction", isProduction);
   const signup = async (user) => {
     try {
       const response = await registerRequest(user);
