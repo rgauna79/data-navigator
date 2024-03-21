@@ -29,7 +29,6 @@ export const AuthProvider = ({ children }) => {
   // Cookies.set("authToken", cookies.authToken);
   const isProduction = NODE_ENV === "production";
 
-  console.log("isProduction", isProduction);
   const signup = async (user) => {
     try {
       const response = await registerRequest(user);
@@ -79,7 +78,6 @@ export const AuthProvider = ({ children }) => {
       // const cookie = cookies.authToken;
       const cookie = Cookies.get("authToken");
       if (!cookie) {
-        alert("no cookie");
         setIsLoggedIn(false);
         setIsLoading(false);
         return setUser(null);

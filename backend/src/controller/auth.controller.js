@@ -60,7 +60,7 @@ export const login = async (req, res) => {
     const token = await createAccessToken({ _id: userFound._id });
     res.cookie("authToken", token, {
       httpOnly: isProduction,
-      secure: true,
+      secure: isProduction,
       sameSite: "none",
     });
 
@@ -100,7 +100,7 @@ export const verifyToken = async (req, res, next) => {
   try {
     const { authToken } = req.cookies;
     if (!authToken) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "No token provided" });
     }
     jwt.verify(authToken, TOKEN_SECRET, async (err, user) => {
       if (err) {
