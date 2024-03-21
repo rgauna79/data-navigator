@@ -55,7 +55,7 @@ function NavigationBar() {
 
   return (
     <nav className="bg-gray-800 px-4 sm:px-2 lg:px-4 sticky top-0">
-      <div className=" ">
+      <div className="w-full">
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center ">
