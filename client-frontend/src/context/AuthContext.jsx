@@ -8,6 +8,7 @@ import {
 } from "../api/auth.js";
 import { useCookies } from "react-cookie";
 import Cookies from "js-cookie";
+import { NODE_ENV } from "../api/config.js";
 
 const AuthContext = createContext();
 
@@ -26,7 +27,7 @@ export const AuthProvider = ({ children }) => {
   const [errors, setError] = useState(null);
   const [cookies, setCookie, removeCookie] = useCookies(["authToken"]);
   // Cookies.set("authToken", cookies.authToken);
-  const isProduction = import.meta.env.MODE_DEV === "production";
+  const isProduction = NODE_ENV === "production";
   console.log("isProduction", isProduction);
   const signup = async (user) => {
     try {
