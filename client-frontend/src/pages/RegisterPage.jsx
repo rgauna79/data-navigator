@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useForm } from "react-hook-form";
 
-function RegisterPage() {
+export const RegisterPage = () => {
   const {
     register,
     isLoggedIn,
@@ -80,6 +80,6 @@ function RegisterPage() {
       </div>
     </div>
   );
-}
+};
 
 export default RegisterPage;
