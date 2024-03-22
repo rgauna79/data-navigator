@@ -32,7 +32,9 @@ export const register = async (req, res) => {
     //Set cookie with auth token
     const token = await createAccessToken({ _id: userSaved._id });
     res.cookie("authToken", token, {
-      httpOnly: true,
+      // httpOnly: true,
+      Secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
     });
     res.status(201).json({ message: "Registration successful" });
     //res.json(userSaved);
@@ -58,9 +60,10 @@ export const login = async (req, res) => {
     }
     //Set cookie with auth token
     const token = await createAccessToken({ _id: userFound._id });
+    console.log(isProduction);
     res.cookie("authToken", token, {
-      httpOnly: isProduction,
-      secure: isProduction,
+      // httpOnly: isProduction,
+      secure: true,
       sameSite: "none",
     });
 
@@ -102,6 +105,7 @@ export const verifyToken = async (req, res, next) => {
     if (!authToken) {
       return res.status(401).json({ message: "No token provided" });
     }
+
     jwt.verify(authToken, TOKEN_SECRET, async (err, user) => {
       if (err) {
         return res.status(401).json({ message: "Unauthorized" });
