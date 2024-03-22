@@ -75,6 +75,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     async function checkLogin() {
+      console.log("checkLogin");
       // const cookie = cookies.authToken;
       const cookie = Cookies.get("authToken");
       if (!cookie) {
@@ -93,7 +94,7 @@ export const AuthProvider = ({ children }) => {
       }
     }
     checkLogin();
-  }, [Cookies]);
+  }, []);
 
   const value = {
     user,

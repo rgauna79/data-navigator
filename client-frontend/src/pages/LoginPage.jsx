@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSpinner } from '@fortawesome/free-solid-svg-icons';
-
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -73,8 +72,8 @@ function LoginPage() {
           >
             {isLoading ? (
               <>
-              <FontAwesomeIcon icon={faSpinner} spin />
-              <span className="ml-2">Loading</span>
+                <FontAwesomeIcon icon={faSpinner} spin />
+                <span className="ml-2">Loading</span>
               </>
             ) : (
               "Login"

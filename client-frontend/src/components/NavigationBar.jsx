@@ -59,7 +59,9 @@ function NavigationBar() {
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center ">
-              <img className="h-16 rounded py-1" src={logo} alt="Logo" />
+              <Link to="/">
+                <img className="h-16 rounded py-1" src={logo} alt="Logo" />
+              </Link>
             </div>
             <div className="hidden md:block ml-4 text-right">
               <div className="flex space-x-4">
