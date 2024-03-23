@@ -102,6 +102,7 @@ export const profile = async (req, res) => {
 export const verifyToken = async (req, res, next) => {
   try {
     const { authToken } = req.cookies;
+    console.log("authToken: ", authToken);
     if (!authToken) {
       return res.status(401).json({ message: "No token provided" });
     }

@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errors, setError] = useState(null);
-  const [cookies, setCookie, removeCookie] = useCookies(["authToken"]);
+  // const [cookies, setCookie, removeCookie] = useCookies(["authToken"]);
   // Cookies.set("authToken", cookies.authToken);
   const isProduction = NODE_ENV === "production";
 
@@ -75,15 +75,17 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     async function checkLogin() {
-      console.log("checkLogin");
       // const cookie = cookies.authToken;
-      const cookie = Cookies.get("authToken");
-      if (!cookie) {
-        setIsLoggedIn(false);
-        setIsLoading(false);
-        return setUser(null);
-      }
       try {
+        // console.log("checkLogin");
+        setIsLoading(true);
+        // Check if there's a cookie
+        const cookie = Cookies.get("authToken");
+        if (!cookie) {
+          setIsLoggedIn(false);
+          setIsLoading(false);
+          return setUser(null);
+        }
         const response = await verifyTokenRequest();
         setUser(response.data);
         setIsLoggedIn(true);

@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDataContext } from "../context/DataContext";
 import TableComponent from "../components/TableXLXS/Table.jsx";
-import FileInputComponent from "../components/TableXLXS/FileInput.jsx";
 import SearchBar from "../components/TableXLXS/SearchBar.jsx";
 import PaginationComponent from "../components/TableXLXS/Pagination.jsx";
 import {
-    useGlobalFilter,
-    useFilters,
-    usePagination,
-    useTable,
-    useSortBy,
-  } from "react-table";
-  import Modal from "../components/Modal.jsx";
+  useGlobalFilter,
+  useFilters,
+  usePagination,
+  useTable,
+  useSortBy,
+} from "react-table";
+import Modal from "../components/Modal.jsx";
 
 function DbSheetPage() {
   const { readAllData, dataSaved, isLoading, error } = useDataContext();
@@ -19,7 +18,6 @@ function DbSheetPage() {
   const [selectedColumn, setSelectedColumn] = useState("");
   const [filterInput, setFilterInput] = useState("");
   const [showModal, setShowModal] = useState(false);
-  
 
   useEffect(() => {
     readAllData();
@@ -43,7 +41,7 @@ function DbSheetPage() {
             id: `${col}`,
           }))
         : [],
-    [table]
+    [table],
   );
 
   // Memoized data
@@ -64,7 +62,7 @@ function DbSheetPage() {
     useFilters,
     useGlobalFilter,
     useSortBy,
-    usePagination
+    usePagination,
   );
 
   // Destructuring tableInstance properties
@@ -85,34 +83,34 @@ function DbSheetPage() {
     state: { pageIndex, pageSize },
   } = tableInstance;
 
-    // Effect to set filter
-    useEffect(() => {
-        if (selectedColumn !== "") {
-          setFilter(selectedColumn, filterInput);
-        } else {
-          tableInstance.setGlobalFilter(filterInput);
-        }
-      }, [selectedColumn, filterInput, setFilter]);
-    
-      // function to handle filter change
-      const handleFilterChange = (e) => {
-        const value = e.target.value || "";
-        setFilterInput(value);
-      };
-    
-      // function to handle column select
-      const handleColumnSelectChange = (e) => {
-        setSelectedColumn(e.target.value);
-      };
-    
-      // function to handle modal
-      const handleOpenModal = () => {
-        setShowModal(true);
-      };
-    
-      const handleCloseModal = () => {
-        setShowModal(false);
-      };
+  // Effect to set filter
+  useEffect(() => {
+    if (selectedColumn !== "") {
+      setFilter(selectedColumn, filterInput);
+    } else {
+      tableInstance.setGlobalFilter(filterInput);
+    }
+  }, [selectedColumn, filterInput, setFilter]);
+
+  // function to handle filter change
+  const handleFilterChange = (e) => {
+    const value = e.target.value || "";
+    setFilterInput(value);
+  };
+
+  // function to handle column select
+  const handleColumnSelectChange = (e) => {
+    setSelectedColumn(e.target.value);
+  };
+
+  // function to handle modal
+  const handleOpenModal = () => {
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+  };
 
   return (
     <div className="flex-1 flex justify-center items-center bg-gray-500 flex-col mx-4 py-4">
@@ -123,10 +121,11 @@ function DbSheetPage() {
         {dataSaved && (
           <div className="mt-2">
             {dataSaved.data.map((item, index) => (
-              <div className="flex justify-between border items-center" key={index}>
-                <p className="px-4">
-                  {item.sheetName}
-                </p>
+              <div
+                className="flex justify-between border items-center"
+                key={index}
+              >
+                <p className="px-4">{item.sheetName}</p>
                 <button
                   className="bg-blue-500 text-white p-2 rounded"
                   onClick={() => handleViewTable(index)}
@@ -141,9 +140,7 @@ function DbSheetPage() {
       <section
         id="searchBox"
         className="border border-white p-4 rounded w-full bg-white"
-      >
-        
-      </section>
+      ></section>
       {table && (
         <SearchBar
           filterInput={filterInput}
@@ -154,33 +151,29 @@ function DbSheetPage() {
         />
       )}
       <section id="buttonSection" className="flex justify-between  w-full">
-        
-
         {showModal && (
-          <Modal
-            handleClose={handleCloseModal}
-            columns={columns}
-            data={data}
-            
-           
-          />
+          <Modal handleClose={handleCloseModal} columns={columns} data={data} />
         )}
       </section>
       <section id="dataSection" className="mt-4 w-full">
         <div className="max-w-full overflow-x-auto">
           {table && (
             <>
-            <div className="flex w-full justify-between mt-2 mb-2">
-            <button
-          id="openModalButton"
-          className="bg-blue-500 text-white p-2 rounded "
-          onClick={handleOpenModal}
-        >
-          Generate Report
-        </button>
-            <button className="bg-blue-500 text-white p-2 rounded "
-                onClick={handleCloseTable}>Close</button>
-                </div>
+              <div className="flex w-full justify-between mt-2 mb-2">
+                <button
+                  id="openModalButton"
+                  className="bg-blue-500 text-white p-2 rounded "
+                  onClick={handleOpenModal}
+                >
+                  Generate Report
+                </button>
+                <button
+                  className="bg-blue-500 text-white p-2 rounded "
+                  onClick={handleCloseTable}
+                >
+                  Close
+                </button>
+              </div>
               <TableComponent
                 getTableProps={getTableProps}
                 getTableBodyProps={getTableBodyProps}
