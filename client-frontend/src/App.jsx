@@ -29,7 +29,7 @@ function App() {
             <Route element={<PrivateRoute />}>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/fileReader" element={<FileReaderPage />} />
-              <Route path="/chart" element={<ChartPage />} />
+              <Route path="/charts" element={<ChartPage />} />
               <Route path="/savedfiles" element={<DbSheetPage />} />
             </Route>
           </Routes>
