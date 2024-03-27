@@ -6,9 +6,7 @@ import {
   verifyTokenRequest,
   logoutRequest,
 } from "../api/auth.js";
-import { useCookies } from "react-cookie";
 import Cookies from "js-cookie";
-import { NODE_ENV } from "../api/config.js";
 
 const AuthContext = createContext();
 
@@ -25,9 +23,16 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errors, setError] = useState(null);
-  // const [cookies, setCookie, removeCookie] = useCookies(["authToken"]);
-  // Cookies.set("authToken", cookies.authToken);
-  const isProduction = NODE_ENV === "production";
+
+  //Clear errors after 5 seconds
+  useEffect(() => {
+    if (errors) {
+      const timer = setTimeout(() => {
+        setError([]);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [errors]);
 
   const signup = async (user) => {
     try {
@@ -50,13 +55,6 @@ export const AuthProvider = ({ children }) => {
       const response = await loginRequest(user);
       setIsLoggedIn(true);
       setUser(response.data);
-      Cookies.set("authToken", response.data.token, {
-        path: "/",
-        Secure: isProduction,
-        sameSite: isProduction ? "none" : "lax",
-      }); // setCookie("authToken", response.data.token, {
-      //   path: "/",
-      // });
     } catch (error) {
       if (error.response.data.message) {
         setError(error.response.data.message);
@@ -69,24 +67,25 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     setIsLoggedIn(false);
     setUser(null);
-    removeCookie("authToken");
+    Cookies.remove("authToken");
     await logoutRequest();
   };
 
   useEffect(() => {
     async function checkLogin() {
-      // const cookie = cookies.authToken;
+      setIsLoading(true);
+      // Check if there's a cookie
+      const cookie = Cookies.get();
+      if (!cookie) {
+        setIsLoggedIn(false);
+        setIsLoading(false);
+        return setUser(null);
+      }
       try {
-        // console.log("checkLogin");
-        setIsLoading(true);
-        // Check if there's a cookie
-        const cookie = Cookies.get("authToken");
-        if (!cookie) {
-          setIsLoggedIn(false);
-          setIsLoading(false);
-          return setUser(null);
+        const response = await verifyTokenRequest(cookie.authToken);
+        if (!response.data) {
+          return setIsLoggedIn(false);
         }
-        const response = await verifyTokenRequest();
         setUser(response.data);
         setIsLoggedIn(true);
         setIsLoading(false);

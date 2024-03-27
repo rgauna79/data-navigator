@@ -25,10 +25,10 @@ function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="*" element={<ErrorPage />} />
+            <Route path="/fileReader" element={<FileReaderPage />} />
 
             <Route element={<PrivateRoute />}>
               <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/fileReader" element={<FileReaderPage />} />
               <Route path="/charts" element={<ChartPage />} />
               <Route path="/savedfiles" element={<DbSheetPage />} />
             </Route>

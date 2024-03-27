@@ -32,9 +32,9 @@ export const register = async (req, res) => {
     //Set cookie with auth token
     const token = await createAccessToken({ _id: userSaved._id });
     res.cookie("authToken", token, {
-      // httpOnly: true,
-      Secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
+      httpOnly: isProduction,
+      secure: true,
+      sameSite: "none",
     });
     res.status(201).json({ message: "Registration successful" });
     //res.json(userSaved);
@@ -60,9 +60,8 @@ export const login = async (req, res) => {
     }
     //Set cookie with auth token
     const token = await createAccessToken({ _id: userFound._id });
-    console.log(isProduction);
     res.cookie("authToken", token, {
-      // httpOnly: isProduction,
+      httpOnly: isProduction,
       secure: true,
       sameSite: "none",
     });
@@ -71,7 +70,6 @@ export const login = async (req, res) => {
       id: userFound._id,
       username: userFound.username,
       email: userFound.email,
-      token: token,
     });
   } catch (error) {
     console.error("Error during login:", error);
@@ -81,6 +79,7 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
+    //Remove cookie
     res.clearCookie("authToken");
     res.json({ message: "Logout successful" });
   } catch (error) {
@@ -102,7 +101,6 @@ export const profile = async (req, res) => {
 export const verifyToken = async (req, res, next) => {
   try {
     const { authToken } = req.cookies;
-    console.log("authToken: ", authToken);
     if (!authToken) {
       return res.status(401).json({ message: "No token provided" });
     }
