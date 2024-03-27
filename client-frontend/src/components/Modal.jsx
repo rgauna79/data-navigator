@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
 
 function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
   const [selectedColumns, setSelectedColumns] = useState([]);
@@ -33,11 +35,24 @@ function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
     if (selectedColumns.length > 0) {
       // if there are selected columns and options are selected navigate to charts
       navigate("/charts", {
-        state: { type: "statistics", selectedColumns, selectedOptions, data, workbook, selectedSheet },
+        state: {
+          type: "statistics",
+          selectedColumns,
+          selectedOptions,
+          data,
+          workbook,
+          selectedSheet,
+        },
       });
     } else if (typeReport === "mostRepeated") {
       navigate("/charts", {
-        state: { type: "mostRepeated", selectedOptions, data, workbook, selectedSheet },
+        state: {
+          type: "mostRepeated",
+          selectedOptions,
+          data,
+          workbook,
+          selectedSheet,
+        },
       });
     }
     handleClose();
@@ -49,12 +64,12 @@ function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
 
   return (
     <div className="modal fixed top-0 left-0 w-full h-full bg-gray-900 bg-opacity-50 flex justify-center items-center">
-      <div className="modal-content bg-white p-4 rounded shadow-lg">
+      <div className="flex flex-col modal-content bg-white p-4 rounded shadow-lg">
         <span
-          className="close absolute top-0 right-0 m-2 text-gray-500 hover:text-gray-900 cursor-pointer"
+          className="text-gray-500 hover:text-gray-900 cursor-pointer text-right"
           onClick={handleClose}
         >
-          &times;
+          <FontAwesomeIcon icon={faXmark} />
         </span>
         <h2 className="text-lg font-bold mb-2">Select Type of Report:</h2>
         <div className="flex flex-col gap-2">
@@ -139,7 +154,7 @@ function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
         </div>
         <button
           onClick={handleConfirm}
-          className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded  w-1/2 self-center"
         >
           Confirm
         </button>
