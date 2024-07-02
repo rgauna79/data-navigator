@@ -3,12 +3,25 @@ import { saveData, readData } from "../api/data.js";
 
 const DataContext = createContext();
 
-export const useDataContext = () => useContext(DataContext);
+export const useDataContext = () => {
+  const context = useContext(DataContext);
+  if (!context) {
+    throw new Error("useDataContext must be used within a DataProvider");
+  }
+  return context;
+};
 
 export const DataProvider = ({ children }) => {
   // const [isLoading, setIsLoading] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState([]);
+  const [selectedOptions, setSelectedOptions] = useState({});
+  const [typeReport, setTypeReport] = useState("");
+  const [data, setData] = useState([]);
   const [error, setError] = useState(null);
   const [dataSaved, setDataSaved] = useState();
+  const [workbook, setWorkbook] = useState(null);
+  const [selectedSheet, setSelectedSheet] = useState("");
+  const [fileData, setFileData] = useState([]);
 
   const handleSaveData = async (data) => {
     // setIsLoading(true);
@@ -30,7 +43,26 @@ export const DataProvider = ({ children }) => {
 
   return (
     <DataContext.Provider
-      value={{ error, dataSaved, handleSaveData, readAllData }}
+      value={{
+        error,
+        dataSaved,
+        workbook,
+        selectedSheet,
+        fileData,
+        selectedColumns,
+        setSelectedColumns,
+        selectedOptions,
+        setSelectedOptions,
+        typeReport,
+        setTypeReport,
+        data,
+        setData,
+        setWorkbook,
+        setSelectedSheet,
+        setFileData,
+        handleSaveData,
+        readAllData,
+      }}
     >
       {children}
     </DataContext.Provider>
