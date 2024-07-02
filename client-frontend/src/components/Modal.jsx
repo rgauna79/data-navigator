@@ -1,29 +1,48 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark } from "@fortawesome/free-solid-svg-icons";
+import { useDataContext } from "../context/DataContext.jsx";
 
-function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
-  const [selectedColumns, setSelectedColumns] = useState([]);
-  const [selectedOptions, setSelectedOptions] = useState({});
-  const [typeReport, setTypeReport] = useState("");
+function Modal({ handleClose, columns, data }) {
+  const {
+    setSelectedColumns,
+    setSelectedOptions,
+    setTypeReport,
+    setWorkbook,
+    setSelectedSheet,
+    setData,
+  } = useDataContext();
+
+  const [isMounted, setIsMounted] = useState(true);
+
+  useEffect(() => {
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
+
+  const [localSelectedColumns, setLocalSelectedColumns] = useState([]);
+  const [localSelectedOptions, setLocalSelectedOptions] = useState({});
+  const [localTypeReport, setLocalTypeReport] = useState("");
 
   const navigate = useNavigate();
 
   const handleCheckboxChange = (e) => {
-    console.log(selectedOptions);
     const { name, checked } = e.target;
     if (checked) {
-      setSelectedColumns([...selectedColumns, name]);
+      setLocalSelectedColumns([...localSelectedColumns, name]);
     } else {
-      setSelectedColumns(selectedColumns.filter((col) => col !== name));
-      setSelectedOptions({ ...selectedOptions, [name]: null });
+      setLocalSelectedColumns(
+        localSelectedColumns.filter((col) => col !== name),
+      );
+      setLocalSelectedOptions({ ...localSelectedOptions, [name]: null });
     }
   };
 
   const handleSelectChange = (e) => {
     const { name, value } = e.target;
-    setSelectedOptions({ ...selectedOptions, [name]: value });
+    setLocalSelectedOptions({ ...localSelectedOptions, [name]: value });
   };
 
   const getUniqueValues = (columnName) => {
@@ -32,39 +51,26 @@ function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
   };
 
   const handleConfirm = () => {
-    if (selectedColumns.length > 0) {
-      // if there are selected columns and options are selected navigate to charts
-      navigate("/charts", {
-        state: {
-          type: "statistics",
-          selectedColumns,
-          selectedOptions,
-          data,
-          workbook,
-          selectedSheet,
-        },
-      });
-    } else if (typeReport === "mostRepeated") {
-      navigate("/charts", {
-        state: {
-          type: "mostRepeated",
-          selectedOptions,
-          data,
-          workbook,
-          selectedSheet,
-        },
-      });
+    if (localSelectedColumns.length > 0 || localTypeReport === "mostRepeated") {
+      setSelectedColumns(localSelectedColumns);
+      setSelectedOptions(localSelectedOptions);
+      setTypeReport(localTypeReport);
+      setData(data);
+      //   // Set workbook and selectedSheet here if needed, otherwise you can remove these lines
+      //   // setWorkbook(workbook);
+      //   // setSelectedSheet(selectedSheet);
+      navigate("/charts");
     }
     handleClose();
   };
 
   const handleTypeChange = (e) => {
-    setTypeReport(e.target.value);
+    setLocalTypeReport(e.target.value);
   };
 
   return (
     <div className="modal fixed top-0 left-0 w-full h-full bg-gray-900 bg-opacity-50 flex justify-center items-center">
-      <div className="flex flex-col modal-content bg-white p-4 rounded shadow-lg">
+      <div className="flex flex-col modal-content bg-white p-4 rounded shadow-lg  overflow-y-auto max-h-full">
         <span
           className="text-gray-500 hover:text-gray-900 cursor-pointer text-right"
           onClick={handleClose}
@@ -95,7 +101,7 @@ function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
               Most repeated values
             </label>
           </div>
-          {typeReport === "allColumns" && (
+          {localTypeReport === "allColumns" && (
             <div>
               {columns.map((column) => (
                 <div key={column.accessor} className="flex items-center mb-2">
@@ -113,10 +119,10 @@ function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
                   >
                     {column.Header}
                   </label>
-                  {selectedColumns.includes(column.Header) && (
+                  {localSelectedColumns.includes(column.Header) && (
                     <select
                       name={column.Header}
-                      value={selectedOptions[column.Header] || ""}
+                      value={localSelectedOptions[column.Header] || ""}
                       onChange={handleSelectChange}
                       className="ml-2"
                     >
@@ -132,14 +138,14 @@ function Modal({ handleClose, columns, data, workbook, selectedSheet }) {
               ))}
             </div>
           )}
-          {typeReport === "mostRepeated" && (
+          {localTypeReport === "mostRepeated" && (
             <div>
               <label htmlFor="mostRepeated" className="text-sm text-black">
                 Select a column
               </label>
               <select
                 name="mostRepeated"
-                value={selectedOptions.mostRepeated || ""}
+                value={localSelectedOptions.mostRepeated || ""}
                 onChange={handleSelectChange}
               >
                 <option value="">Select</option>

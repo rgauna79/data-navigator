@@ -26,10 +26,10 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="*" element={<ErrorPage />} />
             <Route path="/fileReader" element={<FileReaderPage />} />
-
+            <Route path="/charts" element={<ChartPage />} />
             <Route element={<PrivateRoute />}>
               <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/charts" element={<ChartPage />} />
+
               <Route path="/savedfiles" element={<DbSheetPage />} />
             </Route>
           </Routes>

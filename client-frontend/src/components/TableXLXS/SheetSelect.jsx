@@ -1,6 +1,20 @@
 import React from "react";
+import { useDataContext } from "../../context/DataContext";
 
-function SheetSelect({ fileData, workbook, selectedSheet, handleSheetChange }) {
+function SheetSelect() {
+  const { workbook, fileData, selectedSheet, setSelectedSheet } =
+    useDataContext();
+  if (!workbook || !fileData) {
+    return (
+      <div className="flex items-center mt-4 justify-center">
+        <span className="mr-2 w-full md:w-auto">Loading...</span>
+      </div>
+    );
+  }
+
+  const handleSheetChange = (e) => {
+    setSelectedSheet(e.target.value);
+  };
   return (
     <div className="flex items-center mt-4 justify-center">
       <span className="mr-2 w-full md:w-auto">Select sheet to show:</span>

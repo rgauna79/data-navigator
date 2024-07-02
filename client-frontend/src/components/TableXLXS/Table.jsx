@@ -14,10 +14,11 @@ function TableComponent({
       className="table-auto w-full border-collapse text-sm "
     >
       <thead>
-        {headerGroups.map((headerGroup) => (
-          <tr {...headerGroup.getHeaderGroupProps()}>
-            {headerGroup.headers.map((column) => (
+        {headerGroups.map((headerGroup, index) => (
+          <tr key={index} {...headerGroup.getHeaderGroupProps()}>
+            {headerGroup.headers.map((column, columnIndex) => (
               <th
+                key={column.id}
                 {...column.getHeaderProps(column.getSortByToggleProps())}
                 className="px-1 py-1 bg-blue-500 text-white border border-blue-500 whitespace-nowrap"
                 id={column.id}
@@ -32,12 +33,13 @@ function TableComponent({
         ))}
       </thead>
       <tbody {...getTableBodyProps()}>
-        {page.map((row, i) => {
+        {page.map((row, rowIndex) => {
           prepareRow(row);
           return (
-            <tr {...row.getRowProps()} key={i}>
+            <tr {...row.getRowProps()} key={rowIndex}>
               {row.cells.map((cell) => (
                 <td
+                  key={cell.column.id}
                   {...cell.getCellProps()}
                   className="px-2 py-1 bg-white border border-gray-300 whitespace-nowrap"
                 >
