@@ -8,11 +8,8 @@ import DataRoutes from "./routes/data.routes.js";
 import cookieParser from "cookie-parser";
 import path from "path";
 
-
-
 const app = express();
 const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-
 
 console.log(frontendUrl);
 
@@ -20,7 +17,7 @@ app.use(
   cors({
     origin: frontendUrl,
     credentials: true,
-  }),
+  })
 );
 app.use(morgan("dev"));
 app.use(cookieParser());
@@ -34,7 +31,6 @@ app.use("/api/users", UserRoutes);
 
 // Data management routes
 app.use("/api/data", DataRoutes);
-
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.resolve("client-frontend", "dist")));
