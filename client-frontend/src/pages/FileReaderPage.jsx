@@ -14,42 +14,52 @@ import SheetSelect from "../components/TableXLXS/SheetSelect.jsx";
 import SearchBar from "../components/TableXLXS/SearchBar.jsx";
 import TableComponent from "../components/TableXLXS/Table.jsx";
 import PaginationComponent from "../components/TableXLXS/Pagination.jsx";
-import Modal from "../components/Modal.jsx";
+import Modal from "../components/reports/Modal.jsx";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 
 function FileExcelReader() {
-  // State variables
-  const { handleSaveData: handleSaveDataContext } = useDataContext();
-  const [fileData, setFileData] = useState(null);
-  const [selectedSheet, setSelectedSheet] = useState("");
-  const [workbook, setWorkbook] = useState("");
+  const {
+    workbook,
+    selectedSheet,
+    fileData,
+    setWorkbook,
+    setSelectedSheet,
+    setFileData,
+    handleSaveData,
+  } = useDataContext();
+
   const [filterInput, setFilterInput] = useState("");
   const [selectedColumn, setSelectedColumn] = useState("");
   const [showModal, setShowModal] = useState(false);
   const { isLoggedIn } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const { usr } = window.history.state || {};
-    if (usr && usr.selectedSheet) setSelectedSheet(usr.selectedSheet);
-    if (usr && usr.workbook) setWorkbook(usr.workbook);
-  }, []);
-  // Effect to update fileData when workbook or selectedSheet is changed
   useEffect(() => {
     if (workbook && selectedSheet) {
       const sheet = workbook.Sheets[selectedSheet];
       const json = XLSX.utils.sheet_to_json(sheet, { raw: false, header: 1 });
-
-      setFileData(json);
+      //format Json 
+      const formattedJson = json.map(row => {
+        const formattedRow =  row.map(cell => typeof cell === 'string' ? cell.trim().toUpperCase() : cell);
+        return formattedRow;
+      })
+      setFileData(formattedJson);
     }
-  }, [workbook, selectedSheet]);
+  }, [workbook, selectedSheet, setFileData]);
 
-  // Function to handle file upload
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
     const file = e.target.files[0];
     if (!file) {
+      setIsLoading(false);
       return;
     }
     if (!file.name.endsWith(".xlsx")) {
       alert("Please select an xlsx file");
+      setIsLoading(false);
       return;
     }
     const reader = new FileReader();
@@ -61,48 +71,41 @@ function FileExcelReader() {
         const sheetNames = wb.SheetNames;
         setSelectedSheet(sheetNames[0]);
         const sheet = wb.Sheets[sheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet, {
-          headers: 1,
-          raw: false,
-        });
-        setFileData(json);
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+        
+        //format Json 
+        const formattedJson = json.map(row => {
+          const formattedRow =  row.map(cell => typeof cell === 'string' ? cell.trim().toUpperCase() : cell);
+          return formattedRow;
+        })
+        setFileData(formattedJson);
       } catch (error) {
         console.error("Error while reading file:", error);
       }
+      setIsLoading(false);
     };
     reader.readAsBinaryString(file);
   };
 
-  // Function
-  const handleSheetChange = (e) => {
-    setSelectedSheet(e.target.value);
-  };
+  const columns = useMemo(() => {
+    if (!fileData || fileData.length === 0 || !fileData[0]) {
+      return [];
+    }
+    return Object.keys(fileData[0]).map((col, index) => ({
+      Header: fileData[0][col],
+      accessor: col,
+      id: `${col}`,
+    }));
+  }, [fileData]);
 
-  // Memoized columns
-  const columns = useMemo(
-    () =>
-      fileData
-        ? Object.keys(fileData[0]).map((col, index) => ({
-            Header: fileData[0][col],
-            accessor: col,
-            id: `${col}`,
-          }))
-        : [],
-    [fileData],
-  );
-
-  // Memoized data
   const data = useMemo(() => {
     if (!fileData) {
       return [];
     }
-    const filteredData = fileData.filter((row) => {
-      return Object.values(row).some((cell) => cell !== "");
-    });
-    return filteredData.slice(1);
+    return fileData
+      .slice(1)
+      .filter((row) => Object.values(row).some((cell) => cell !== ""));
   }, [fileData]);
-
-  // Table instance
 
   const tableInstance = useTable(
     { columns, data, initialState: { pageSize: 15 } },
@@ -112,7 +115,6 @@ function FileExcelReader() {
     usePagination,
   );
 
-  // Destructuring tableInstance properties
   const {
     getTableProps,
     getTableBodyProps,
@@ -130,7 +132,6 @@ function FileExcelReader() {
     state: { pageIndex, pageSize },
   } = tableInstance;
 
-  // Effect to set filter
   useEffect(() => {
     if (selectedColumn !== "") {
       setFilter(selectedColumn, filterInput);
@@ -139,18 +140,15 @@ function FileExcelReader() {
     }
   }, [selectedColumn, filterInput, setFilter]);
 
-  // function to handle filter change
   const handleFilterChange = (e) => {
     const value = e.target.value || "";
     setFilterInput(value);
   };
 
-  // function to handle column select
   const handleColumnSelectChange = (e) => {
     setSelectedColumn(e.target.value);
   };
 
-  // function to handle modal
   const handleOpenModal = () => {
     setShowModal(true);
   };
@@ -159,39 +157,44 @@ function FileExcelReader() {
     setShowModal(false);
   };
 
-  const handleSaveData = () => {
-    {
+  const handleSaveDataClick = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
       const dataToSave = {
         sheetName: selectedSheet,
-        fileData: fileData,
+        fileData,
       };
-
-      console.log("Data to save:", dataToSave);
-      handleSaveDataContext(dataToSave);
+      await handleSaveData(dataToSave);
+      alert(`${dataToSave.sheetName} saved successfully in the database`);
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
-  // Render component
+
   return (
-    <div
-      className="flex-1 flex flex-col justify-center items-center bg-gray-500 p-4 text-black 
-      mx-4 py-4"
-    >
+    <div className="flex-1 flex flex-col justify-center items-center bg-gray-500 p-4 text-black mx-4 py-4">
       <header id="headerContainer" className="text-center text-white mb-4">
         <h1>EXCEL READER</h1>
       </header>
       <section
         id="searchBox"
-        className="border border-white p-4 rounded lg:w-1/2 sm:w-full md:w-full  bg-white text-black"
+        className="border border-white p-4 rounded lg:w-1/2 sm:w-full md:w-full bg-white text-black"
       >
         <FileInputComponent handleFileChange={handleFileChange} />
-        <SheetSelect
-          fileData={fileData}
-          workbook={workbook}
-          selectedSheet={selectedSheet}
-          handleSheetChange={handleSheetChange}
-        />
+        {isLoading && (
+          <div className="flex items-center mt-4 justify-center">
+            <FontAwesomeIcon icon={faSpinner} spin />
+            <span className="ml-2">Loading</span>
+          </div>
+        )}
+        {fileData && workbook && (
+          <SheetSelect workbook={workbook} selectedSheet={selectedSheet} />
+        )}
       </section>
-      {fileData && (
+      {fileData && workbook && (
         <>
           <SearchBar
             filterInput={filterInput}
@@ -206,7 +209,7 @@ function FileExcelReader() {
           >
             <button
               id="openModalButton"
-              className="bg-blue-500 text-white p-2 rounded mt-4"
+              className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded mt-4"
               onClick={handleOpenModal}
             >
               Generate Report
@@ -214,10 +217,17 @@ function FileExcelReader() {
             {isLoggedIn && (
               <button
                 id="saveDataButton"
-                className="bg-blue-500 text-white p-2 rounded mt-4"
-                onClick={handleSaveData}
+                className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded mt-4"
+                onClick={handleSaveDataClick}
               >
-                Save Data
+                {isLoading ? (
+                  <>
+                    <FontAwesomeIcon icon={faSpinner} spin />
+                    <span className="ml-2">Saving</span>
+                  </>
+                ) : (
+                  "Save Data"
+                )}
               </button>
             )}
             {showModal && (
@@ -234,7 +244,7 @@ function FileExcelReader() {
       )}
       <section id="dataSection" className="mt-4 w-full">
         <div className="max-w-full overflow-x-auto">
-          {fileData && (
+          {fileData && workbook && (
             <>
               <TableComponent
                 getTableProps={getTableProps}
@@ -245,16 +255,16 @@ function FileExcelReader() {
                 columns={columns}
               />
               <PaginationComponent
+                canPreviousPage={canPreviousPage}
+                previousPage={previousPage}
+                pageOptions={pageOptions}
                 pageIndex={pageIndex}
+                canNextPage={canNextPage}
+                nextPage={nextPage}
+                pageCount={pageCount}
+                setPageSize={setPageSize}
                 pageSize={pageSize}
                 data={data}
-                canPreviousPage={canPreviousPage}
-                canNextPage={canNextPage}
-                pageOptions={pageOptions}
-                pageCount={pageCount}
-                nextPage={nextPage}
-                previousPage={previousPage}
-                setPageSize={setPageSize}
               />
             </>
           )}

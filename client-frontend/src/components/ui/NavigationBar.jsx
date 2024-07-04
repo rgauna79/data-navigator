@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars, faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
-import logo from "../assets/images/logo.png";
+import logo from "../../assets/images/logo.png";
 
 function NavigationBar() {
   const { isLoggedIn, user, logout } = useAuth();
@@ -55,11 +55,13 @@ function NavigationBar() {
 
   return (
     <nav className="bg-gray-800 px-4 sm:px-2 lg:px-4 sticky top-0">
-      <div className=" ">
+      <div className="w-full">
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center ">
-              <img className="h-16 rounded py-1" src={logo} alt="Logo" />
+              <Link to="/">
+                <img className="h-16 rounded py-1" src={logo} alt="Logo" />
+              </Link>
             </div>
             <div className="hidden md:block ml-4 text-right">
               <div className="flex space-x-4">
