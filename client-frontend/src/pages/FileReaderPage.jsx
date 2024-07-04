@@ -14,7 +14,7 @@ import SheetSelect from "../components/TableXLXS/SheetSelect.jsx";
 import SearchBar from "../components/TableXLXS/SearchBar.jsx";
 import TableComponent from "../components/TableXLXS/Table.jsx";
 import PaginationComponent from "../components/TableXLXS/Pagination.jsx";
-import Modal from "../components/Modal.jsx";
+import Modal from "../components/reports/Modal.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 
@@ -39,7 +39,12 @@ function FileExcelReader() {
     if (workbook && selectedSheet) {
       const sheet = workbook.Sheets[selectedSheet];
       const json = XLSX.utils.sheet_to_json(sheet, { raw: false, header: 1 });
-      setFileData(json);
+      //format Json 
+      const formattedJson = json.map(row => {
+        const formattedRow =  row.map(cell => typeof cell === 'string' ? cell.trim().toUpperCase() : cell);
+        return formattedRow;
+      })
+      setFileData(formattedJson);
     }
   }, [workbook, selectedSheet, setFileData]);
 
@@ -67,7 +72,13 @@ function FileExcelReader() {
         setSelectedSheet(sheetNames[0]);
         const sheet = wb.Sheets[sheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
-        setFileData(json);
+        
+        //format Json 
+        const formattedJson = json.map(row => {
+          const formattedRow =  row.map(cell => typeof cell === 'string' ? cell.trim().toUpperCase() : cell);
+          return formattedRow;
+        })
+        setFileData(formattedJson);
       } catch (error) {
         console.error("Error while reading file:", error);
       }

@@ -5,6 +5,8 @@ import html2canvas from "html2canvas";
 import { useDataContext } from "../context/DataContext.jsx";
 import { Pie } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import StatisticsReport from "../components/reports/StatisticsReport.jsx";
+import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -13,6 +15,8 @@ function ChartPage() {
   const reportsRef = useRef();
   const chartRef = useRef();
 
+
+  
   const handlePrint = async () => {
     try {
       const pdf = new jsPDF("p", "pt", "letter");
@@ -43,18 +47,9 @@ function ChartPage() {
     }
   };
 
-  useEffect(() => {
-    if (typeReport === "statistics") {
-      const filteredData = data.filter((row) => {
-        return Object.entries(selectedOptions).every(([key, value]) => {
-          return row.includes(value);
-        });
-      });
-    }
-  }, [data, selectedOptions, typeReport]);
 
   const generateReportData = () => {
-    if (typeReport === "allColumns") {
+    if (typeReport === "statistics") {
       const filteredData = data.filter((row) => {
         return Object.entries(selectedOptions).every(([key, value]) => {
           return row.includes(value);
@@ -67,23 +62,7 @@ function ChartPage() {
         .map(([key, value]) => `${key}: ${value}`);
 
       return (
-        <div>
-          <p className="mt-4">Selected Options:</p>
-          <ul className="list-disc list-inside">
-            {includedOptions.map((option) => (
-              <li
-                key={option}
-                className="bg-blue-200 text-blue-800 rounded-full px-2 py-1 mr-2 mt-2"
-              >
-                {option}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4">
-            Total rows for meeting this criteria:
-            <span className="font-bold"> {totalRows}</span>
-          </p>
-        </div>
+        <StatisticsReport totalRows={totalRows} includedOptions={includedOptions} filteredData={filteredData}/>
       );
     } else if (typeReport === "mostRepeated") {
       const selectedColumn = selectedOptions.mostRepeated;
@@ -101,28 +80,7 @@ function ChartPage() {
         .slice(0, 5);
 
       if (mostRepeatedOptions.length > 0) {
-        return (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border border-gray-300 mt-4">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="py-2 px-4 border-b">#</th>
-                  <th className="py-2 px-4 border-b">Value</th>
-                  <th className="py-2 px-4 border-b">Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mostRepeatedOptions.map(([option, count], index) => (
-                  <tr key={index} className="text-center">
-                    <td className="py-2 px-4 border-b">{index + 1}</td>
-                    <td className="py-2 px-4 border-b">{option}</td>
-                    <td className="py-2 px-4 border-b">{count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
+        return <MostRepeatedReport mostRepeatedOptions={mostRepeatedOptions} />;
       } else {
         return "No data to display";
       }
@@ -215,7 +173,7 @@ function ChartPage() {
         <div ref={reportsRef} className="mt-4 flex flex-col px-8 pt-4 pb-8">
           <h2 className="text-lg font-bold">
             {typeReport === "statistics"
-              ? "Personalized Options"
+              ? "Statistics Report"
               : "Most Repeated Values"}
           </h2>
           {generateReportData()}

@@ -10,7 +10,7 @@ import {
   useTable,
   useSortBy,
 } from "react-table";
-import Modal from "../components/Modal.jsx";
+import Modal from "../components/reports/Modal.jsx";
 
 function DbSheetPage() {
   const { readAllData, dataSaved, isLoading, error } = useDataContext();
