@@ -1,10 +1,9 @@
 import React from "react";
 
 function SearchBar({
-  filterInput,
+  filter,
   handleFilterChange,
   columns,
-  selectedColumn,
   handleColumnSelectChange,
 }) {
   return (
@@ -13,13 +12,13 @@ function SearchBar({
       className="mt-4 p-4 w-full bg-white rounded flex flex-wrap items-center justify-between"
     >
       <input
-        value={filterInput}
+        value={filter.input}
         onChange={handleFilterChange}
         placeholder="Search in all columns"
         className="p-2 rounded border-gray-300 border w-full md:w-auto mb-2 md:mb-0"
       />
       <select
-        value={selectedColumn}
+        value={filter.column}
         onChange={handleColumnSelectChange}
         className="p-2 rounded border-gray-300 border w-full md:w-auto"
       >
