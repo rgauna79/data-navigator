@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDataContext } from "../context/DataContext";
-import TableComponent from "../components/TableXLXS/Table.jsx";
-import SearchBar from "../components/TableXLXS/SearchBar.jsx";
-import PaginationComponent from "../components/TableXLXS/Pagination.jsx";
+import CommonTable from "../components/TableXLXS/CommonTable.jsx";
 import {
   useGlobalFilter,
   useFilters,
@@ -10,13 +8,11 @@ import {
   useTable,
   useSortBy,
 } from "react-table";
-import Modal from "../components/reports/Modal.jsx";
 
 function DbSheetPage() {
   const { readAllData, dataSaved, isLoading, error } = useDataContext();
   const [table, setTable] = useState();
-  const [selectedColumn, setSelectedColumn] = useState("");
-  const [filterInput, setFilterInput] = useState("");
+  const [filter, setFilters] = useState({ input: "", column: "" });
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
@@ -41,7 +37,7 @@ function DbSheetPage() {
             id: `${col}`,
           }))
         : [],
-    [table],
+    [table]
   );
 
   // Memoized data
@@ -62,48 +58,9 @@ function DbSheetPage() {
     useFilters,
     useGlobalFilter,
     useSortBy,
-    usePagination,
+    usePagination
   );
 
-  // Destructuring tableInstance properties
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    prepareRow,
-    setFilter,
-    setPageSize,
-    page,
-    canPreviousPage,
-    canNextPage,
-    pageOptions,
-    pageCount,
-    nextPage,
-    previousPage,
-    state: { pageIndex, pageSize },
-  } = tableInstance;
-
-  // Effect to set filter
-  useEffect(() => {
-    if (selectedColumn !== "") {
-      setFilter(selectedColumn, filterInput);
-    } else {
-      tableInstance.setGlobalFilter(filterInput);
-    }
-  }, [selectedColumn, filterInput, setFilter]);
-
-  // function to handle filter change
-  const handleFilterChange = (e) => {
-    const value = e.target.value || "";
-    setFilterInput(value);
-  };
-
-  // function to handle column select
-  const handleColumnSelectChange = (e) => {
-    setSelectedColumn(e.target.value);
-  };
-
-  // function to handle modal
   const handleOpenModal = () => {
     setShowModal(true);
   };
@@ -137,64 +94,31 @@ function DbSheetPage() {
           </div>
         )}
       </section>
+
       <section
         id="searchBox"
         className="border border-white p-4 rounded w-full bg-white"
       ></section>
-      {table && (
-        <SearchBar
-          filterInput={filterInput}
-          handleFilterChange={handleFilterChange}
-          columns={columns}
-          selectedColumn={selectedColumn}
-          handleColumnSelectChange={handleColumnSelectChange}
-        />
-      )}
-      <section id="buttonSection" className="flex justify-between  w-full">
-        {showModal && (
-          <Modal handleClose={handleCloseModal} columns={columns} data={data} />
-        )}
-      </section>
+
       <section id="dataSection" className="mt-4 w-full">
         <div className="max-w-full overflow-x-auto">
           {table && (
-            <>
-              <div className="flex w-full justify-between mt-2 mb-2">
-                <button
-                  id="openModalButton"
-                  className="bg-blue-500 text-white p-2 rounded "
-                  onClick={handleOpenModal}
-                >
-                  Generate Report
-                </button>
-                <button
-                  className="bg-blue-500 text-white p-2 rounded "
-                  onClick={handleCloseTable}
-                >
-                  Close
-                </button>
-              </div>
-              <TableComponent
-                getTableProps={getTableProps}
-                getTableBodyProps={getTableBodyProps}
-                headerGroups={headerGroups}
-                prepareRow={prepareRow}
-                page={page}
-                columns={columns}
-              />
-              <PaginationComponent
-                pageIndex={pageIndex}
-                pageSize={pageSize}
-                data={data}
-                canPreviousPage={canPreviousPage}
-                canNextPage={canNextPage}
-                pageOptions={pageOptions}
-                pageCount={pageCount}
-                nextPage={nextPage}
-                previousPage={previousPage}
-                setPageSize={setPageSize}
-              />
-            </>
+            <CommonTable
+              columns={columns}
+              data={data}
+              tableInstance={tableInstance}
+              filter={filter}
+              handleFilterChange={(e) =>
+                setFilters({ ...filter, input: e.target.value })
+              }
+              handleColumnSelectChange={(e) =>
+                setFilters({ ...filter, column: e.target.value })
+              }
+              handleOpenModal={handleOpenModal}
+              handleCloseTable={handleCloseTable}
+              showModal={showModal}
+              handleCloseModal={handleCloseModal}
+            />
           )}
         </div>
       </section>

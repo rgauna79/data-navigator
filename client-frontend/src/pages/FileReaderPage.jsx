@@ -11,10 +11,7 @@ import {
 import * as XLSX from "xlsx";
 import FileInputComponent from "../components/TableXLXS/FileInput.jsx";
 import SheetSelect from "../components/TableXLXS/SheetSelect.jsx";
-import SearchBar from "../components/TableXLXS/SearchBar.jsx";
-import TableComponent from "../components/TableXLXS/Table.jsx";
-import PaginationComponent from "../components/TableXLXS/Pagination.jsx";
-import Modal from "../components/reports/Modal.jsx";
+import CommonTable from "../components/TableXLXS/CommonTable.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 
@@ -29,25 +26,35 @@ function FileExcelReader() {
     handleSaveData,
   } = useDataContext();
 
-  const [filterInput, setFilterInput] = useState("");
-  const [selectedColumn, setSelectedColumn] = useState("");
+  // State for managing filter input and selected column
+  const [filter, setFilters] = useState({ input: "", column: "" });
+  // State to manage the visibility of the modal
   const [showModal, setShowModal] = useState(false);
+  // Authentication status
   const { isLoggedIn } = useAuth();
+  // State for managing loading and saving status
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Function to format JSON data
+  const formatJson = (json) => {
+    return json.map((row) =>
+      row.map((cell) =>
+        typeof cell === "string" ? cell.trim().toUpperCase() : cell
+      )
+    );
+  };
+
+  // Effect to update fileData when workbook or selectedSheet changes
   useEffect(() => {
     if (workbook && selectedSheet) {
       const sheet = workbook.Sheets[selectedSheet];
       const json = XLSX.utils.sheet_to_json(sheet, { raw: false, header: 1 });
-      //format Json 
-      const formattedJson = json.map(row => {
-        const formattedRow =  row.map(cell => typeof cell === 'string' ? cell.trim().toUpperCase() : cell);
-        return formattedRow;
-      })
-      setFileData(formattedJson);
+      setFileData(formatJson(json));
     }
   }, [workbook, selectedSheet, setFileData]);
 
+  // Function to handle file input change
   const handleFileChange = (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -72,13 +79,8 @@ function FileExcelReader() {
         setSelectedSheet(sheetNames[0]);
         const sheet = wb.Sheets[sheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
-        
-        //format Json 
-        const formattedJson = json.map(row => {
-          const formattedRow =  row.map(cell => typeof cell === 'string' ? cell.trim().toUpperCase() : cell);
-          return formattedRow;
-        })
-        setFileData(formattedJson);
+
+        setFileData(formatJson(json));
       } catch (error) {
         console.error("Error while reading file:", error);
       }
@@ -87,6 +89,7 @@ function FileExcelReader() {
     reader.readAsBinaryString(file);
   };
 
+  // Memoized columns based on fileData
   const columns = useMemo(() => {
     if (!fileData || fileData.length === 0 || !fileData[0]) {
       return [];
@@ -98,6 +101,7 @@ function FileExcelReader() {
     }));
   }, [fileData]);
 
+  // Memoized data for the table
   const data = useMemo(() => {
     if (!fileData) {
       return [];
@@ -107,59 +111,29 @@ function FileExcelReader() {
       .filter((row) => Object.values(row).some((cell) => cell !== ""));
   }, [fileData]);
 
+  // Initialize table instance with react-table hooks
   const tableInstance = useTable(
     { columns, data, initialState: { pageSize: 15 } },
     useFilters,
     useGlobalFilter,
     useSortBy,
-    usePagination,
+    usePagination
   );
 
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    prepareRow,
-    setFilter,
-    setPageSize,
-    page,
-    canPreviousPage,
-    canNextPage,
-    pageOptions,
-    pageCount,
-    nextPage,
-    previousPage,
-    state: { pageIndex, pageSize },
-  } = tableInstance;
-
-  useEffect(() => {
-    if (selectedColumn !== "") {
-      setFilter(selectedColumn, filterInput);
-    } else {
-      tableInstance.setGlobalFilter(filterInput);
-    }
-  }, [selectedColumn, filterInput, setFilter]);
-
-  const handleFilterChange = (e) => {
-    const value = e.target.value || "";
-    setFilterInput(value);
-  };
-
-  const handleColumnSelectChange = (e) => {
-    setSelectedColumn(e.target.value);
-  };
-
+  // Function to open the modal
   const handleOpenModal = () => {
     setShowModal(true);
   };
 
+  // Function to close the modal
   const handleCloseModal = () => {
     setShowModal(false);
   };
 
+  // Function to handle saving data
   const handleSaveDataClick = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSaving(true);
     try {
       const dataToSave = {
         sheetName: selectedSheet,
@@ -170,7 +144,7 @@ function FileExcelReader() {
     } catch (error) {
       console.error("Error:", error);
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -194,79 +168,29 @@ function FileExcelReader() {
           <SheetSelect workbook={workbook} selectedSheet={selectedSheet} />
         )}
       </section>
-      {fileData && workbook && (
-        <>
-          <SearchBar
-            filterInput={filterInput}
-            handleFilterChange={handleFilterChange}
-            columns={columns}
-            selectedColumn={selectedColumn}
-            handleColumnSelectChange={handleColumnSelectChange}
-          />
-          <section
-            id="buttonSection"
-            className="flex justify-between mt-2 w-full"
-          >
-            <button
-              id="openModalButton"
-              className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded mt-4"
-              onClick={handleOpenModal}
-            >
-              Generate Report
-            </button>
-            {isLoggedIn && (
-              <button
-                id="saveDataButton"
-                className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded mt-4"
-                onClick={handleSaveDataClick}
-              >
-                {isLoading ? (
-                  <>
-                    <FontAwesomeIcon icon={faSpinner} spin />
-                    <span className="ml-2">Saving</span>
-                  </>
-                ) : (
-                  "Save Data"
-                )}
-              </button>
-            )}
-            {showModal && (
-              <Modal
-                handleClose={handleCloseModal}
-                columns={columns}
-                data={data}
-                workbook={workbook}
-                selectedSheet={selectedSheet}
-              />
-            )}
-          </section>
-        </>
-      )}
+
       <section id="dataSection" className="mt-4 w-full">
         <div className="max-w-full overflow-x-auto">
           {fileData && workbook && (
-            <>
-              <TableComponent
-                getTableProps={getTableProps}
-                getTableBodyProps={getTableBodyProps}
-                headerGroups={headerGroups}
-                prepareRow={prepareRow}
-                page={page}
-                columns={columns}
-              />
-              <PaginationComponent
-                canPreviousPage={canPreviousPage}
-                previousPage={previousPage}
-                pageOptions={pageOptions}
-                pageIndex={pageIndex}
-                canNextPage={canNextPage}
-                nextPage={nextPage}
-                pageCount={pageCount}
-                setPageSize={setPageSize}
-                pageSize={pageSize}
-                data={data}
-              />
-            </>
+            <CommonTable
+              columns={columns}
+              data={data}
+              tableInstance={tableInstance}
+              filter={filter}
+              handleFilterChange={(e) =>
+                setFilters({ ...filter, input: e.target.value })
+              }
+              handleColumnSelectChange={(e) =>
+                setFilters({ ...filter, column: e.target.value })
+              }
+              handleOpenModal={handleOpenModal}
+              handleCloseTable={false} // Placeholder; not used
+              showModal={showModal}
+              handleCloseModal={handleCloseModal}
+              showSaveButton={isLoggedIn}
+              saveData={handleSaveDataClick}
+              isSaving={isSaving}
+            />
           )}
         </div>
       </section>
