@@ -78,7 +78,7 @@ function LoginPage() {
             {isLoading ? (
               <>
                 <FontAwesomeIcon icon={faSpinner} spin />
-                <span className="ml-2">Loading</span>
+                <span className="ml-2"> Loading</span>
               </>
             ) : (
               "Login"
