@@ -13,6 +13,7 @@ import ChartPage from "./pages/ChartPage.jsx";
 import Modal from "./components/Modal.jsx";
 import DbSheetPage from "./pages/DbSheetPage.jsx";
 import { DataProvider } from "./context/DataContext";
+import  ProtectedRoutes  from "./routes/routes.jsx";
 function App() {
   return (
     <BrowserRouter>
@@ -23,12 +24,15 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/filereader" element={<FileReaderPage />} />
             <Route path="/charts" element={<ChartPage />} />
             <Route path="/filereader/modal" element={<Modal />} />
-            <Route path="/savedfiles" element={<DbSheetPage />} />
             <Route path="*" element={<ErrorPage />} />
+
+            <Route element={<ProtectedRoutes />}>
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/savedfiles" element={<DbSheetPage />} />
+            </Route>
           </Routes>
           <Footer />
         </DataProvider>
