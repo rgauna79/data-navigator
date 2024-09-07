@@ -12,13 +12,8 @@ import ErrorPage from "./pages/ErrorPage.jsx";
 import Footer from "./components/ui/Footer.jsx";
 import ChartPage from "./pages/ChartPage.jsx";
 import DbSheetPage from "./pages/DbSheetPage.jsx";
-<<<<<<< HEAD
-import { DataProvider } from "./context/DataContext";
-import  ProtectedRoutes  from "./routes/routes.jsx";
-=======
-import { PrivateRoute } from "../src/routes/routeProtected";
-
->>>>>>> 93a741879f6c8bda8c7590d6ad1faa7cb9921463
+import  { PrivateRoute }  from "./routes/routeProtected.jsx";
+import Modal from "./components/reports/Modal.jsx";
 function App() {
   return (
     <BrowserRouter>
@@ -34,10 +29,10 @@ function App() {
             <Route path="/filereader/modal" element={<Modal />} />
             <Route path="*" element={<ErrorPage />} />
 
-            <Route element={<ProtectedRoutes />}>
+            {/* <Route element={<PrivateRoute />}> */}
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/savedfiles" element={<DbSheetPage />} />
-            </Route>
+            {/* </Route> */}
           </Routes>
         </DataProvider>
         <Footer />
