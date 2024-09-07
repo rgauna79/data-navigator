@@ -6,7 +6,7 @@ export const loginRequest = (user) => axios.post(`auth/login`, user);
 
 export const logoutRequest = () => axios.post(`auth/logout`);
 
-export const verifyTokenRequest = () => axios.get(`auth/verify`);
+export const verifyTokenRequest = (token) => axios.get(`auth/verify`, token);
 
 export const getUserProfileRequest = () => axios.get(`users/profile`);
 
