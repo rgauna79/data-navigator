@@ -12,12 +12,14 @@ function PaginationComponent({
   previousPage,
   setPageSize,
 }) {
+  const totalRecords = data ? data.length : 0;
+  const startIndex = pageIndex * pageSize + 1;
+  const endIndex = Math.min((pageIndex + 1) * pageSize, totalRecords);
+
   return (
     <div className="pagination mt-4 flex justify-content-between align-items-center">
       <div className="ml-2">
-        Showing {pageIndex * pageSize + 1} to{" "}
-        {Math.min((pageIndex + 1) * pageSize, data.length)} of {data.length}{" "}
-        records
+        Showing {startIndex} to {endIndex} of {totalRecords} records
       </div>
       <div className="ml-2">
         Rows per page:
