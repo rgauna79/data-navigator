@@ -5,6 +5,7 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 
 export const PrivateRoute = () => {
   const { isLoggedIn, isLoading } = useAuth();
+  console.log( isLoggedIn, isLoading);
   if (isLoading)
     return (
       <div className="flex-1 flex justify-center items-center bg-gray-500">

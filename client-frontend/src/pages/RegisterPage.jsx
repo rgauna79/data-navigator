@@ -2,19 +2,20 @@
 import React, { useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useForm } from "react-hook-form";
+import { Navigate } from "react-router-dom";
 
 export const RegisterPage = () => {
   const {
     register,
-    isLoggedIn,
+    
     handleSubmit,
     formState: { errors },
   } = useForm();
-  const { signup, errors: authErrors } = useAuth();
+  const { isLoggedIn, signup, errors: authErrors } = useAuth();
 
   useEffect(() => {
     if (isLoggedIn) {
-      window.location.href = "/";
+      Navigate("/");
     }
   }, [isLoggedIn]);
 
