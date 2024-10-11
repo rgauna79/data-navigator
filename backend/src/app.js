@@ -9,8 +9,8 @@ import cookieParser from "cookie-parser";
 import path from "path";
 
 const app = express();
-// const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-const frontendUrl = "https://7mhxp9-5173.csb.app";
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+// const frontendUrl = "https://7mhxp9-5173.csb.app";
 
 console.log("FRONTEND_URL: ", frontendUrl);
 
