@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useDataContext } from "../context/DataContext";
-import CommonTable from "../components/TableXLXS/CommonTable.jsx";
+import DataTable from "../components/TableXLXS/DataTable.jsx";
+
 import {
   useGlobalFilter,
   useFilters,
@@ -21,6 +22,7 @@ function DbSheetPage() {
 
   const handleViewTable = (index) => {
     setTable(dataSaved.data[index].fileData);
+    console.log("table", table.length);
   };
 
   function handleCloseTable() {
@@ -95,31 +97,9 @@ function DbSheetPage() {
         )}
       </section>
 
-      <section
-        id="searchBox"
-        className="border border-white p-4 rounded w-full bg-white"
-      ></section>
-
       <section id="dataSection" className="mt-4 w-full">
         <div className="max-w-full overflow-x-auto">
-          {table && (
-            <CommonTable
-              columns={columns}
-              data={data}
-              tableInstance={tableInstance}
-              filter={filter}
-              handleFilterChange={(e) =>
-                setFilters({ ...filter, input: e.target.value })
-              }
-              handleColumnSelectChange={(e) =>
-                setFilters({ ...filter, column: e.target.value })
-              }
-              handleOpenModal={handleOpenModal}
-              handleCloseTable={handleCloseTable}
-              showModal={showModal}
-              handleCloseModal={handleCloseModal}
-            />
-          )}
+          {table && <DataTable sheetSaved={table} />}
         </div>
       </section>
     </div>
