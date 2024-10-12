@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import TableComponent from "./Table.jsx";
 import PaginationComponent from "./Pagination.jsx";
 import SearchBar from "./SearchBar.jsx";
@@ -9,25 +9,16 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 function CommonTable({
   columns,
   data,
-  tableInstance,
-  filter,
-  selectedColumn,
-  handleFilterChange,
-  handleColumnSelectChange,
-  handleOpenModal,
+  table,
   handleCloseTable,
-  showModal,
-  handleCloseModal,
-  saveData,
+  handleSaveData,
   showSaveButton = false,
-  isSaving,
 }) {
   const {
     getTableProps,
     getTableBodyProps,
     headerGroups,
     prepareRow,
-    setFilter,
     setPageSize,
     page,
     canPreviousPage,
@@ -37,28 +28,41 @@ function CommonTable({
     nextPage,
     previousPage,
     state: { pageIndex, pageSize },
-  } = tableInstance;
+  } = table;
 
-  React.useEffect(() => {
-    const { column, input } = filter;
-    if (column !== "") {
-      setFilter(column, input);
-    } else {
-      tableInstance.setGlobalFilter(input);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  const handleOpenModal = () => {
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+  };
+
+  const handleSaveDataClick = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const dataToSave = {
+        sheetName: selectedSheet,
+        fileData,
+      };
+      await handleSaveData(dataToSave);
+      alert(`${dataToSave.sheetName} saved successfully in the database`);
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsSaving(false);
     }
-  }, [filter, setFilter, tableInstance]);
+  };
 
   return (
     <div className="flex-1 flex justify-center items-center bg-gray-500 flex-col mx-4 py-4">
       {data && (
         <>
-          <SearchBar
-            filter={filter}
-            handleFilterChange={handleFilterChange}
-            columns={columns}
-            selectedColumn={selectedColumn}
-            handleColumnSelectChange={handleColumnSelectChange}
-          />
+          <SearchBar table={table} columns={columns} />
           <section id="buttonSection" className="flex justify-between w-full">
             {showModal && (
               <Modal
@@ -78,7 +82,7 @@ function CommonTable({
               <button
                 id="saveDataButton"
                 className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded mt-4"
-                onClick={saveData}
+                onClick={handleSaveDataClick}
               >
                 {isSaving ? (
                   <>
@@ -121,6 +125,7 @@ function CommonTable({
                 nextPage={nextPage}
                 previousPage={previousPage}
                 setPageSize={setPageSize}
+                table={table}
               />
             </div>
           </section>

@@ -1,7 +1,7 @@
 import React from "react";
 import { useDataContext } from "../../context/DataContext";
 
-function SheetSelect() {
+function SheetSelector() {
   const { workbook, fileData, selectedSheet, setSelectedSheet } =
     useDataContext();
   if (!workbook || !fileData) {
@@ -36,4 +36,4 @@ function SheetSelect() {
   );
 }
 
-export default SheetSelect;
+export default SheetSelector;
