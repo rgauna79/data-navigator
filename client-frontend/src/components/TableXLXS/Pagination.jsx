@@ -3,16 +3,15 @@ import React from "react";
 function PaginationComponent({
   pageIndex,
   pageSize,
-  data,
   canPreviousPage,
   canNextPage,
   pageOptions,
-  pageCount,
   nextPage,
   previousPage,
   setPageSize,
+  table,
 }) {
-  const totalRecords = data ? data.length : 0;
+  const totalRecords = table.globalFilteredRows.length;
   const startIndex = pageIndex * pageSize + 1;
   const endIndex = Math.min((pageIndex + 1) * pageSize, totalRecords);
 

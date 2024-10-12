@@ -7,9 +7,6 @@ function TableComponent({
   prepareRow,
   page,
 }) {
-  // Agregar console.log para imprimir los valores
-  // console.log("headerGroups:", headerGroups);
-
   return (
     <table
       {...getTableProps()}
@@ -17,25 +14,25 @@ function TableComponent({
     >
       <thead>
         {headerGroups.map((headerGroup) => {
-          // Agregar console.log para imprimir headerGroup.id
-          // console.log("headerGroup.id:", headerGroup.headers[0].id);
-
           return (
-            <tr key={headerGroup.headers[0].id} >
+            <tr key={headerGroup.headers[0].id}>
               {headerGroup.headers.map((column) => {
-                // Agregar console.log para imprimir column.id
-                // console.log("column.id:", column.id);
-
+                const { key, ...headerProps } = column.getHeaderProps(
+                  column.getSortByToggleProps()
+                );
                 return (
                   <th
-                    key={column.id}
-                    
+                    key={key}
                     className="px-1 py-1 bg-blue-500 text-white border border-blue-500 whitespace-nowrap"
-                    id={column.id}
+                    {...headerProps}
                   >
                     {column.render("Header")}
                     <span>
-                      {column.isSorted ? (column.isSortedDesc ? " 🔽" : " 🔼") : ""}
+                      {column.isSorted
+                        ? column.isSortedDesc
+                          ? " 🔽"
+                          : " 🔼"
+                        : ""}
                     </span>
                   </th>
                 );
@@ -47,19 +44,13 @@ function TableComponent({
       <tbody {...getTableBodyProps()}>
         {page.map((row, rowIndex) => {
           prepareRow(row);
-          // Agregar console.log para imprimir row.id
-          // console.log("row.id:", row.id);
 
           return (
             <tr key={row.id}>
               {row.cells.map((cell, cellIndex) => {
-                // Agregar console.log para imprimir cellIndex
-                // console.log("cellIndex:", cellIndex);
-
                 return (
                   <td
                     key={`${row.id}-${cellIndex}`}
-                    
                     className="px-2 py-1 bg-white border border-gray-300 whitespace-nowrap"
                   >
                     {cell.value === "DAY" || cell.value === "NIGHT" ? (

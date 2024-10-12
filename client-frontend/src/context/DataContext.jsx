@@ -22,6 +22,10 @@ export const DataProvider = ({ children }) => {
   const [workbook, setWorkbook] = useState(null);
   const [selectedSheet, setSelectedSheet] = useState("");
   const [fileData, setFileData] = useState([]);
+  const [filter, setFilter] = useState({
+    input: "",
+    column: "",
+  });
 
   const handleSaveData = async (data) => {
     // setIsLoading(true);
@@ -62,6 +66,8 @@ export const DataProvider = ({ children }) => {
         setFileData,
         handleSaveData,
         readAllData,
+        filter,
+        setFilter,
       }}
     >
       {children}
