@@ -12,8 +12,8 @@ import ErrorPage from "./pages/ErrorPage.jsx";
 import Footer from "./components/ui/Footer.jsx";
 import ChartPage from "./pages/ChartPage.jsx";
 import DbSheetPage from "./pages/DbSheetPage.jsx";
-import { PrivateRoute } from "../src/routes/routeProtected";
-
+import  { PrivateRoute }  from "./routes/routeProtected.jsx";
+import Modal from "./components/reports/Modal.jsx";
 function App() {
   return (
     <BrowserRouter>
