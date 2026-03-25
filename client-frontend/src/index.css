@@ -6,35 +6,20 @@
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: light dark;
-  /* color: rgba(255, 255, 255, 0.87); */
-
-  --tw-bg-opacity: 1;
-  background-color: rgb(107 114 128 / var(--tw-bg-opacity));
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-div {
-  color: black;
-}
-
-input,
-select {
-  background-color: white;
-}
-
-label,
-h1 {
-  color: white;
-}
-
+/* ✅ #root ocupa todo el alto y es flex column para que el footer quede al fondo */
 #root {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  min-width: 400px;
+  min-height: 100vh;
 }
+
+/* ✅ Eliminado: div { color: black } — rompía todos los textos con Tailwind */
+/* ✅ Eliminado: background-color en :root — ahora lo maneja Tailwind en App.jsx */
+/* ✅ Eliminado: label, h1 { color: white } — demasiado global, rompía formularios */
+/* ✅ Eliminado: input, select { background-color: white } — lo maneja Tailwind por componente */
