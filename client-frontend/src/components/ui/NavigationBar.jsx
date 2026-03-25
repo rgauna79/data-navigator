@@ -1,203 +1,203 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars, faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBars,
+  faXmark,
+  faSignOutAlt,
+  faUser,
+  faHome,
+  faFileExcel,
+  faDatabase,
+  faChartBar,
+} from "@fortawesome/free-solid-svg-icons";
 import logo from "../../assets/images/logo.png";
+
+const NAV_LINKS = [
+  { to: "/",           label: "Home",        icon: faHome,      auth: false },
+  { to: "/filereader", label: "File Reader",  icon: faFileExcel, auth: false },
+  { to: "/charts",     label: "Charts",       icon: faChartBar,  auth: false },
+  { to: "/savedfiles", label: "Saved Files",  icon: faDatabase,  auth: true  },
+];
 
 function NavigationBar() {
   const { isLoggedIn, user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
-  const hamburgerRef = useRef(null);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  const handleItemClick = () => {
-    setShowMenu(false);
-  };
+  const isActive = (path) =>
+    path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
-  const handleClickOutside = (event) => {
-    if (
-      menuRef.current &&
-      !menuRef.current.contains(event.target) &&
-      hamburgerRef.current &&
-      !hamburgerRef.current.contains(event.target)
-    ) {
-      setShowMenu(false);
-    }
-  };
-
+  // Close menu on outside click
   useEffect(() => {
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleEscapePress = (event) => {
-      if (event.key === "Escape") {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
         setShowMenu(false);
       }
     };
-
-    document.addEventListener("keydown", handleEscapePress);
-
-    return () => {
-      document.removeEventListener("keydown", handleEscapePress);
-    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Close menu on Escape
+  useEffect(() => {
+    const handler = (e) => e.key === "Escape" && setShowMenu(false);
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setShowMenu(false);
+  }, [location.pathname]);
+
+  const visibleLinks = NAV_LINKS.filter((l) => !l.auth || isLoggedIn);
+
   return (
-    <nav className="bg-gray-800 px-4 sm:px-2 lg:px-4 sticky top-0">
-      <div className="w-full">
-        <div className="flex justify-between h-16 items-center">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center ">
-              <Link to="/">
-                <img className="h-16 rounded py-1" src={logo} alt="Logo" />
-              </Link>
+    <nav className="bg-gray-900 border-b border-gray-700/60 sticky top-0 z-50" ref={menuRef}>
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="flex justify-between items-center h-16">
+
+          {/* Logo + desktop links */}
+          <div className="flex items-center gap-6">
+            <Link to="/" className="flex-shrink-0">
+              <img className="h-10 rounded-lg" src={logo} alt="Data Navigator" />
+            </Link>
+
+            <div className="hidden md:flex items-center gap-1">
+              {visibleLinks.map(({ to, label, icon }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive(to)
+                      ? "bg-gray-700 text-white"
+                      : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  }`}
+                >
+                  <FontAwesomeIcon icon={icon} className="text-xs" />
+                  {label}
+                </Link>
+              ))}
             </div>
-            <div className="hidden md:block ml-4 text-right">
-              <div className="flex space-x-4">
-                <Link to="/" className="text-white hover:text-gray-300">
-                  Home
+          </div>
+
+          {/* Desktop auth */}
+          <div className="hidden md:flex items-center gap-3">
+            {isLoggedIn ? (
+              <>
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                    {user.username?.[0]?.toUpperCase()}
+                  </div>
+                  <span>{user.username}</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-red-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-gray-800"
+                  title="Sign out"
+                >
+                  <FontAwesomeIcon icon={faSignOutAlt} />
+                  <span>Sign out</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800"
+                >
+                  Sign in
                 </Link>
                 <Link
-                  to="/filereader"
-                  className="text-white hover:text-gray-300"
-                  onClick={handleItemClick}
+                  to="/register"
+                  className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium"
                 >
-                  FileReader
+                  Sign up
                 </Link>
-                {isLoggedIn && (
-                  <Link
-                    to="/savedfiles"
-                    className="text-white hover:text-gray-300"
-                    onClick={handleItemClick}
-                  >
-                    Saved Files
-                  </Link>
-                )}
-              </div>
-            </div>
+              </>
+            )}
           </div>
-          <div className="hidden md:block">
-            <div className="ml-4 flex items-center md:ml-6">
-              {isLoggedIn ? (
-                <>
-                  <span className="text-white">Welcome {user.username}</span>
-                  <button
-                    onClick={handleLogout}
-                    className="ml-4 text-white hover:text-gray-300"
-                  >
-                    <FontAwesomeIcon icon={faSignOutAlt} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    className="text-white hover:text-gray-300"
-                    onClick={handleItemClick}
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="ml-4 text-white hover:text-gray-300"
-                    onClick={handleItemClick}
-                  >
-                    Register
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="-mr-2 flex md:hidden ">
-            <button
-              onClick={() => {
-                setShowMenu((prevMenuState) => !prevMenuState);
-              }}
-              type="button"
-              ref={menuRef}
-              className="hamburger inline-flex items-center justify-center p-2 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-              aria-controls="mobile-menu"
-              aria-expanded={showMenu ? "true" : "false"}
-            >
-              <span className="sr-only">Open main menu</span>
-              <FontAwesomeIcon icon={faBars} />
-            </button>
-          </div>
+
+          {/* Mobile hamburger */}
+          <button
+            onClick={() => setShowMenu((v) => !v)}
+            className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+            aria-label="Toggle menu"
+          >
+            <FontAwesomeIcon icon={showMenu ? faXmark : faBars} />
+          </button>
         </div>
       </div>
 
-      <div
-        className={`${showMenu ? "block" : "hidden"} md:hidden`}
-        id="mobile-menu"
-        ref={hamburgerRef}
-      >
-        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 text-right">
-          <Link
-            to="/"
-            className="text-white block hover:text-gray-300"
-            onClick={handleItemClick}
-          >
-            Home
-          </Link>
-          <Link
-            to="/filereader"
-            className="text-white block hover:text-gray-300"
-            onClick={handleItemClick}
-          >
-            FileReader
-          </Link>
-          {isLoggedIn && (
+      {/* Mobile menu */}
+      {showMenu && (
+        <div className="md:hidden border-t border-gray-700/60 bg-gray-900 px-4 py-3 space-y-1">
+          {visibleLinks.map(({ to, label, icon }) => (
             <Link
-              to="/savedfiles"
-              className="text-white block hover:text-gray-300"
-              onClick={handleItemClick}
+              key={to}
+              to={to}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                isActive(to)
+                  ? "bg-gray-700 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
+              }`}
             >
-              Saved Files
+              <FontAwesomeIcon icon={icon} className="w-4" />
+              {label}
             </Link>
-          )}
+          ))}
+
+          <div className="border-t border-gray-700/60 pt-3 mt-3">
+            {isLoggedIn ? (
+              <div className="space-y-1">
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                >
+                  <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                    {user.username?.[0]?.toUpperCase()}
+                  </div>
+                  {user.username}
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-gray-800 transition-colors w-full text-left"
+                >
+                  <FontAwesomeIcon icon={faSignOutAlt} className="w-4" />
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Link
+                  to="/login"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/register"
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3  flex justify-end text-right">
-          {isLoggedIn ? (
-            <div className="flex justify-end flex-col text-right">
-              <span className="text-white">Welcome {user.username}</span>
-              <button
-                onClick={handleLogout}
-                className="block mt-1 text-white hover:text-gray-300 text-right"
-              >
-                Logout <FontAwesomeIcon icon={faSignOutAlt} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex justify-end flex-col text-right">
-              <Link
-                to="/login"
-                className="text-white block hover:text-gray-300 text-right"
-                onClick={handleItemClick}
-              >
-                Login
-              </Link>
-              <Link
-                to="/register"
-                className="mt-1 text-white block hover:text-gray-300 text-right"
-                onClick={handleItemClick}
-              >
-                Register
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </nav>
   );
 }

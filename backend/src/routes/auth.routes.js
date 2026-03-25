@@ -6,6 +6,7 @@ import {
   profile,
   verifyToken,
 } from "../controller/auth.controller.js";
+import { authRequired } from "../middlewares/auth.middleware.js"; // Importamos el middleware
 // import { verifyToken } from "../middlewares/auth.middleware.js";
 import { registrationSchema, loginSchema } from "../schemas/auth.schema.js";
 import { validateSchema } from "../middlewares/validate.middleware.js";
@@ -19,6 +20,6 @@ router.post("/register", validateSchema(registrationSchema), register);
 router.post("/login", validateSchema(loginSchema), login);
 router.post("/logout", logout);
 router.get("/verify", verifyToken);
-router.get("/profile/", verifyToken, profile);
+router.get("/profile/", authRequired, profile);
 
 export default router;

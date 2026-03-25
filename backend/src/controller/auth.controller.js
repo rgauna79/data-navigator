@@ -6,6 +6,14 @@ import jwt from "jsonwebtoken";
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// Función reutilizable para la configuración de la cookie
+const cookieOptions = {
+  httpOnly: true,
+  secure: true,   // Obligatorio para sameSite: 'none'
+  sameSite: "none",
+  maxAge: 24 * 60 * 60 * 1000, // 24 horas
+};
+
 export const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -60,11 +68,12 @@ export const login = async (req, res) => {
     }
     //Set cookie with auth token
     const token = await createAccessToken({ _id: userFound._id });
-    res.cookie("authToken", token, {
-      httpOnly: isProduction,
-      secure: true,
-      sameSite: "none",
-    });
+    // res.cookie("authToken", token, {
+    //   httpOnly: isProduction,
+    //   secure: true,
+    //   sameSite: "none",
+    // });
+    res.cookie("authToken", token, cookieOptions); //Opciones seguras
 
     res.json({
       id: userFound._id,
@@ -98,34 +107,53 @@ export const profile = async (req, res) => {
   }
 };
 
-export const verifyToken = async (req, res, next) => {
-  try {
-    const { authToken } = req.cookies;
+// export const verifyToken = async (req, res, next) => {
+//   try {
+//     const { authToken } = req.cookies;
 
-    if (!authToken) {
-      return res.status(401).json({ message: "No token provided" });
-    }
+//     if (!authToken) {
+//       return res.status(401).json({ message: "No token provided" });
+//     }
 
-    jwt.verify(authToken, TOKEN_SECRET, async (err, user) => {
-      if (err) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
+//     jwt.verify(authToken, TOKEN_SECRET, async (err, user) => {
+//       if (err) {
+//         return res.status(401).json({ message: "Unauthorized" });
+//       }
 
-      const userFound = await User.findById(user._id);
+//       const userFound = await User.findById(user._id);
 
-      if (!userFound) {
-        return res
-          .status(401)
-          .json({ message: "Unauthorized, user not found" });
-      }
-      return res.json({
-        id: userFound._id,
-        username: userFound.username,
-        email: userFound.email,
-      });
+//       if (!userFound) {
+//         return res
+//           .status(401)
+//           .json({ message: "Unauthorized, user not found" });
+//       }
+//       return res.json({
+//         id: userFound._id,
+//         username: userFound.username,
+//         email: userFound.email,
+//       });
+//     });
+//   } catch (error) {
+//     console.error("Error during token verification:", error);
+//     res.status(500).json({ message: "Token verification failed" });
+//   }
+// };
+
+//nuevo Controlador verifyToken
+export const verifyToken = async (req, res) => {
+  const { authToken } = req.cookies;
+  if (!authToken) return res.status(401).json({ message: "Unauthorized" });
+
+  jwt.verify(authToken, TOKEN_SECRET, async (err, user) => {
+    if (err) return res.status(401).json({ message: "Unauthorized" });
+
+    const userFound = await User.findById(user._id);
+    if (!userFound) return res.status(401).json({ message: "Unauthorized" });
+
+    return res.json({
+      id: userFound._id,
+      username: userFound.username,
+      email: userFound.email,
     });
-  } catch (error) {
-    console.error("Error during token verification:", error);
-    res.status(500).json({ message: "Token verification failed" });
-  }
+  });
 };
