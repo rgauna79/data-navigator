@@ -1,134 +1,259 @@
-import React, { useState } from "react";
-import TableComponent from "./Table.jsx";
-import PaginationComponent from "./Pagination.jsx";
-import SearchBar from "./SearchBar.jsx";
+import React, { useState, useMemo } from "react";
 import Modal from "../reports/Modal.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSpinner } from "@fortawesome/free-solid-svg-icons";
+import {
+  faSpinner, faFloppyDisk, faXmark, faChartBar, faSearch,
+  faChevronUp, faChevronDown, faChevronLeft, faChevronRight,
+  faAnglesLeft, faAnglesRight, faPalette,
+} from "@fortawesome/free-solid-svg-icons";
+import { flexRender } from "@tanstack/react-table";
+import { useDataContext } from "../../context/DataContext.jsx";
+
+// Detecta columnas numéricas en los datos
+const detectNumericColumns = (data) => {
+  if (!data || data.length === 0) return new Set();
+  const numeric = new Set();
+  const keys = Object.keys(data[0]);
+  keys.forEach((key) => {
+    const vals = data.map((r) => r[key]).filter((v) => v !== "" && v !== null);
+    const numCount = vals.filter((v) => !isNaN(parseFloat(v)) && isFinite(v)).length;
+    if (vals.length > 0 && numCount / vals.length > 0.6) numeric.add(key);
+  });
+  return numeric;
+};
+
+// Calcula min/max por columna numérica
+const getColumnRanges = (data, numericCols) => {
+  const ranges = {};
+  numericCols.forEach((col) => {
+    const vals = data.map((r) => parseFloat(r[col])).filter((v) => !isNaN(v));
+    if (vals.length > 0) {
+      ranges[col] = { min: Math.min(...vals), max: Math.max(...vals) };
+    }
+  });
+  return ranges;
+};
+
+// Genera clase de color condicional para una celda numérica
+const getHeatClass = (value, range) => {
+  if (!range || range.max === range.min) return "";
+  const pct = (parseFloat(value) - range.min) / (range.max - range.min);
+  if (pct >= 0.8) return "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-medium";
+  if (pct >= 0.6) return "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300";
+  if (pct >= 0.4) return "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300";
+  if (pct >= 0.2) return "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300";
+  return "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300";
+};
 
 function CommonTable({
-  columns,
-  data,
-  table,
-  handleCloseTable,
-  handleSaveData,
-  showSaveButton = false,
+  data, table, handleCloseTable, handleSaveData,
+  showSaveButton = false, globalFilter, setGlobalFilter,
 }) {
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    prepareRow,
-    setPageSize,
-    page,
-    canPreviousPage,
-    canNextPage,
-    pageOptions,
-    pageCount,
-    nextPage,
-    previousPage,
-    state: { pageIndex, pageSize },
-  } = table;
-
+  const { selectedSheet, fileData } = useDataContext();
   const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null);
+  const [heatmap, setHeatmap] = useState(false);
 
-  const handleOpenModal = () => {
-    setShowModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-  };
+  // Detectar columnas numéricas y rangos una sola vez
+  const numericCols = useMemo(() => detectNumericColumns(data), [data]);
+  const colRanges = useMemo(() => getColumnRanges(data, numericCols), [data, numericCols]);
 
   const handleSaveDataClick = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+    setSaveStatus(null);
     try {
-      const dataToSave = {
-        sheetName: selectedSheet,
-        fileData,
-      };
-      await handleSaveData(dataToSave);
-      alert(`${dataToSave.sheetName} saved successfully in the database`);
+      await handleSaveData({ sheetName: selectedSheet, fileData });
+      setSaveStatus("success");
+      setTimeout(() => setSaveStatus(null), 3000);
     } catch (error) {
-      console.error("Error:", error);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus(null), 3000);
     } finally {
       setIsSaving(false);
     }
   };
 
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const pageCount = table.getPageCount();
+  const canPreviousPage = table.getCanPreviousPage();
+  const canNextPage = table.getCanNextPage();
+  const columns = table.getAllColumns().map((col) => ({
+    Header: col.columnDef.header,
+    accessor: col.id,
+  }));
+
   return (
-    <div className="flex-1 flex justify-center items-center bg-gray-500 flex-col mx-4 py-4">
-      {data && (
+    <div className="flex flex-col gap-4 w-full">
+      {data && data.length > 0 && (
         <>
-          <SearchBar table={table} columns={columns} />
-          <section id="buttonSection" className="flex justify-between w-full">
-            {showModal && (
-              <Modal
-                handleClose={handleCloseModal}
-                columns={columns}
-                data={data}
+          {/* Search + heatmap toggle */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
+              <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <input
+                type="text"
+                value={globalFilter ?? ""}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                placeholder="Search all columns..."
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               />
+            </div>
+            {numericCols.size > 0 && (
+              <button
+                onClick={() => setHeatmap((v) => !v)}
+                title="Toggle color heatmap for numeric columns"
+                className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-colors ${
+                  heatmap
+                    ? "bg-blue-600 border-blue-600 text-white"
+                    : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-400"
+                }`}
+              >
+                <FontAwesomeIcon icon={faPalette} className="text-xs" />
+                Heatmap
+              </button>
             )}
+          </div>
+
+          {/* Toasts */}
+          {saveStatus === "success" && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300 text-sm px-4 py-2 rounded-lg">
+              ✓ <strong>{selectedSheet}</strong> saved successfully.
+            </div>
+          )}
+          {saveStatus === "error" && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-lg">
+              ✗ Error saving. Please try again.
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2">
+            {showModal && <Modal handleClose={() => setShowModal(false)} columns={columns} data={data} />}
             <button
-              id="saveDataButton"
-              className="bg-blue-500 text-white p-2 rounded mt-4"
-              onClick={handleOpenModal}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+              onClick={() => setShowModal(true)}
             >
-              Generate Report
+              <FontAwesomeIcon icon={faChartBar} /> Generate Report
             </button>
             {showSaveButton && (
               <button
-                id="saveDataButton"
-                className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded mt-4"
+                disabled={isSaving}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm px-4 py-2 rounded-lg transition-colors"
                 onClick={handleSaveDataClick}
               >
-                {isSaving ? (
-                  <>
-                    <FontAwesomeIcon icon={faSpinner} spin />
-                    <span className="ml-2">Saving</span>
-                  </>
-                ) : (
-                  "Save Data"
-                )}
+                {isSaving
+                  ? <><FontAwesomeIcon icon={faSpinner} spin /> Saving...</>
+                  : <><FontAwesomeIcon icon={faFloppyDisk} /> Save Data</>
+                }
               </button>
             )}
-
             {handleCloseTable && (
               <button
-                className="bg-blue-500 text-white p-2 rounded mt-4"
+                className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded-lg transition-colors ml-auto"
                 onClick={handleCloseTable}
               >
-                Close
+                <FontAwesomeIcon icon={faXmark} /> Close
               </button>
             )}
-          </section>
-          <section id="dataSection" className="mt-4 w-full">
-            <div className="max-w-full overflow-x-auto">
-              <TableComponent
-                getTableProps={getTableProps}
-                getTableBodyProps={getTableBodyProps}
-                headerGroups={headerGroups}
-                prepareRow={prepareRow}
-                page={page}
-                columns={columns}
-              />
-              <PaginationComponent
-                pageIndex={pageIndex}
-                pageSize={pageSize}
-                data={data}
-                canPreviousPage={canPreviousPage}
-                canNextPage={canNextPage}
-                pageOptions={pageOptions}
-                pageCount={pageCount}
-                nextPage={nextPage}
-                previousPage={previousPage}
-                setPageSize={setPageSize}
-                table={table}
-              />
+          </div>
+
+          {/* Heatmap legend */}
+          {heatmap && numericCols.size > 0 && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <span>Low</span>
+              {["bg-green-100","bg-blue-100","bg-yellow-100","bg-orange-100","bg-red-100"].map((c) => (
+                <span key={c} className={`w-5 h-3 rounded ${c} border border-gray-200`} />
+              ))}
+              <span>High</span>
+              <span className="ml-2 text-gray-400">· numeric columns only</span>
             </div>
-          </section>
+          )}
+
+          {/* Table */}
+          <div className="w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+            <table className="w-full text-sm text-left border-collapse">
+              <thead className="bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        onClick={header.column.getToggleSortingHandler()}
+                        className={`px-4 py-3 font-medium text-xs uppercase tracking-wide whitespace-nowrap border-b border-gray-200 dark:border-gray-600 ${
+                          header.column.getCanSort() ? "cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-600/60" : ""
+                        } ${numericCols.has(header.id) && heatmap ? "bg-blue-50/50 dark:bg-blue-900/10" : ""}`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {header.column.getIsSorted() === "asc" && <FontAwesomeIcon icon={faChevronUp} className="text-blue-500 text-xs" />}
+                          {header.column.getIsSorted() === "desc" && <FontAwesomeIcon icon={faChevronDown} className="text-blue-500 text-xs" />}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {table.getRowModel().rows.map((row, i) => (
+                  <tr
+                    key={row.id}
+                    className={`${i % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-800/60"} hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors`}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const isNumeric = numericCols.has(cell.column.id);
+                      const val = cell.getValue();
+                      const heatClass = heatmap && isNumeric && val !== "" && val !== null
+                        ? getHeatClass(val, colRanges[cell.column.id])
+                        : "";
+                      return (
+                        <td
+                          key={cell.id}
+                          className={`px-4 py-2.5 whitespace-nowrap transition-colors ${
+                            heatClass || "text-gray-700 dark:text-gray-300"
+                          }`}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600 dark:text-gray-400 pb-2">
+            <div className="flex items-center gap-2">
+              <span>Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {[10, 15, 25, 50, 100].map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <span className="text-xs">
+              Page <strong>{pageIndex + 1}</strong> of <strong>{pageCount || 1}</strong>
+              {" "}· {table.getFilteredRowModel().rows.length} rows
+            </span>
+            <div className="flex items-center gap-1">
+              {[
+                { icon: faAnglesLeft,   action: () => table.setPageIndex(0),           disabled: !canPreviousPage },
+                { icon: faChevronLeft,  action: () => table.previousPage(),             disabled: !canPreviousPage },
+                { icon: faChevronRight, action: () => table.nextPage(),                 disabled: !canNextPage },
+                { icon: faAnglesRight,  action: () => table.setPageIndex(pageCount-1), disabled: !canNextPage },
+              ].map(({ icon, action, disabled }, i) => (
+                <button key={i} onClick={action} disabled={disabled}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                  <FontAwesomeIcon icon={icon} className="text-xs" />
+                </button>
+              ))}
+            </div>
+          </div>
         </>
       )}
     </div>
