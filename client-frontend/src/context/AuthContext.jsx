@@ -60,6 +60,8 @@ export const AuthProvider = ({ children }) => {
         setError(error.response.data.message);
       } else if (error.response.data.error) {
         setError(error.response.data.error);
+      } else if (error.message) {
+        setError(error.message)
       }
     }
   };
@@ -75,26 +77,44 @@ export const AuthProvider = ({ children }) => {
     async function checkLogin() {
       setIsLoading(true);
       // Check if there's a cookie
-      const cookie = Cookies.get();
-      if (!cookie) {
+    //   const cookie = Cookies.get();
+    //   if (!cookie) {
+    //     setIsLoggedIn(false);
+    //     setIsLoading(false);
+    //     return setUser(null);
+    //   }
+    //   try {
+    //     const response = await verifyTokenRequest(cookie.authToken);
+    //     if (!response.data) {
+    //       return setIsLoggedIn(false);
+    //     }
+    //     setUser(response.data);
+    //     setIsLoggedIn(true);
+    //     setIsLoading(false);
+    //   } catch (error) {
+    //     setIsLoggedIn(false);
+    //     setIsLoading(false);
+    //   }
+    // }
+    try {
+      const response = await verifyTokenRequest();
+      if (!response.data) {
         setIsLoggedIn(false);
-        setIsLoading(false);
-        return setUser(null);
-      }
-      try {
-        const response = await verifyTokenRequest(cookie.authToken);
-        if (!response.data) {
-          return setIsLoggedIn(false);
-        }
+        setUser(null);
+      } else {
         setUser(response.data);
         setIsLoggedIn(true);
-        setIsLoading(false);
-      } catch (error) {
-        setIsLoggedIn(false);
-        setIsLoading(false);
       }
+    } catch (error) {
+      // Si da 401 (Unauthorized), el catch lo maneja silenciosamente
+      setIsLoggedIn(false);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
+  }
     checkLogin();
+
   }, []);
 
   const value = {
