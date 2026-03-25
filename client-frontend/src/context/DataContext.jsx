@@ -1,76 +1,25 @@
-import React, { createContext, useContext, useState } from "react";
-import { saveData, readData } from "../api/data.js";
+// context/DataContext.jsx
+// ✅ Capa de compatibilidad: re-exporta ExcelContext + ReportContext
+// Esto permite migrar gradualmente sin romper componentes que ya usen useDataContext
+import React from "react";
+import { ExcelProvider, useExcelContext } from "./ExcelContext.jsx";
+import { ReportProvider, useReportContext } from "./ReportContext.jsx";
 
-const DataContext = createContext();
-
+// Hook de compatibilidad: une los dos contextos en uno
+// Los componentes existentes que usen useDataContext() siguen funcionando sin cambios
 export const useDataContext = () => {
-  const context = useContext(DataContext);
-  if (!context) {
-    throw new Error("useDataContext must be used within a DataProvider");
-  }
-  return context;
+  const excel = useExcelContext();
+  const report = useReportContext();
+  return { ...excel, ...report };
 };
 
+// Provider combinado que envuelve ambos providers
 export const DataProvider = ({ children }) => {
-  // const [isLoading, setIsLoading] = useState(false);
-  const [selectedColumns, setSelectedColumns] = useState([]);
-  const [selectedOptions, setSelectedOptions] = useState({});
-  const [typeReport, setTypeReport] = useState("");
-  const [data, setData] = useState([]);
-  const [error, setError] = useState(null);
-  const [dataSaved, setDataSaved] = useState();
-  const [workbook, setWorkbook] = useState(null);
-  const [selectedSheet, setSelectedSheet] = useState("");
-  const [fileData, setFileData] = useState([]);
-  const [filter, setFilter] = useState({
-    input: "",
-    column: "",
-  });
-
-  const handleSaveData = async (data) => {
-    // setIsLoading(true);
-    try {
-      await saveData(data);
-    } catch (error) {
-      setError(error);
-    } finally {
-      // setIsLoading(false);
-    }
-  };
-
-  const readAllData = async () => {
-    try {
-      const dataFound = await readData();
-      setDataSaved(dataFound);
-    } catch (error) {}
-  };
-
   return (
-    <DataContext.Provider
-      value={{
-        error,
-        dataSaved,
-        workbook,
-        selectedSheet,
-        fileData,
-        selectedColumns,
-        setSelectedColumns,
-        selectedOptions,
-        setSelectedOptions,
-        typeReport,
-        setTypeReport,
-        data,
-        setData,
-        setWorkbook,
-        setSelectedSheet,
-        setFileData,
-        handleSaveData,
-        readAllData,
-        filter,
-        setFilter,
-      }}
-    >
-      {children}
-    </DataContext.Provider>
+    <ExcelProvider>
+      <ReportProvider>{children}</ReportProvider>
+    </ExcelProvider>
   );
 };
+
+export default DataProvider;

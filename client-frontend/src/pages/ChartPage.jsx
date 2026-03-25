@@ -1,205 +1,244 @@
-import React, { useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { useDataContext } from "../context/DataContext.jsx";
-import { Pie } from "react-chartjs-2";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import { Pie, Bar, Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS, ArcElement, Tooltip, Legend,
+  CategoryScale, LinearScale, BarElement, PointElement,
+  LineElement, Title, Filler,
+} from "chart.js";
 import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faFilePdf, faArrowLeft, faChartBar, faChartPie, faChartLine,
+} from "@fortawesome/free-solid-svg-icons";
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(
+  ArcElement, Tooltip, Legend, CategoryScale, LinearScale,
+  BarElement, PointElement, LineElement, Title, Filler
+);
+
+const COLORS = [
+  { bg: "rgba(59,130,246,0.7)",  border: "rgba(59,130,246,1)"  },
+  { bg: "rgba(16,185,129,0.7)",  border: "rgba(16,185,129,1)"  },
+  { bg: "rgba(245,158,11,0.7)",  border: "rgba(245,158,11,1)"  },
+  { bg: "rgba(239,68,68,0.7)",   border: "rgba(239,68,68,1)"   },
+  { bg: "rgba(139,92,246,0.7)",  border: "rgba(139,92,246,1)"  },
+];
+
+const CHART_TABS = [
+  { id: "pie",  label: "Pie",  icon: faChartPie  },
+  { id: "bar",  label: "Bar",  icon: faChartBar  },
+  { id: "line", label: "Trend",icon: faChartLine },
+];
 
 function ChartPage() {
-  const { data, selectedOptions, typeReport } = useDataContext();
+  const { data, selectedOptions, typeReport, columnAnalysis } = useDataContext();
   const reportsRef = useRef();
-  const chartRef = useRef();
+  const navigate = useNavigate();
+  const [chartType, setChartType] = useState("pie");
 
-
-  
   const handlePrint = async () => {
     try {
       const pdf = new jsPDF("p", "pt", "letter");
-      // Render reports section to PDF
       if (reportsRef.current) {
-        const reportsCanvas = await html2canvas(reportsRef.current);
-        const reportsImgData = reportsCanvas.toDataURL("image/png");
-        pdf.addImage(reportsImgData, "PNG", 40, 40, 400, 300); // Adjust position and dimensions as needed
-      } else {
-        console.warn("Reports section not available.");
+        const canvas = await html2canvas(reportsRef.current);
+        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 40, 40, 520, 320);
       }
-
-      // Render chart to PDF
-      if (chartRef.current) {
-        const chartCanvas = chartRef.current.canvas;
-        const chartCanvasImage = await html2canvas(chartCanvas);
-        const chartImgData = chartCanvasImage.toDataURL("image/png");
-        pdf.addImage(chartImgData, "PNG", 40, 360, 400, 300); // Adjust position and dimensions as needed
-      } else {
-        console.warn("Chart section not available.");
-      }
-      // Open PDF in new tab instead of downloading
-      const pdfBlob = await pdf.output("blob");
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, "_blank");
-    } catch (error) {
-      console.error("Error generating PDF:", error);
+      window.open(URL.createObjectURL(await pdf.output("blob")), "_blank");
+    } catch (err) {
+      console.error("PDF error:", err);
     }
   };
-
 
   const generateReportData = () => {
+    if (!typeReport) return null;
     if (typeReport === "statistics") {
-      const filteredData = data.filter((row) => {
-        return Object.entries(selectedOptions).every(([key, value]) => {
-          return row.includes(value);
-        });
-      });
-      const totalRows = filteredData.length;
-
-      const includedOptions = Object.entries(selectedOptions)
-        .filter(([key, value]) => value !== "")
-        .map(([key, value]) => `${key}: ${value}`);
-
-      return (
-        <StatisticsReport totalRows={totalRows} includedOptions={includedOptions} filteredData={filteredData}/>
+      const filteredData = data.filter((row) =>
+        Object.entries(selectedOptions).every(([, value]) => row.includes(value))
       );
-    } else if (typeReport === "mostRepeated") {
-      const selectedColumn = selectedOptions.mostRepeated;
-      const optionsCount = {};
-
+      const includedOptions = Object.entries(selectedOptions)
+        .filter(([, v]) => v !== "")
+        .map(([k, v]) => `${k}: ${v}`);
+      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} />;
+    }
+    if (typeReport === "mostRepeated") {
+      const counts = {};
       data.forEach((row) => {
-        const option = row[selectedColumn];
-        if (option !== null && option !== "") {
-          optionsCount[option] = (optionsCount[option] || 0) + 1;
-        }
+        const v = row[selectedOptions.mostRepeated];
+        if (v != null && v !== "") counts[v] = (counts[v] || 0) + 1;
       });
-
-      const mostRepeatedOptions = Object.entries(optionsCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-
-      if (mostRepeatedOptions.length > 0) {
-        return <MostRepeatedReport mostRepeatedOptions={mostRepeatedOptions} />;
-      } else {
-        return "No data to display";
-      }
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      return top.length > 0
+        ? <MostRepeatedReport mostRepeatedOptions={top} />
+        : <p className="text-gray-500 text-sm">No data to display.</p>;
     }
   };
 
-  const optionsCount = data.reduce((acc, row) => {
-    const option = row[selectedOptions.mostRepeated];
-    if (option !== null && option !== "") {
-      acc[option] = (acc[option] || 0) + 1;
-    }
+  // Data for most-repeated charts
+  const counts = data.reduce((acc, row) => {
+    const v = row[selectedOptions.mostRepeated];
+    if (v != null && v !== "") acc[v] = (acc[v] || 0) + 1;
     return acc;
   }, {});
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const labels = sorted.map(([k]) => k);
+  const values = sorted.map(([, v]) => v);
 
-  const sortedOptions = Object.entries(optionsCount)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5); // Limitar a los 5 valores más frecuentes
-
-  const labels = sortedOptions.map(([option]) => option);
-  const values = sortedOptions.map(([, count]) => count);
-
-  const chartData = {
-    labels: labels,
-    datasets: [
-      {
-        label: "# of Times",
-        data: values,
-        backgroundColor: [
-          "rgba(255, 99, 132, 0.2)",
-          "rgba(54, 162, 235, 0.2)",
-          "rgba(255, 206, 86, 0.2)",
-          "rgba(75, 192, 192, 0.2)",
-          "rgba(153, 102, 255, 0.2)",
-        ],
-        borderColor: [
-          "rgba(255, 99, 132, 1)",
-          "rgba(54, 162, 235, 1)",
-          "rgba(255, 206, 86, 1)",
-          "rgba(75, 192, 192, 1)",
-          "rgba(153, 102, 255, 1)",
-        ],
-        borderWidth: 1,
-      },
-    ],
+  const sharedDataset = {
+    label: "Count",
+    data: values,
+    backgroundColor: COLORS.map((c) => c.bg),
+    borderColor: COLORS.map((c) => c.border),
+    borderWidth: 1,
   };
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      title: {
-        display: true,
-        text: "Most Repeated Options",
-        font: {
-          size: 20,
-        },
-      },
-      legend: {
-        display: true,
-        position: "left",
-        labels: {
-          font: {
-            size: 14,
-          },
-        },
-      },
-      tooltip: {
-        enabled: true,
-        backgroundColor: "rgba(0,0,0,0.7)",
-        titleFont: {
-          size: 16,
-        },
-        bodyFont: {
-          size: 14,
-        },
-      },
-    },
-    animation: {
-      animateScale: true,
-      animateRotate: true,
-    },
+  const pieData  = { labels, datasets: [sharedDataset] };
+  const barData  = { labels, datasets: [{ ...sharedDataset, borderRadius: 6 }] };
+
+  // Trend line: group data by date column if available
+  const dateCol = columnAnalysis?.find((c) => c.type === "date");
+  const trendData = (() => {
+    if (!dateCol) return null;
+    const byDate = {};
+    data.forEach((row) => {
+      const raw = row[Object.keys(row).find((k) =>
+        (row[k] && !isNaN(new Date(row[k]).getTime()) && typeof row[k] === "string")
+      )];
+      if (!raw) return;
+      const d = new Date(raw);
+      if (isNaN(d)) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      byDate[key] = (byDate[key] || 0) + 1;
+    });
+    const sorted = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
+    return {
+      labels: sorted.map(([k]) => k),
+      datasets: [{
+        label: "Records per month",
+        data: sorted.map(([, v]) => v),
+        borderColor: "rgba(59,130,246,1)",
+        backgroundColor: "rgba(59,130,246,0.1)",
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: "rgba(59,130,246,1)",
+      }],
+    };
+  })();
+
+  const baseOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: "left" }, tooltip: { backgroundColor: "rgba(0,0,0,0.75)" } },
   };
+
+  const hasData = data && data.length > 0 && typeReport;
+  const showCharts = typeReport === "mostRepeated" && sorted.length > 0;
 
   return (
-    <div className="flex-1 flex flex-col justify-center items-center">
-      <div className="bg-white rounded shadow-lg text-black">
-        <div className="px-4 py-4 bg-blue-500 text-white border border-blue-500">
-          <h1 className="text-2xl font-bold">Reports</h1>
-        </div>
-        <div ref={reportsRef} className="mt-4 flex flex-col px-8 pt-4 pb-8">
-          <h2 className="text-lg font-bold">
-            {typeReport === "statistics"
-              ? "Statistics Report"
-              : "Most Repeated Values"}
-          </h2>
-          {generateReportData()}
-        </div>
-        <div className="mt-4 mb-4">
-          {typeReport === "mostRepeated" && (
-            <div className="mt-4 w-full sm:w-auto">
-              <Pie data={chartData} ref={chartRef} options={chartOptions} />
+    <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
+      <div className="max-w-3xl mx-auto px-4 py-8">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/40 rounded-xl flex items-center justify-center text-orange-600 dark:text-orange-400">
+              <FontAwesomeIcon icon={faChartBar} />
             </div>
-          )}
-        </div>
-        <div className="flex justify-center mb-4">
-          <button
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-2 mr-2"
-            onClick={handlePrint}
-          >
-            Print Reports
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Reports</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {typeReport === "statistics" ? "Statistics report" : typeReport === "mostRepeated" ? "Most repeated values" : "No report selected"}
+              </p>
+            </div>
+          </div>
+          <button onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors">
+            <FontAwesomeIcon icon={faArrowLeft} className="text-xs" /> Back
           </button>
         </div>
+
+        {/* Empty state */}
+        {!hasData && (
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-12 text-center">
+            <FontAwesomeIcon icon={faChartPie} className="text-4xl text-gray-300 dark:text-gray-600 mb-4" />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              No report data available. Go back to the file reader and generate a report first.
+            </p>
+          </div>
+        )}
+
+        {hasData && (
+          <>
+            {/* Report content */}
+            <div ref={reportsRef} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
+              {generateReportData()}
+            </div>
+
+            {/* Charts section */}
+            {showCharts && (
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
+                {/* Chart type tabs */}
+                <div className="flex items-center gap-1 mb-5 bg-gray-100 dark:bg-gray-700 rounded-xl p-1 w-fit">
+                  {CHART_TABS.filter(t => t.id !== "line" || trendData).map(({ id, label, icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setChartType(id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        chartType === id
+                          ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={icon} className="text-xs" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="h-72">
+                  {chartType === "pie"  && <Pie  data={pieData}   options={baseOpts} />}
+                  {chartType === "bar"  && <Bar  data={barData}   options={{ ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: false } } }} />}
+                  {chartType === "line" && trendData && (
+                    <Line data={trendData} options={{
+                      ...baseOpts,
+                      plugins: { ...baseOpts.plugins, legend: { display: false } },
+                      scales: { y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } } },
+                    }} />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Trend line standalone (statistics report) */}
+            {typeReport === "statistics" && trendData && (
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                  <FontAwesomeIcon icon={faChartLine} className="text-blue-500" />
+                  Records over time
+                </h2>
+                <div className="h-56">
+                  <Line data={trendData} options={{
+                    ...baseOpts,
+                    plugins: { ...baseOpts.plugins, legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } } },
+                  }} />
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <button onClick={handlePrint}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors">
+                <FontAwesomeIcon icon={faFilePdf} /> Export as PDF
+              </button>
+            </div>
+          </>
+        )}
       </div>
-      <Link
-        to="/filereader" // Ajusta la ruta según tu aplicación
-        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-2"
-      >
-        Back
-      </Link>
     </div>
   );
 }
