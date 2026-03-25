@@ -29,3 +29,16 @@ export const verifyToken = async (req, res, next) => {
     res.status(500).json({ message: "Token verification failed" });
   }
 };
+
+export const authRequired = (req, res, next) => {
+  const { authToken } = req.cookies;
+
+  if (!authToken) return res.status(401).json({ message: "No token, authorization denied" });
+
+  jwt.verify(authToken, TOKEN_SECRET, (err, user) => {
+    if (err) return res.status(401).json({ message: "Invalid token" });
+    
+    req.user = user; // Guardamos los datos del usuario en la petición
+    next();
+  });
+};
