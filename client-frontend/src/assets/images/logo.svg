@@ -1,0 +1,13 @@
+<svg width="350" height="100" viewBox="0 0 350 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="10" y="10" width="80" height="80" rx="20" fill="#3b82f6" fill-opacity="0.15"/>
+  
+  <path d="M30 35V65L50 50L70 65V35" stroke="#60a5fa" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <circle cx="30" cy="35" r="4" fill="#4ade80"/>
+  <circle cx="50" cy="50" r="4" fill="#4ade80"/>
+  <circle cx="70" cy="35" r="4" fill="#4ade80"/>
+  
+  <text x="105" y="58" fill="white" style="font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: -0.02em;">Data Navigator</text>
+  
+  <path d="M105 68H160" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -12,13 +12,14 @@ import {
   faDatabase,
   faChartBar,
 } from "@fortawesome/free-solid-svg-icons";
-import logo from "../../assets/images/logo.png";
+// import logo from "../../assets/images/logo.png";
+import logo from "../../assets/images/logo.svg";
 
 const NAV_LINKS = [
-  { to: "/",           label: "Home",        icon: faHome,      auth: false },
-  { to: "/filereader", label: "File Reader",  icon: faFileExcel, auth: false },
-  { to: "/charts",     label: "Charts",       icon: faChartBar,  auth: false },
-  { to: "/savedfiles", label: "Saved Files",  icon: faDatabase,  auth: true  },
+  { to: "/", label: "Home", icon: faHome, auth: false },
+  { to: "/filereader", label: "File Reader", icon: faFileExcel, auth: false },
+  { to: "/charts", label: "Charts", icon: faChartBar, auth: false },
+  { to: "/savedfiles", label: "Saved Files", icon: faDatabase, auth: true },
 ];
 
 function NavigationBar() {
@@ -34,7 +35,9 @@ function NavigationBar() {
   };
 
   const isActive = (path) =>
-    path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+    path === "/"
+      ? location.pathname === "/"
+      : location.pathname.startsWith(path);
 
   // Close menu on outside click
   useEffect(() => {
@@ -62,14 +65,20 @@ function NavigationBar() {
   const visibleLinks = NAV_LINKS.filter((l) => !l.auth || isLoggedIn);
 
   return (
-    <nav className="bg-gray-900 border-b border-gray-700/60 sticky top-0 z-50" ref={menuRef}>
+    <nav
+      className="bg-gray-900 border-b border-gray-700/60 sticky top-0 z-50"
+      ref={menuRef}
+    >
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-
           {/* Logo + desktop links */}
           <div className="flex items-center gap-6">
             <Link to="/" className="flex-shrink-0">
-              <img className="h-10 rounded-lg" src={logo} alt="Data Navigator" />
+              <img
+                className="h-10 rounded-lg"
+                src={logo}
+                alt="Data Navigator"
+              />
             </Link>
 
             <div className="hidden md:flex items-center gap-1">
