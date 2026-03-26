@@ -4,17 +4,16 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSpinner, faFloppyDisk, faXmark, faChartBar, faSearch,
   faChevronUp, faChevronDown, faChevronLeft, faChevronRight,
-  faAnglesLeft, faAnglesRight, faPalette,
+  faAnglesLeft, faAnglesRight, faPalette, faFileExcel, faFileCsv,
 } from "@fortawesome/free-solid-svg-icons";
 import { flexRender } from "@tanstack/react-table";
 import { useDataContext } from "../../context/DataContext.jsx";
+import * as XLSX from "xlsx";
 
-// Detecta columnas numéricas en los datos
 const detectNumericColumns = (data) => {
   if (!data || data.length === 0) return new Set();
   const numeric = new Set();
-  const keys = Object.keys(data[0]);
-  keys.forEach((key) => {
+  Object.keys(data[0]).forEach((key) => {
     const vals = data.map((r) => r[key]).filter((v) => v !== "" && v !== null);
     const numCount = vals.filter((v) => !isNaN(parseFloat(v)) && isFinite(v)).length;
     if (vals.length > 0 && numCount / vals.length > 0.6) numeric.add(key);
@@ -22,19 +21,15 @@ const detectNumericColumns = (data) => {
   return numeric;
 };
 
-// Calcula min/max por columna numérica
 const getColumnRanges = (data, numericCols) => {
   const ranges = {};
   numericCols.forEach((col) => {
     const vals = data.map((r) => parseFloat(r[col])).filter((v) => !isNaN(v));
-    if (vals.length > 0) {
-      ranges[col] = { min: Math.min(...vals), max: Math.max(...vals) };
-    }
+    if (vals.length > 0) ranges[col] = { min: Math.min(...vals), max: Math.max(...vals) };
   });
   return ranges;
 };
 
-// Genera clase de color condicional para una celda numérica
 const getHeatClass = (value, range) => {
   if (!range || range.max === range.min) return "";
   const pct = (parseFloat(value) - range.min) / (range.max - range.min);
@@ -55,7 +50,6 @@ function CommonTable({
   const [saveStatus, setSaveStatus] = useState(null);
   const [heatmap, setHeatmap] = useState(false);
 
-  // Detectar columnas numéricas y rangos una sola vez
   const numericCols = useMemo(() => detectNumericColumns(data), [data]);
   const colRanges = useMemo(() => getColumnRanges(data, numericCols), [data, numericCols]);
 
@@ -73,6 +67,41 @@ function CommonTable({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // ✅ Exportar a Excel
+  const handleExportExcel = () => {
+    const exportData = table.getFilteredRowModel().rows.map((row) => {
+      const obj = {};
+      row.getVisibleCells().forEach((cell) => {
+        obj[cell.column.columnDef.header] = cell.getValue();
+      });
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, selectedSheet || "Sheet1");
+    XLSX.writeFile(wb, `${selectedSheet || "export"}.xlsx`);
+  };
+
+  // ✅ Exportar a CSV
+  const handleExportCsv = () => {
+    const exportData = table.getFilteredRowModel().rows.map((row) => {
+      const obj = {};
+      row.getVisibleCells().forEach((cell) => {
+        obj[cell.column.columnDef.header] = cell.getValue();
+      });
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedSheet || "export"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const { pageIndex, pageSize } = table.getState().pagination;
@@ -103,7 +132,6 @@ function CommonTable({
             {numericCols.size > 0 && (
               <button
                 onClick={() => setHeatmap((v) => !v)}
-                title="Toggle color heatmap for numeric columns"
                 className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-colors ${
                   heatmap
                     ? "bg-blue-600 border-blue-600 text-white"
@@ -131,12 +159,14 @@ function CommonTable({
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
             {showModal && <Modal handleClose={() => setShowModal(false)} columns={columns} data={data} />}
+
             <button
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
               onClick={() => setShowModal(true)}
             >
               <FontAwesomeIcon icon={faChartBar} /> Generate Report
             </button>
+
             {showSaveButton && (
               <button
                 disabled={isSaving}
@@ -149,9 +179,30 @@ function CommonTable({
                 }
               </button>
             )}
+
+            {/* ✅ Export buttons */}
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                onClick={handleExportExcel}
+                className="flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white text-sm px-3 py-2 rounded-lg transition-colors"
+                title="Export to Excel"
+              >
+                <FontAwesomeIcon icon={faFileExcel} className="text-xs" />
+                <span className="hidden sm:inline">Excel</span>
+              </button>
+              <button
+                onClick={handleExportCsv}
+                className="flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white text-sm px-3 py-2 rounded-lg transition-colors"
+                title="Export to CSV"
+              >
+                <FontAwesomeIcon icon={faFileCsv} className="text-xs" />
+                <span className="hidden sm:inline">CSV</span>
+              </button>
+            </div>
+
             {handleCloseTable && (
               <button
-                className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded-lg transition-colors ml-auto"
+                className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded-lg transition-colors"
                 onClick={handleCloseTable}
               >
                 <FontAwesomeIcon icon={faXmark} /> Close
@@ -205,15 +256,9 @@ function CommonTable({
                       const isNumeric = numericCols.has(cell.column.id);
                       const val = cell.getValue();
                       const heatClass = heatmap && isNumeric && val !== "" && val !== null
-                        ? getHeatClass(val, colRanges[cell.column.id])
-                        : "";
+                        ? getHeatClass(val, colRanges[cell.column.id]) : "";
                       return (
-                        <td
-                          key={cell.id}
-                          className={`px-4 py-2.5 whitespace-nowrap transition-colors ${
-                            heatClass || "text-gray-700 dark:text-gray-300"
-                          }`}
-                        >
+                        <td key={cell.id} className={`px-4 py-2.5 whitespace-nowrap transition-colors ${heatClass || "text-gray-700 dark:text-gray-300"}`}>
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       );

@@ -81,12 +81,12 @@ function HomePage() {
             />
           )}
           <FeatureCard
-            to="/charts"
+            to="/reports"
             icon={faChartBar}
             color="bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400"
-            title="Charts"
-            description="Visualize your data with dynamic charts generated from your sheets."
-            cta="View charts"
+            title="Reports"
+            description="Visualize your previously saved reports."
+            cta="View reports"
           />
         </div>
 

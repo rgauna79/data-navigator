@@ -9,7 +9,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileExcel } from "@fortawesome/free-solid-svg-icons";
 
 function FileReaderPage() {
-  const { workbook, selectedSheet, fileData, handleSaveData, columnAnalysis } = useDataContext();
+  const {
+    workbook, selectedSheet, fileData,
+    handleSaveData, columnAnalysis
+  } = useDataContext();
   const { isLoggedIn } = useAuth();
 
   return (
@@ -23,7 +26,9 @@ function FileReaderPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">Excel Reader</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Upload and explore your spreadsheet data</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Upload and explore your spreadsheet data
+            </p>
           </div>
         </div>
 
@@ -37,14 +42,14 @@ function FileReaderPage() {
           )}
         </div>
 
-        {/* Column summary — aparece automáticamente al cargar */}
+        {/* Column summary */}
         {columnAnalysis && columnAnalysis.length > 0 && (
-          <div className="max-w-full mb-6 px-0">
+          <div className="max-w-full mb-6">
             <ColumnSummary analysis={columnAnalysis} />
           </div>
         )}
 
-        {/* Data table */}
+        {/* ✅ Data table con showSaveButton={isLoggedIn} */}
         {selectedSheet && (
           <div className="w-full">
             <DataTable
@@ -52,7 +57,7 @@ function FileReaderPage() {
               selectedSheet={selectedSheet}
               isLoggedIn={isLoggedIn}
               handleSaveData={handleSaveData}
-              showSaveButton={isLoggedIn}
+              showSaveButton={isLoggedIn} // ✅ botón Save Data visible si está logueado
             />
           </div>
         )}

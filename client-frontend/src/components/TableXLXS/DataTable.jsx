@@ -9,7 +9,7 @@ import {
 import CommonTable from "./CommonTable.jsx";
 import * as XLSX from "xlsx";
 
-function DataTable({ workbook, selectedSheet, isLoggedIn, sheetSaved }) {
+function DataTable({ workbook, selectedSheet, isLoggedIn, sheetSaved, showSaveButton, handleSaveData }) {
   const [fileData, setFileData] = useState([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
@@ -69,6 +69,8 @@ function DataTable({ workbook, selectedSheet, isLoggedIn, sheetSaved }) {
       isLoggedIn={isLoggedIn}
       globalFilter={globalFilter}
       setGlobalFilter={setGlobalFilter}
+      showSaveButton={showSaveButton}
+      handleSaveData={handleSaveData}
     />
   );
 }

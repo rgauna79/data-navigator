@@ -12,17 +12,17 @@ import ErrorPage from "./pages/ErrorPage.jsx";
 import Footer from "./components/ui/Footer.jsx";
 import ChartPage from "./pages/ChartPage.jsx";
 import DbSheetPage from "./pages/DbSheetPage.jsx";
+import SavedReportsPage from "./pages/SavedReportsPage.jsx";
+import ComparePage from "./pages/ComparePage.jsx";
 import { PrivateRoute } from "../src/routes/routeProtected";
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        {/* ✅ flex col + min-h-screen hace que el footer siempre quede al fondo */}
         <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
           <NavigationBar />
           <DataProvider>
-            {/* flex-1 hace que este div crezca y empuje el footer hacia abajo */}
             <main className="flex-1 flex flex-col">
               <Routes>
                 <Route path="/" element={<HomePage />} />
@@ -31,9 +31,11 @@ function App() {
                 <Route path="*" element={<ErrorPage />} />
                 <Route path="/fileReader" element={<FileReaderPage />} />
                 <Route path="/charts" element={<ChartPage />} />
+                <Route path="/compare" element={<ComparePage />} />
                 <Route element={<PrivateRoute />}>
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/savedfiles" element={<DbSheetPage />} />
+                  <Route path="/reports" element={<SavedReportsPage />} />
                 </Route>
               </Routes>
             </main>
