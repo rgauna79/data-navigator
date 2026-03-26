@@ -2,43 +2,39 @@ import jwt from "jsonwebtoken";
 import { TOKEN_SECRET } from "../config.js";
 import User from "../models/user.models.js";
 
+// ✅ FIX: ahora setea req.user para que los controllers puedan usarlo
 export const verifyToken = async (req, res, next) => {
   try {
     const { authToken } = req.cookies;
     if (!authToken) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "Unauthorized - no token" });
     }
-    // jwt.verify(authToken, TOKEN_SECRET, async (err, user) => {
-    //   if (err) {
-    //     return res.status(401).json({ message: "Unauthorized" });
-    //   }
+
     const decodedToken = jwt.verify(authToken, TOKEN_SECRET);
     const user = await User.findById(decodedToken._id);
 
     if (!user) {
-      return res.status(401).json({ message: "Unauthorized, user not found" });
+      return res.status(401).json({ message: "Unauthorized - user not found" });
     }
+
+    req.user = user; // ✅ setear req.user para los controllers
     next();
-    // return res.json({
-    //   id: userFound._id,
-    //   username: userFound.username,
-    //   email: userFound.email,
-    // });
   } catch (error) {
-    console.error("Error during token verification:", error);
-    res.status(500).json({ message: "Token verification failed" });
+    console.error("Token verification error:", error.message);
+    return res.status(401).json({ message: "Unauthorized - invalid token" });
   }
 };
 
 export const authRequired = (req, res, next) => {
   const { authToken } = req.cookies;
 
-  if (!authToken) return res.status(401).json({ message: "No token, authorization denied" });
+  if (!authToken) {
+    return res.status(401).json({ message: "No token, authorization denied" });
+  }
 
   jwt.verify(authToken, TOKEN_SECRET, (err, user) => {
     if (err) return res.status(401).json({ message: "Invalid token" });
-    
-    req.user = user; // Guardamos los datos del usuario en la petición
+    req.user = user;
     next();
   });
 };
