@@ -1,434 +1,256 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { useDataContext } from "../context/DataContext";
 import { analyzeColumns } from "../hooks/useExcelData.js";
-import { Bar } from "react-chartjs-2";
-import {
-  Chart as ChartJS, CategoryScale, LinearScale,
-  BarElement, Tooltip, Legend,
-} from "chart.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCodeCompare, faHashtag, faTag, faCalendar,
-  faArrowsLeftRight, faSpinner, faFileExcel, faDatabase,
+  faFileExcel, faDatabase, faFilter, faSearch, faTriangleExclamation
 } from "@fortawesome/free-solid-svg-icons";
 import * as XLSX from "xlsx";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
-
-const buildSummary = (data) => {
-  if (!data || data.length < 2) return [];
-  return analyzeColumns(data);
-};
-
+// --- COMPONENT: COMPARISON CARD ---
 function CompareCard({ colA, colB, nameA, nameB }) {
+  const typeMismatch = colA && colB && colA.type !== colB.type;
   const col = colA || colB;
   if (!col) return null;
   const type = col.type;
 
-  const fmt = (n) => {
-    if (n === undefined || n === null || isNaN(n)) return "—";
-    return typeof n === "number" ? parseFloat(n.toFixed(2)).toLocaleString() : n;
-  };
-  const fmtDate = (d) => d
-    ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    : "—";
+  const fmt = (n) => (n !== undefined && n !== null && !isNaN(n) ? n.toLocaleString() : "—");
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
 
-  const headerColor =
-    type === "numeric" ? "bg-blue-50 dark:bg-blue-900/20" :
-    type === "date"    ? "bg-purple-50 dark:bg-purple-900/20" :
-                         "bg-amber-50 dark:bg-amber-900/20";
-  const iconColor =
-    type === "numeric" ? "text-blue-500" :
-    type === "date"    ? "text-purple-500" : "text-amber-500";
+  const theme = {
+    numeric: { text: "text-blue-500", bg: "bg-blue-50", icon: faHashtag },
+    date: { text: "text-purple-500", bg: "bg-purple-50", icon: faCalendar },
+    categorical: { text: "text-amber-500", bg: "bg-amber-50", icon: faTag },
+  };
+
+  const currentTheme = theme[type] || theme.categorical;
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-      <div className={`px-3 py-2 flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 ${headerColor}`}>
-        <FontAwesomeIcon
-          icon={type === "numeric" ? faHashtag : type === "date" ? faCalendar : faTag}
-          className={`text-xs ${iconColor}`}
-        />
-        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">{col.name}</span>
+    <div className={`bg-white dark:bg-gray-800 border rounded-2xl overflow-hidden flex flex-col h-full shadow-sm hover:shadow-md transition-shadow ${typeMismatch ? 'border-red-300' : 'border-gray-200 dark:border-gray-700'}`}>
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <div className="flex items-center gap-2 truncate">
+          <div className={`w-7 h-7 ${currentTheme.bg} rounded-lg flex items-center justify-center ${currentTheme.text}`}>
+            <FontAwesomeIcon icon={currentTheme.icon} className="text-xs" />
+          </div>
+          <span className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">
+            {col.name || "Unnamed Column"}
+          </span>
+        </div>
+        {typeMismatch && (
+          <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-md font-bold uppercase">Mismatch</span>
+        )}
       </div>
 
-      {/* Column sub-headers */}
-      <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700 bg-gray-50 dark:bg-gray-700/30">
-        <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 px-3 py-1 truncate">{nameA}</p>
-        <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 px-3 py-1 truncate">{nameB}</p>
+      <div className="grid grid-cols-2 bg-gray-50/50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700">
+        <div className="px-4 py-1.5 border-r border-gray-100 dark:border-gray-700">
+          <span className="text-[10px] font-bold text-blue-500 truncate block">{nameA || "A"}</span>
+        </div>
+        <div className="px-4 py-1.5 text-right">
+          <span className="text-[10px] font-bold text-emerald-500 truncate block">{nameB || "B"}</span>
+        </div>
       </div>
 
-      {type === "numeric" && (
-        <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
-          {[colA, colB].map((c, i) => (
-            <div key={i} className="p-3 space-y-1.5">
-              {[
-                { label: "Sum",   val: fmt(c?.sum) },
-                { label: "Avg",   val: fmt(c?.avg) },
-                { label: "Min",   val: fmt(c?.min) },
-                { label: "Max",   val: fmt(c?.max) },
-                { label: "Count", val: c?.count ?? "—" },
-              ].map(({ label, val }) => (
-                <div key={label} className="flex justify-between text-xs">
-                  <span className="text-gray-400 dark:text-gray-500">{label}</span>
-                  <span className={`font-medium ${c ? "text-gray-800 dark:text-gray-200" : "text-gray-300"}`}>{val}</span>
+      <div className="p-4 flex-1">
+        {type === "numeric" && (
+          <div className="space-y-3">
+            {[{l:"Sum", f:"sum"}, {l:"Avg", f:"avg"}, {l:"Max", f:"max"}].map((m) => (
+              <div key={m.l} className="space-y-1">
+                <span className="text-[10px] text-gray-400 font-semibold">{m.l}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{fmt(colA?.[m.f])}</span>
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300 text-right">{fmt(colB?.[m.f])}</span>
                 </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {type === "date" && (
-        <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
-          {[colA, colB].map((c, i) => (
-            <div key={i} className="p-3 space-y-1.5">
-              {[
-                { label: "From",  val: fmtDate(c?.min) },
-                { label: "To",    val: fmtDate(c?.max) },
-                { label: "Count", val: c?.count ?? "—" },
-              ].map(({ label, val }) => (
-                <div key={label} className="flex justify-between text-xs">
-                  <span className="text-gray-400 dark:text-gray-500">{label}</span>
-                  <span className={`font-medium ${c ? "text-gray-800 dark:text-gray-200" : "text-gray-300"}`}>{val}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {type === "categorical" && (
-        <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
-          {[colA, colB].map((c, i) => (
-            <div key={i} className="p-3">
-              <div className="space-y-1">
-                {c ? (c.topValues || []).slice(0, 3).map(([val, count]) => (
-                  <div key={val} className="flex justify-between text-xs">
-                    <span className="text-gray-700 dark:text-gray-300 truncate max-w-[60%]">{val || "—"}</span>
-                    <span className="text-gray-500 font-medium">{count}</span>
-                  </div>
-                )) : <span className="text-xs text-gray-300 dark:text-gray-600">No data</span>}
               </div>
-              {c && <p className="text-[10px] text-gray-400 mt-2">{c.unique} unique</p>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+            ))}
+          </div>
+        )}
 
-function CompareChart({ summaryA, summaryB, labelA, labelB }) {
-  const [metric, setMetric] = useState("avg");
+        {type === "date" && (
+          <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700 h-full">
+            {[colA, colB].map((c, i) => (
+              <div key={i} className={`px-2 space-y-2 ${i === 1 ? 'text-right' : ''}`}>
+                <span className="text-[10px] text-gray-400 font-semibold block">Range</span>
+                {c?.min ? (
+                  <div className="text-[11px] font-bold text-gray-700 dark:text-gray-300 leading-snug">
+                    <p>{fmtDate(c.min)}</p>
+                    <p className="text-gray-400 font-normal">to</p>
+                    <p>{fmtDate(c.max)}</p>
+                  </div>
+                ) : <span className="text-xs text-gray-300 italic text-gray-200">No data</span>}
+              </div>
+            ))}
+          </div>
+        )}
 
-  const numericCols = useMemo(() => {
-    const colsA = summaryA.filter((c) => c.type === "numeric").map((c) => c.name);
-    const colsB = summaryB.filter((c) => c.type === "numeric").map((c) => c.name);
-    return [...new Set([...colsA, ...colsB])].slice(0, 8);
-  }, [summaryA, summaryB]);
-
-  if (numericCols.length === 0) return null;
-
-  const getVal = (summary, colName, m) => {
-    const col = summary.find((c) => c.name === colName);
-    return col ? parseFloat((col[m] || 0).toFixed(2)) : 0;
-  };
-
-  const chartData = {
-    labels: numericCols,
-    datasets: [
-      {
-        label: labelA,
-        data: numericCols.map((col) => getVal(summaryA, col, metric)),
-        backgroundColor: "rgba(59,130,246,0.7)",
-        borderColor: "rgba(59,130,246,1)",
-        borderWidth: 1, borderRadius: 4,
-      },
-      {
-        label: labelB,
-        data: numericCols.map((col) => getVal(summaryB, col, metric)),
-        backgroundColor: "rgba(16,185,129,0.7)",
-        borderColor: "rgba(16,185,129,1)",
-        borderWidth: 1, borderRadius: 4,
-      },
-    ],
-  };
-
-  return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Numeric comparison</h2>
-        <select
-          value={metric}
-          onChange={(e) => setMetric(e.target.value)}
-          className="text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {["avg","sum","min","max"].map((m) => (
-            <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>
-          ))}
-        </select>
-      </div>
-      <div className="h-64">
-        <Bar data={chartData} options={{
-          responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { position: "top", labels: { font: { size: 12 }, padding: 12 } },
-            tooltip: { backgroundColor: "rgba(0,0,0,0.75)" },
-          },
-          scales: {
-            y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } },
-            x: { grid: { display: false }, ticks: { maxRotation: 30 } },
-          },
-        }} />
+        {type === "categorical" && (
+          <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700 h-full gap-4">
+            {[colA, colB].map((c, i) => (
+              <div key={i} className="flex flex-col justify-between">
+                <div className="space-y-2">
+                  {c?.topValues?.slice(0, 2).map(([v, count]) => (
+                    <div key={v}>
+                      <div className="flex justify-between text-[10px] mb-1">
+                        <span className="truncate text-gray-600 dark:text-gray-400">{v || "EMPTY"}</span>
+                        <span className="font-bold text-gray-400">{count}</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full">
+                        <div className="h-full bg-amber-400 rounded-full" style={{width: `${Math.min(100, (count/c.count)*100)}%`}} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex justify-between items-center text-[10px]">
+                  <span className="text-gray-400">Unique</span>
+                  <span className="font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 rounded">{c?.unique || 0}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// Selector de una sheet — carga de archivo o DB
-function SheetPicker({ label, color, accentText, workbook, savedSheets, isLoadingDB, value, onChange }) {
-  const [source, setSource] = useState("loaded");
-
-  const hasLoadedFile = workbook && workbook.SheetNames.length > 0;
-  const hasSavedSheets = savedSheets.length > 0;
-
-  const options = source === "loaded"
-    ? (workbook?.SheetNames || [])
-    : savedSheets.map((s) => s.sheetName);
-
-  const handleSourceChange = (s) => {
-    setSource(s);
-    onChange(null, s); // reset selection cuando cambia fuente
-  };
-
-  const handleSelect = (e) => {
-    const name = e.target.value;
-    onChange(name || null, source);
-  };
-
-  return (
-    <div className={`flex-1 bg-white dark:bg-gray-800 border-2 ${color} rounded-2xl p-4 min-w-0`}>
-      <p className={`text-xs font-bold uppercase tracking-wider mb-3 ${accentText}`}>{label}</p>
-
-      {/* Source toggle */}
-      <div className="flex gap-1 mb-3 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
-        <button
-          onClick={() => handleSourceChange("loaded")}
-          className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-2 rounded-lg font-medium transition-colors ${
-            source === "loaded"
-              ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
-        >
-          <FontAwesomeIcon icon={faFileExcel} className="text-green-500" />
-          Loaded file
-        </button>
-        <button
-          onClick={() => handleSourceChange("saved")}
-          className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-2 rounded-lg font-medium transition-colors ${
-            source === "saved"
-              ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-          }`}
-        >
-          <FontAwesomeIcon icon={faDatabase} className="text-purple-500" />
-          Saved DB
-          {isLoadingDB && <FontAwesomeIcon icon={faSpinner} spin className="text-xs" />}
-        </button>
-      </div>
-
-      {/* Estado vacío para cada fuente */}
-      {source === "loaded" && !hasLoadedFile && (
-        <div className="text-center py-3">
-          <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">No file loaded.</p>
-          <Link to="/filereader" className="text-xs text-blue-500 hover:text-blue-400 underline">
-            Go to File Reader →
-          </Link>
-        </div>
-      )}
-
-      {source === "saved" && !isLoadingDB && !hasSavedSheets && (
-        <div className="text-center py-3">
-          <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">No saved sheets found.</p>
-          <Link to="/filereader" className="text-xs text-blue-500 hover:text-blue-400 underline">
-            Save a sheet first →
-          </Link>
-        </div>
-      )}
-
-      {/* Dropdown */}
-      {((source === "loaded" && hasLoadedFile) || (source === "saved" && hasSavedSheets)) && (
-        <select
-          value={value?.name || ""}
-          onChange={handleSelect}
-          className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Select a sheet...</option>
-          {options.map((name) => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
-      )}
-    </div>
-  );
-}
-
+// --- MAIN PAGE ---
 function ComparePage() {
-  const { workbook, dataSaved, readAllData, isLoadingData } = useDataContext();
+  const { workbook, dataSaved, readAllData } = useDataContext();
   const [sheetA, setSheetA] = useState(null);
   const [sheetB, setSheetB] = useState(null);
+  const [onlyDiffs, setOnlyDiffs] = useState(false);
+  const [search, setSearch] = useState("");
 
-  // ✅ Cargar sheets de la DB al entrar a la página
   useEffect(() => { readAllData(); }, []);
 
-  const savedSheets = Array.isArray(dataSaved)
-    ? dataSaved
-    : Array.isArray(dataSaved?.data) ? dataSaved.data : [];
-
-  const formatJson = (json) =>
-    json.map((row) =>
-      row.map((cell) => typeof cell === "string" ? cell.trim().toUpperCase() : cell)
-    );
+  const savedSheets = useMemo(() => Array.isArray(dataSaved) ? dataSaved : (dataSaved?.data || []), [dataSaved]);
 
   const loadSheet = (name, source, setter) => {
     if (!name) { setter(null); return; }
     if (source === "loaded" && workbook) {
-      const sheet = workbook.Sheets[name];
-      const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
-      setter({ name, data: formatJson(json) });
-    } else if (source === "saved") {
+      const json = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, raw: false });
+      setter({ name, data: json });
+    } else {
       const found = savedSheets.find((s) => s.sheetName === name);
       if (found) setter({ name, data: found.fileData });
     }
   };
 
-  const summaryA = useMemo(() => sheetA ? buildSummary(sheetA.data) : [], [sheetA]);
-  const summaryB = useMemo(() => sheetB ? buildSummary(sheetB.data) : [], [sheetB]);
+  const summaryA = useMemo(() => sheetA ? analyzeColumns(sheetA.data) : [], [sheetA]);
+  const summaryB = useMemo(() => sheetB ? analyzeColumns(sheetB.data) : [], [sheetB]);
 
-  const allColNames = useMemo(() => {
-    const names = new Set([...summaryA.map((c) => c.name), ...summaryB.map((c) => c.name)]);
-    return [...names];
-  }, [summaryA, summaryB]);
-
-  const commonCount = useMemo(() => {
-    const namesA = new Set(summaryA.map((c) => c.name));
-    return summaryB.filter((c) => namesA.has(c.name)).length;
-  }, [summaryA, summaryB]);
-
-  const canCompare = sheetA && sheetB;
+  const displayCols = useMemo(() => {
+    const names = [...new Set([...summaryA.map(c => c.name), ...summaryB.map(c => c.name)])];
+    return names.filter(name => {
+      // FIX: Check if name exists before toLowerCase()
+      const colName = name || "";
+      const matchesSearch = colName.toLowerCase().includes((search || "").toLowerCase());
+      
+      if (!matchesSearch) return false;
+      if (!onlyDiffs) return true;
+      
+      const cA = summaryA.find(c => c.name === name);
+      const cB = summaryB.find(c => c.name === name);
+      if (!cA || !cB || cA.type !== cB.type) return true;
+      if (cA.type === 'numeric') return Math.abs((cA.sum || 0) - (cB.sum || 0)) > 0.01;
+      return cA.unique !== cB.unique;
+    });
+  }, [summaryA, summaryB, onlyDiffs, search]);
 
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
-      <div className="max-w-5xl mx-auto px-4 py-8">
-
-        <div className="flex items-center gap-3 mb-6">
+      <div className="max-w-[1400px] mx-auto px-6 py-8">
+        
+        <div className="flex items-center gap-3 mb-6 max-w-4xl mx-auto">
           <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
             <FontAwesomeIcon icon={faCodeCompare} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Compare Sheets</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Side-by-side analysis from loaded file or saved database
-            </p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Data Auditor</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Compare sheets from Excel or Database</p>
           </div>
         </div>
 
-        {/* Sheet selectors */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6 items-stretch">
-          <SheetPicker
-            label="Sheet A"
-            color="border-blue-300 dark:border-blue-600"
-            accentText="text-blue-600 dark:text-blue-400"
-            workbook={workbook}
-            savedSheets={savedSheets}
-            isLoadingDB={isLoadingData}
-            value={sheetA}
-            onChange={(name, source) => loadSheet(name, source, setSheetA)}
-          />
-          <div className="flex items-center justify-center text-gray-300 dark:text-gray-600 flex-shrink-0">
-            <FontAwesomeIcon icon={faArrowsLeftRight} className="text-xl" />
-          </div>
-          <SheetPicker
-            label="Sheet B"
-            color="border-emerald-300 dark:border-emerald-600"
-            accentText="text-emerald-600 dark:text-emerald-400"
-            workbook={workbook}
-            savedSheets={savedSheets}
-            isLoadingDB={isLoadingData}
-            value={sheetB}
-            onChange={(name, source) => loadSheet(name, source, setSheetB)}
-          />
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <SheetPicker label="Primary Source (A)" workbook={workbook} savedSheets={savedSheets} value={sheetA} onChange={(n, s) => loadSheet(n, s, setSheetA)} />
+          <SheetPicker label="Comparison Target (B)" workbook={workbook} savedSheets={savedSheets} value={sheetB} onChange={(n, s) => loadSheet(n, s, setSheetB)} />
         </div>
 
-        {/* Empty state */}
-        {!canCompare && (
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-12 text-center">
-            <FontAwesomeIcon icon={faCodeCompare} className="text-4xl text-gray-300 dark:text-gray-600 mb-4" />
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              Select a sheet in both panels above to start comparing.
-            </p>
+        {sheetA && sheetB && (
+          <div className="max-w-4xl mx-auto mb-8 flex gap-3">
+            <div className="relative flex-1">
+              <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <input 
+                type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Filter columns..."
+                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition-all shadow-sm"
+              />
+            </div>
+            <button 
+              onClick={() => setOnlyDiffs(!onlyDiffs)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                onlyDiffs ? "bg-amber-500 border-amber-500 text-white shadow-sm" : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 hover:border-gray-300"
+              }`}
+            >
+              <FontAwesomeIcon icon={faFilter} />
+              {onlyDiffs ? "Differences Only" : "Show All"}
+            </button>
           </div>
         )}
 
-        {canCompare && (
-          <>
-            {/* Summary badges */}
-            <div className="flex flex-wrap gap-3 mb-5 items-center">
-              <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 rounded-xl px-4 py-2 text-sm">
-                <span className="font-semibold">{sheetA.name}</span>
-                <span className="text-xs opacity-75">
-                  {((sheetA.data?.length || 1) - 1).toLocaleString()} rows · {summaryA.length} cols
-                </span>
-              </div>
-              <FontAwesomeIcon icon={faArrowsLeftRight} className="text-gray-400 text-sm" />
-              <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 rounded-xl px-4 py-2 text-sm">
-                <span className="font-semibold">{sheetB.name}</span>
-                <span className="text-xs opacity-75">
-                  {((sheetB.data?.length || 1) - 1).toLocaleString()} rows · {summaryB.length} cols
-                </span>
-              </div>
-              {commonCount > 0 && (
-                <span className="text-xs text-gray-400 dark:text-gray-500">
-                  {commonCount} columns in common
-                </span>
-              )}
+        {sheetA && sheetB ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 px-2">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Visible Columns:</span>
+              <span className="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-xs font-bold">{displayCols.length}</span>
             </div>
-
-            {/* Bar chart */}
-            <CompareChart
-              summaryA={summaryA}
-              summaryB={summaryB}
-              labelA={sheetA.name}
-              labelB={sheetB.name}
-            />
-
-            {/* Column cards */}
-            <div>
-              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                Column by column
-                <span className="text-xs font-normal text-gray-400 ml-2">
-                  left: <span className="text-blue-500">{sheetA.name}</span>
-                  {" · "}right: <span className="text-emerald-500">{sheetB.name}</span>
-                </span>
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {allColNames.map((colName) => {
-                  const cA = summaryA.find((c) => c.name === colName);
-                  const cB = summaryB.find((c) => c.name === colName);
-                  return (
-                    <CompareCard
-                      key={colName}
-                      colA={cA} colB={cB}
-                      nameA={sheetA.name} nameB={sheetB.name}
-                    />
-                  );
-                })}
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+              {displayCols.map((colName) => (
+                <CompareCard key={colName} nameA={sheetA.name} nameB={sheetB.name}
+                  colA={summaryA.find(c => c.name === colName)}
+                  colB={summaryB.find(c => c.name === colName)} />
+              ))}
             </div>
-          </>
+          </div>
+        ) : (
+          <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 rounded-2xl py-16 text-center shadow-sm">
+            <p className="text-gray-400 text-sm font-medium">Select two sources to start the comparison</p>
+          </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// --- UPDATED PICKER WITH COLORED ICONS ---
+function SheetPicker({ label, workbook, savedSheets, value, onChange }) {
+  const [source, setSource] = useState("loaded");
+  const options = source === "loaded" ? (workbook?.SheetNames || []) : savedSheets.map((s) => s.sheetName);
+
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 shadow-sm">
+      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-4 block">{label}</label>
+      <div className="flex gap-2 mb-4 bg-gray-50 dark:bg-gray-900 rounded-xl p-1">
+        {[
+          {id:"loaded", icon:faFileExcel, label:"Excel", color: "text-green-500"}, 
+          {id:"saved", icon:faDatabase, label:"Database", color: "text-purple-500"}
+        ].map((s) => (
+          <button key={s.id} onClick={() => { setSource(s.id); onChange(null, s.id); }}
+            className={`flex-1 flex items-center justify-center gap-2 text-xs py-2 rounded-lg font-bold transition-all ${
+              source === s.id 
+                ? "bg-white dark:bg-gray-800 text-gray-900 shadow-sm border border-gray-100 dark:border-gray-700" 
+                : "text-gray-400 opacity-60 hover:opacity-100"
+            }`}>
+            <FontAwesomeIcon icon={s.icon} className={`text-xs ${s.color}`} />
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <select value={value?.name || ""} onChange={(e) => onChange(e.target.value, source)}
+        className="w-full text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500">
+        <option value="">Select sheet...</option>
+        {options.map((n) => <option key={n} value={n}>{n}</option>)}
+      </select>
     </div>
   );
 }

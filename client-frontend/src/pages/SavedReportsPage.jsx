@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDataContext } from "../context/DataContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -9,9 +10,10 @@ import {
   faClockRotateLeft,
   faChevronDown,
   faChevronUp,
+  faEye,
 } from "@fortawesome/free-solid-svg-icons";
 
-const TYPE_LABELS = {
+const TYPE_META = {
   statistics: {
     label: "Statistics",
     icon: faChartBar,
@@ -25,10 +27,10 @@ const TYPE_LABELS = {
   },
 };
 
-function ReportCard({ report, onDelete }) {
+function ReportCard({ report, onDelete, onView }) {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const meta = TYPE_LABELS[report.type] || TYPE_LABELS.statistics;
+  const meta = TYPE_META[report.type] || TYPE_META.statistics;
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -64,6 +66,14 @@ function ReportCard({ report, onDelete }) {
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+          {/* ✅ Ver reporte */}
+          <button
+            onClick={() => onView(report)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+            title="View report"
+          >
+            <FontAwesomeIcon icon={faEye} className="text-xs" />
+          </button>
           <button
             onClick={() => setExpanded((v) => !v)}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -124,6 +134,12 @@ function ReportCard({ report, onDelete }) {
                 </div>
               </div>
             )}
+          <button
+            onClick={() => onView(report)}
+            className="text-xs text-blue-500 hover:text-blue-400 font-medium mt-1"
+          >
+            View full report →
+          </button>
         </div>
       )}
     </div>
@@ -137,11 +153,33 @@ function SavedReportsPage() {
     reportError,
     fetchSavedReports,
     deleteReport,
+    setSelectedOptions,
+    setTypeReport,
+    setSelectedColumns,
+    data,
   } = useDataContext();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchSavedReports();
   }, []);
+
+  // ✅ Cargar reporte en contexto y navegar a /charts
+  const handleViewReport = (report) => {
+    setSelectedOptions(report.selectedOptions || {});
+    setTypeReport(report.type);
+    setSelectedColumns(report.selectedColumns || []);
+    // data ya está en contexto si el usuario cargó un Excel
+    // Si no hay data, avisamos
+    if (!data || data.length === 0) {
+      alert(
+        `To view this report, please load the Excel file for sheet "${report.sheetName}" in the File Reader first.`
+      );
+      navigate("/filereader");
+      return;
+    }
+    navigate("/charts");
+  };
 
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
@@ -152,10 +190,11 @@ function SavedReportsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              Saved Reports
+              My Reports
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Your generated reports history
+              Your saved report configurations
+              {savedReports.length > 0 && ` · ${savedReports.length} reports`}
             </p>
           </div>
         </div>
@@ -179,8 +218,7 @@ function SavedReportsPage() {
               className="text-4xl text-gray-300 dark:text-gray-600 mb-4"
             />
             <p className="text-gray-500 dark:text-gray-400 text-sm">
-              No saved reports yet. Generate a report from the File Reader and
-              save it.
+              No saved reports yet. Generate a report and save it.
             </p>
           </div>
         )}
@@ -192,6 +230,7 @@ function SavedReportsPage() {
                 key={report._id}
                 report={report}
                 onDelete={deleteReport}
+                onView={handleViewReport}
               />
             ))}
           </div>

@@ -1,7 +1,5 @@
 import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { useDataContext } from "../context/DataContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { Pie, Bar, Line } from "react-chartjs-2";
@@ -21,7 +19,6 @@ import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faFilePdf,
   faArrowLeft,
   faChartBar,
   faChartPie,
@@ -29,7 +26,9 @@ import {
   faFloppyDisk,
   faSpinner,
   faCheck,
+  faFilePdf,
 } from "@fortawesome/free-solid-svg-icons";
+import jsPDF from "jspdf";
 
 ChartJS.register(
   ArcElement,
@@ -57,13 +56,11 @@ const CHART_TABS = [
   { id: "line", label: "Trend", icon: faChartLine },
 ];
 
-// Modal para poner nombre al reporte antes de guardar
 function SaveReportModal({ onConfirm, onCancel, sheetName }) {
   const [name, setName] = useState(
-    `${sheetName} — ${new Date().toLocaleDateString()}`
+    `${sheetName || "Sheet"} — ${new Date().toLocaleDateString()}`
   );
   const [saving, setSaving] = useState(false);
-
   const handleConfirm = async () => {
     if (!name.trim()) return;
     setSaving(true);
@@ -73,7 +70,6 @@ function SaveReportModal({ onConfirm, onCancel, sheetName }) {
       setSaving(false);
     }
   };
-
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -81,7 +77,7 @@ function SaveReportModal({ onConfirm, onCancel, sheetName }) {
           Save report
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Give this report a name to find it later.
+          Give this report a name.
         </p>
         <input
           autoFocus
@@ -126,24 +122,103 @@ function ChartPage() {
     typeReport,
     columnAnalysis,
     saveReport,
+    selectedSheet,
   } = useDataContext();
   const { isLoggedIn } = useAuth();
-  const reportsRef = useRef();
   const navigate = useNavigate();
+  const chartRef = useRef(null);
   const [chartType, setChartType] = useState("pie");
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [saveStatus, setSaveStatus] = useState(null); // 'success' | 'error' | null
+  const [saveStatus, setSaveStatus] = useState(null);
 
-  const selectedSheet = useDataContext().selectedSheet || "";
-
-  const handlePrint = async () => {
+  // ✅ FIX PDF: usar Canvas nativo de Chart.js en lugar de html2canvas
+  const handlePrint = () => {
     try {
-      const pdf = new jsPDF("p", "pt", "letter");
-      if (reportsRef.current) {
-        const canvas = await html2canvas(reportsRef.current);
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 40, 40, 520, 320);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageW = pdf.internal.pageSize.getWidth();
+      const margin = 15;
+      let y = margin;
+
+      // Título
+      pdf.setFontSize(18);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Data Navigator Report", margin, y);
+      y += 8;
+
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(120, 120, 120);
+      pdf.text(
+        `${
+          typeReport === "statistics" ? "Statistics" : "Most Repeated Values"
+        } · ${new Date().toLocaleDateString()}`,
+        margin,
+        y
+      );
+      y += 10;
+
+      pdf.setDrawColor(220, 220, 220);
+      pdf.line(margin, y, pageW - margin, y);
+      y += 8;
+
+      pdf.setTextColor(0, 0, 0);
+
+      if (typeReport === "statistics") {
+        // Filtros aplicados
+        const filters = Object.entries(selectedOptions)
+          .filter(([, v]) => v !== "")
+          .map(
+            ([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`
+          );
+
+        if (filters.length > 0) {
+          pdf.setFontSize(11);
+          pdf.setFont("helvetica", "bold");
+          pdf.text("Filters applied:", margin, y);
+          y += 6;
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(9);
+          filters.forEach((f) => {
+            pdf.text(`• ${f}`, margin + 4, y);
+            y += 5;
+          });
+          y += 4;
+        }
+
+        pdf.setFontSize(12);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Total matching rows: ${filteredData.length}`, margin, y);
+        y += 10;
       }
-      window.open(URL.createObjectURL(await pdf.output("blob")), "_blank");
+
+      if (typeReport === "mostRepeated") {
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Column: ${selectedOptions.mostRepeated}`, margin, y);
+        y += 8;
+        pdf.text("Top values:", margin, y);
+        y += 6;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(10);
+        sorted.forEach(([val, count], i) => {
+          pdf.text(`${i + 1}. ${val} — ${count} occurrences`, margin + 4, y);
+          y += 6;
+        });
+        y += 6;
+      }
+
+      // ✅ Gráfico: tomar el canvas directamente de Chart.js
+      if (chartRef.current) {
+        const canvas = chartRef.current.canvas;
+        const imgData = canvas.toDataURL("image/png", 1.0);
+        const imgW = pageW - margin * 2;
+        const imgH = (canvas.height / canvas.width) * imgW;
+        if (y + imgH < pdf.internal.pageSize.getHeight() - margin) {
+          pdf.addImage(imgData, "PNG", margin, y, imgW, Math.min(imgH, 120));
+        }
+      }
+
+      window.open(URL.createObjectURL(pdf.output("blob")), "_blank");
     } catch (err) {
       console.error("PDF error:", err);
     }
@@ -154,57 +229,47 @@ function ChartPage() {
       await saveReport({
         name,
         type: typeReport,
-        sheetName: selectedSheet,
+        sheetName: selectedSheet || "",
         selectedOptions,
         selectedColumns,
-        resultSummary: {}, // snapshot opcional
+        resultSummary: {},
       });
       setShowSaveModal(false);
       setSaveStatus("success");
       setTimeout(() => setSaveStatus(null), 3000);
-    } catch (err) {
+    } catch {
       setShowSaveModal(false);
       setSaveStatus("error");
       setTimeout(() => setSaveStatus(null), 3000);
     }
   };
 
-  const generateReportData = () => {
-    if (!typeReport) return null;
-    if (typeReport === "statistics") {
-      const filteredData = data.filter((row) =>
-        Object.entries(selectedOptions).every(([, value]) =>
-          row.includes(value)
-        )
-      );
-      const includedOptions = Object.entries(selectedOptions)
-        .filter(([, v]) => v !== "")
-        .map(([k, v]) => `${k}: ${v}`);
-      return (
-        <StatisticsReport
-          totalRows={filteredData.length}
-          includedOptions={includedOptions}
-          filteredData={filteredData}
-        />
-      );
-    }
-    if (typeReport === "mostRepeated") {
-      const counts = {};
-      data.forEach((row) => {
-        const v = row[selectedOptions.mostRepeated];
-        if (v != null && v !== "") counts[v] = (counts[v] || 0) + 1;
-      });
-      const top = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-      return top.length > 0 ? (
-        <MostRepeatedReport mostRepeatedOptions={top} />
-      ) : (
-        <p className="text-gray-500 text-sm">No data.</p>
-      );
-    }
-  };
+  // ── Statistics data ──
+  const filteredData = data.filter((row) =>
+    Object.entries(selectedOptions).every(([key, value]) => {
+      if (!value || value === "") return true;
+      if (typeof value === "object" && value.from && value.to) {
+        const d = new Date(row[key]);
+        return d >= new Date(value.from) && d <= new Date(value.to);
+      }
+      return String(row[key]) === String(value);
+    })
+  );
 
+  const includedOptions = Object.entries(selectedOptions)
+    .filter(([, v]) => v !== "" && v !== null && v !== undefined)
+    .map(
+      ([k, v]) =>
+        `${k}: ${
+          typeof v === "object"
+            ? `${new Date(v.from).toLocaleDateString()} → ${new Date(
+                v.to
+              ).toLocaleDateString()}`
+            : v
+        }`
+    );
+
+  // ── Most repeated data ──
   const counts = data.reduce((acc, row) => {
     const v = row[selectedOptions.mostRepeated];
     if (v != null && v !== "") acc[v] = (acc[v] || 0) + 1;
@@ -215,6 +280,7 @@ function ChartPage() {
     .slice(0, 5);
   const labels = sorted.map(([k]) => k);
   const values = sorted.map(([, v]) => v);
+
   const sharedDataset = {
     label: "Count",
     data: values,
@@ -225,6 +291,7 @@ function ChartPage() {
   const pieData = { labels, datasets: [sharedDataset] };
   const barData = { labels, datasets: [{ ...sharedDataset, borderRadius: 6 }] };
 
+  // Trend line
   const dateCol = columnAnalysis?.find((c) => c.type === "date");
   const trendData = (() => {
     if (!dateCol) return null;
@@ -266,11 +333,13 @@ function ChartPage() {
   const baseOpts = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false, // ✅ desactivar animación para que el canvas esté listo para PDF
     plugins: {
       legend: { position: "left" },
       tooltip: { backgroundColor: "rgba(0,0,0,0.75)" },
     },
   };
+
   const hasData = data && data.length > 0 && typeReport;
   const showCharts = typeReport === "mostRepeated" && sorted.length > 0;
 
@@ -283,6 +352,7 @@ function ChartPage() {
           onCancel={() => setShowSaveModal(false)}
         />
       )}
+
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -298,7 +368,7 @@ function ChartPage() {
                   ? "Statistics"
                   : typeReport === "mostRepeated"
                   ? "Most repeated values"
-                  : "No report selected"}
+                  : "No report"}
               </p>
             </div>
           </div>
@@ -336,11 +406,20 @@ function ChartPage() {
 
         {hasData && (
           <>
-            <div
-              ref={reportsRef}
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4"
-            >
-              {generateReportData()}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
+              {typeReport === "statistics" && (
+                <StatisticsReport
+                  totalRows={filteredData.length}
+                  includedOptions={includedOptions}
+                  filteredData={filteredData}
+                />
+              )}
+              {typeReport === "mostRepeated" && sorted.length > 0 && (
+                <MostRepeatedReport mostRepeatedOptions={sorted} />
+              )}
+              {typeReport === "mostRepeated" && sorted.length === 0 && (
+                <p className="text-gray-500 text-sm">No data to display.</p>
+              )}
             </div>
 
             {showCharts && (
@@ -365,10 +444,11 @@ function ChartPage() {
                 </div>
                 <div className="h-72">
                   {chartType === "pie" && (
-                    <Pie data={pieData} options={baseOpts} />
+                    <Pie ref={chartRef} data={pieData} options={baseOpts} />
                   )}
                   {chartType === "bar" && (
                     <Bar
+                      ref={chartRef}
                       data={barData}
                       options={{
                         ...baseOpts,
@@ -381,6 +461,7 @@ function ChartPage() {
                   )}
                   {chartType === "line" && trendData && (
                     <Line
+                      ref={chartRef}
                       data={trendData}
                       options={{
                         ...baseOpts,
@@ -407,6 +488,7 @@ function ChartPage() {
                 </h2>
                 <div className="h-56">
                   <Line
+                    ref={chartRef}
                     data={trendData}
                     options={{
                       ...baseOpts,
@@ -434,7 +516,7 @@ function ChartPage() {
                 onClick={handlePrint}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
               >
-                <FontAwesomeIcon icon={faFilePdf} /> Export as PDF
+                <FontAwesomeIcon icon={faFilePdf} /> Export PDF
               </button>
             </div>
           </>

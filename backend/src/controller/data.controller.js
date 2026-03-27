@@ -1,27 +1,38 @@
 import DataModel from "../models/data.models.js";
 
 export const saveData = async (req, res) => {
-  const { sheetName, fileData } = req.body;
+  const { sheetName, fileData, overwrite = false } = req.body;
   const userId = req.user?._id;
 
   try {
-    // Buscar por sheetName (con o sin createdBy para compatibilidad)
-    const query = userId
-      ? { sheetName, createdBy: userId }
-      : { sheetName };
-
+    const query = userId ? { sheetName, createdBy: userId } : { sheetName };
     const existingData = await DataModel.findOne(query);
 
     if (existingData) {
-      existingData.fileData = fileData;
-      if (userId) existingData.createdBy = userId;
-      await existingData.save();
-      return res.status(200).json({ message: "Data updated successfully" });
+      if (overwrite) {
+        // ✅ Sobrescribir con los datos nuevos
+        existingData.fileData = fileData;
+        await existingData.save();
+        return res
+          .status(200)
+          .json({ message: "Data overwritten successfully" });
+      } else {
+        // ✅ Guardar como copia nueva con nombre modificado
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const newName = `${sheetName} (${timestamp})`;
+        const saveObj = { sheetName: newName, fileData };
+        if (userId) saveObj.createdBy = userId;
+        await DataModel.create(saveObj);
+        return res
+          .status(201)
+          .json({ message: "Saved as new copy", sheetName: newName });
+      }
     } else {
+      // No existe — crear nuevo
       const saveObj = { sheetName, fileData };
       if (userId) saveObj.createdBy = userId;
-      const saved = await DataModel.create(saveObj);
-      return res.status(201).json({ message: "Data saved successfully", data: saved });
+      await DataModel.create(saveObj);
+      return res.status(201).json({ message: "Data saved successfully" });
     }
   } catch (error) {
     console.error("Error saving data:", error);
@@ -31,13 +42,9 @@ export const saveData = async (req, res) => {
 
 export const getAllData = async (req, res) => {
   const userId = req.user?._id;
-
   try {
-    // ✅ Si hay userId trae los suyos, si no trae todos (compatibilidad)
     const query = userId ? { createdBy: userId } : {};
     const dataFound = await DataModel.find(query).sort({ updatedAt: -1 });
-
-    // ✅ Siempre devuelve { data: [...] } para consistencia
     return res.status(200).json({ data: dataFound });
   } catch (error) {
     console.error("Error getting data:", error);

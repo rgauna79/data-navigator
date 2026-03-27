@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,14 +7,14 @@ import {
   getPaginationRowModel,
 } from "@tanstack/react-table";
 import CommonTable from "./CommonTable.jsx";
-import { useDataContext } from "../../context/DataContext.jsx";
-import * as XLSX from "xlsx";
 
-function DataTable({ isLoggedIn, handleSaveTrigger, showSaveButton }) {
-  const { workbook, selectedSheet, fileData, setFileData } = useDataContext();
+// ✅ Componente separado para ver sheets guardadas de la DB
+// No usa workbook ni selectedSheet del contexto — recibe los datos directamente
+function SavedDataTable({ sheetData }) {
   const [globalFilter, setGlobalFilter] = useState("");
 
   const formatJson = (json) => {
+    if (!json || json.length === 0) return [];
     return json.map((row) =>
       row.map((cell) =>
         typeof cell === "string" ? cell.trim().toUpperCase() : cell
@@ -22,12 +22,7 @@ function DataTable({ isLoggedIn, handleSaveTrigger, showSaveButton }) {
     );
   };
 
-  useEffect(() => {
-    if (!workbook || !selectedSheet) return;
-    const sheet = workbook.Sheets[selectedSheet];
-    const json = XLSX.utils.sheet_to_json(sheet, { raw: false, header: 1 });
-    setFileData(formatJson(json));
-  }, [workbook, selectedSheet]);
+  const fileData = useMemo(() => formatJson(sheetData), [sheetData]);
 
   const columns = useMemo(() => {
     if (!fileData || fileData.length === 0) return [];
@@ -61,13 +56,11 @@ function DataTable({ isLoggedIn, handleSaveTrigger, showSaveButton }) {
     <CommonTable
       table={table}
       data={data}
-      isLoggedIn={isLoggedIn}
       globalFilter={globalFilter}
       setGlobalFilter={setGlobalFilter}
-      showSaveButton={showSaveButton}
-      handleSaveTrigger={handleSaveTrigger}
+      showSaveButton={false}
     />
   );
 }
 
-export default DataTable;
+export default SavedDataTable;

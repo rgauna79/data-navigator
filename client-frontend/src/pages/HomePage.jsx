@@ -9,18 +9,25 @@ import {
   faArrowRight,
   faUpload,
 } from "@fortawesome/free-solid-svg-icons";
+import { HomeFileIndicator } from "../components/ui/FileIndicator.jsx";
 
 const FeatureCard = ({ to, icon, color, title, description, cta }) => (
   <Link
     to={to}
     className={`group flex flex-col gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200`}
   >
-    <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg ${color}`}>
+    <div
+      className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg ${color}`}
+    >
       <FontAwesomeIcon icon={icon} />
     </div>
     <div>
-      <h3 className="font-semibold text-gray-900 dark:text-white text-base mb-1">{title}</h3>
-      <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">{description}</p>
+      <h3 className="font-semibold text-gray-900 dark:text-white text-base mb-1">
+        {title}
+      </h3>
+      <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
+        {description}
+      </p>
     </div>
     <span className="flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 mt-auto group-hover:gap-2.5 transition-all">
       {cta} <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
@@ -34,22 +41,29 @@ function HomePage() {
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
       <div className="max-w-4xl mx-auto px-4 py-12">
-
+        <HomeFileIndicator />
         {/* Hero */}
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            {isLoggedIn ? `Welcome back, ${user.username} 👋` : "Welcome to Data Navigator"}
+            {isLoggedIn
+              ? `Welcome back, ${user.username} 👋`
+              : "Welcome to Data Navigator"}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-base">
-            Upload Excel files, explore your data, and generate reports in seconds.
+            Upload Excel files, explore your data, and generate reports in
+            seconds.
           </p>
         </div>
 
         {/* Quick action destacada */}
         <div className="bg-blue-600 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex-1">
-            <h2 className="text-white font-semibold text-lg mb-1">Upload an Excel file</h2>
-            <p className="text-blue-100 text-sm">Read, filter, and explore any .xlsx file instantly</p>
+            <h2 className="text-white font-semibold text-lg mb-1">
+              Upload an Excel file
+            </h2>
+            <p className="text-blue-100 text-sm">
+              Read, filter, and explore any .xlsx file instantly
+            </p>
           </div>
           <Link
             to="/filereader"
@@ -94,9 +108,12 @@ function HomePage() {
         {!isLoggedIn && (
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Save your work</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                Save your work
+              </h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Create a free account to save files to the database and access them anytime.
+                Create a free account to save files to the database and access
+                them anytime.
               </p>
             </div>
             <div className="flex gap-2">
