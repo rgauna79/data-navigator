@@ -2,7 +2,12 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSpinner, faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faSpinner,
+  faEye,
+  faEyeSlash,
+} from "@fortawesome/free-solid-svg-icons";
+import toast from "react-hot-toast"; // ✅ Importamos toast
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -22,7 +27,7 @@ function LoginPage() {
     try {
       await login(formData);
     } catch (error) {
-      console.error(error);
+      toast.error("Invalid email or password"); // ✅ Toast de error
     } finally {
       setIsLoading(false);
     }
@@ -33,23 +38,28 @@ function LoginPage() {
   }, [isLoggedIn, navigate]);
 
   return (
-    <div className="flex-1 flex justify-center items-center bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)] px-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 rounded-2xl shadow-sm">
-        <h1 className="text-2xl font-bold mb-1 text-gray-900 dark:text-white">Sign in</h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-          Welcome back to Data Navigator
+    <div className="flex-1 flex justify-center items-center bg-gray-50 dark:bg-gray-900  px-4 py-8">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 sm:p-10 rounded-[2rem] shadow-sm">
+        <h1 className="text-3xl font-black mb-2 text-gray-900 dark:text-white tracking-tight">
+          Welcome back
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-8">
+          Sign in to access your data and reports.
         </p>
 
         {loginErrors && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/40 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm mb-4">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/40 text-red-700 dark:text-red-300 px-4 py-3 rounded-xl text-sm font-bold mb-6">
             {loginErrors}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
+            <label
+              htmlFor="email"
+              className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
+            >
+              Email Address
             </label>
             <input
               type="email"
@@ -59,12 +69,15 @@ function LoginPage() {
               onChange={handleChange}
               placeholder="you@example.com"
               required
-              className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label
+              htmlFor="password"
+              className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
+            >
               Password
             </label>
             <div className="relative">
@@ -76,14 +89,17 @@ function LoginPage() {
                 onChange={handleChange}
                 placeholder="••••••••"
                 required
-                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-xl px-4 py-3 pr-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
-                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} className="text-sm" />
+                <FontAwesomeIcon
+                  icon={showPassword ? faEyeSlash : faEye}
+                  className="text-sm"
+                />
               </button>
             </div>
           </div>
@@ -91,12 +107,11 @@ function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm mt-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-sm shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 text-sm mt-4"
           >
             {isLoading ? (
               <>
-                <FontAwesomeIcon icon={faSpinner} spin />
-                Signing in...
+                <FontAwesomeIcon icon={faSpinner} spin /> Signing in...
               </>
             ) : (
               "Sign in"
@@ -104,9 +119,12 @@ function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-5 text-center text-gray-500 dark:text-gray-400 text-sm">
+        <p className="mt-8 text-center text-gray-500 dark:text-gray-400 text-sm font-medium">
           Don't have an account?{" "}
-          <Link to="/register" className="text-blue-500 hover:text-blue-400 font-medium">
+          <Link
+            to="/register"
+            className="text-blue-600 dark:text-blue-400 hover:underline font-bold"
+          >
             Create one
           </Link>
         </p>

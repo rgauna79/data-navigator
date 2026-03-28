@@ -9,7 +9,7 @@ const ReportSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["statistics", "mostRepeated"],
+      enum: ["statistics", "mostRepeated", "groupBy"], // ✅ Añadir "groupBy"
       required: true,
     },
     sheetName: {

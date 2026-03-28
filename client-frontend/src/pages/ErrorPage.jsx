@@ -7,7 +7,7 @@ function ErrorPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex-1 flex flex-col justify-center items-center bg-gray-50 dark:bg-gray-900 px-4 text-center min-h-[calc(100vh-128px)]">
+    <div className="flex-1 flex flex-col justify-center items-center bg-gray-50 dark:bg-gray-900 px-4 text-center ">
       <p className="text-8xl font-bold text-gray-200 dark:text-gray-700 mb-2 select-none">
         404
       </p>

@@ -17,6 +17,7 @@ import {
 } from "chart.js";
 import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
+import GroupByReport from "../components/reports/GroupByReport.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
@@ -27,6 +28,7 @@ import {
   faSpinner,
   faCheck,
   faFilePdf,
+  faFileExcel,
 } from "@fortawesome/free-solid-svg-icons";
 import jsPDF from "jspdf";
 
@@ -47,7 +49,6 @@ const COLORS = [
   { bg: "rgba(16,185,129,0.7)", border: "rgba(16,185,129,1)" },
   { bg: "rgba(245,158,11,0.7)", border: "rgba(245,158,11,1)" },
   { bg: "rgba(239,68,68,0.7)", border: "rgba(239,68,68,1)" },
-  { bg: "rgba(139,92,246,0.7)", border: "rgba(139,92,246,1)" },
 ];
 
 const CHART_TABS = [
@@ -55,6 +56,13 @@ const CHART_TABS = [
   { id: "bar", label: "Bar", icon: faChartBar },
   { id: "line", label: "Trend", icon: faChartLine },
 ];
+
+const cleanNumericValue = (val) => {
+  if (typeof val === "number") return val;
+  if (!val || typeof val !== "string") return NaN;
+  const clean = val.trim().replace(/[$\s,]/g, "");
+  return clean.includes("/") ? NaN : parseFloat(clean);
+};
 
 function SaveReportModal({ onConfirm, onCancel, sheetName }) {
   const [name, setName] = useState(
@@ -72,33 +80,27 @@ function SaveReportModal({ onConfirm, onCancel, sheetName }) {
   };
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
-          Save report
-        </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Give this report a name.
-        </p>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+        <h3 className="text-base font-semibold mb-1">Save report</h3>
         <input
           autoFocus
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
-          className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-          placeholder="Report name..."
+          className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4 outline-none focus:ring-2 focus:ring-blue-500"
         />
         <div className="flex gap-2 justify-end">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={saving || !name.trim()}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg"
           >
             {saving ? (
               <>
@@ -117,74 +119,184 @@ function SaveReportModal({ onConfirm, onCancel, sheetName }) {
 function ChartPage() {
   const {
     data,
+    fileData,
     selectedOptions,
     selectedColumns,
     typeReport,
-    columnAnalysis,
     saveReport,
     selectedSheet,
+    fileName,
   } = useDataContext();
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const chartRef = useRef(null);
-  const [chartType, setChartType] = useState("pie");
+  const [chartType, setChartType] = useState(
+    typeReport === "groupBy" ? "bar" : "pie"
+  );
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
 
-  // ✅ FIX PDF: usar Canvas nativo de Chart.js en lugar de html2canvas
+  const headers = fileData?.[0] || [];
+  const limit = selectedOptions?.limit || 10;
+  const sysKeys = [
+    "limit",
+    "aggregation",
+    "groupByCol",
+    "calcCol",
+    "mostRepeated",
+  ];
+
+  // 1. Statistics Filter
+  const filteredData =
+    typeReport === "statistics"
+      ? data.filter((row) =>
+          Object.entries(selectedOptions).every(([key, value]) => {
+            if (sysKeys.includes(key) || !value || value === "") return true;
+            if (typeof value === "object" && value.from && value.to) {
+              const d = new Date(row[key]);
+              return d >= new Date(value.from) && d <= new Date(value.to);
+            }
+            return String(row[key]) === String(value);
+          })
+        )
+      : [];
+
+  const includedOptions = Object.entries(selectedOptions)
+    .filter(
+      ([k, v]) =>
+        !sysKeys.includes(k) && v !== "" && v !== null && v !== undefined
+    )
+    .map(([k, v]) => {
+      const headerName = headers[k] || k;
+      const valStr =
+        typeof v === "object"
+          ? `${new Date(v.from).toLocaleDateString()} → ${new Date(
+              v.to
+            ).toLocaleDateString()}`
+          : v;
+      return `${headerName}: ${valStr}`;
+    });
+
+  // 2. Most Repeated
+  const counts =
+    typeReport === "mostRepeated"
+      ? data.reduce((acc, row) => {
+          const v = row[selectedOptions.mostRepeated];
+          if (v != null && v !== "") acc[v] = (acc[v] || 0) + 1;
+          return acc;
+        }, {})
+      : {};
+  const sortedMostRepeated = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+
+  // 3. Group By (Pivot)
+  const groupedData = (() => {
+    if (
+      typeReport !== "groupBy" ||
+      !selectedOptions.groupByCol ||
+      !selectedOptions.calcCol
+    )
+      return [];
+    const { groupByCol, calcCol, aggregation } = selectedOptions;
+    const groups = {};
+    data.forEach((row) => {
+      const gVal = String(row[groupByCol] || "(Empty)").trim();
+      const cVal = cleanNumericValue(row[calcCol]);
+      if (!groups[gVal]) groups[gVal] = { sum: 0, count: 0 };
+      if (!isNaN(cVal)) {
+        groups[gVal].sum += cVal;
+        groups[gVal].count += 1;
+      }
+    });
+    return Object.entries(groups)
+      .map(([label, stats]) => {
+        let value = 0;
+        if (aggregation === "sum") value = stats.sum;
+        else if (aggregation === "avg")
+          value = stats.count > 0 ? stats.sum / stats.count : 0;
+        else if (aggregation === "count") value = stats.count;
+        return { label, value };
+      })
+      .sort((a, b) => b.value - a.value)
+      .slice(0, limit);
+  })();
+
+  // --- GRAFICOS ---
+  let chartLabels =
+    typeReport === "mostRepeated"
+      ? sortedMostRepeated.map(([k]) => k)
+      : groupedData.map((d) => d.label);
+  let chartValues =
+    typeReport === "mostRepeated"
+      ? sortedMostRepeated.map(([, v]) => v)
+      : groupedData.map((d) => d.value);
+  const getColors = (n, type) =>
+    Array.from({ length: n }, (_, i) => COLORS[i % COLORS.length][type]);
+  const sharedDataset = {
+    label:
+      typeReport === "groupBy"
+        ? selectedOptions.aggregation?.toUpperCase()
+        : "Count",
+    data: chartValues,
+    backgroundColor: getColors(chartLabels.length, "bg"),
+    borderColor: getColors(chartLabels.length, "border"),
+    borderWidth: 1,
+  };
+  const pieData = { labels: chartLabels, datasets: [sharedDataset] };
+  const barData = {
+    labels: chartLabels,
+    datasets: [{ ...sharedDataset, borderRadius: 6 }],
+  };
+
+  // --- PDF EXPORT ---
   const handlePrint = () => {
     try {
       const pdf = new jsPDF("p", "mm", "a4");
       const pageW = pdf.internal.pageSize.getWidth();
       const margin = 15;
       let y = margin;
-
-      // Título
       pdf.setFontSize(18);
       pdf.setFont("helvetica", "bold");
       pdf.text("Data Navigator Report", margin, y);
       y += 8;
-
       pdf.setFontSize(10);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(120, 120, 120);
+      const fileContext = fileName
+        ? `${fileName.replace(".xlsx", "")} — ${selectedSheet}`
+        : selectedSheet || "Data Sheet";
+      const reportTitle =
+        typeReport === "statistics"
+          ? "Statistics"
+          : typeReport === "groupBy"
+          ? "Pivot Table Analysis"
+          : "Most Repeated Values";
       pdf.text(
-        `${
-          typeReport === "statistics" ? "Statistics" : "Most Repeated Values"
-        } · ${new Date().toLocaleDateString()}`,
+        `${reportTitle} · ${fileContext} · ${new Date().toLocaleDateString()}`,
         margin,
         y
       );
       y += 10;
-
       pdf.setDrawColor(220, 220, 220);
       pdf.line(margin, y, pageW - margin, y);
       y += 8;
-
       pdf.setTextColor(0, 0, 0);
 
       if (typeReport === "statistics") {
-        // Filtros aplicados
-        const filters = Object.entries(selectedOptions)
-          .filter(([, v]) => v !== "")
-          .map(
-            ([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`
-          );
-
-        if (filters.length > 0) {
+        if (includedOptions.length > 0) {
           pdf.setFontSize(11);
           pdf.setFont("helvetica", "bold");
           pdf.text("Filters applied:", margin, y);
           y += 6;
           pdf.setFont("helvetica", "normal");
           pdf.setFontSize(9);
-          filters.forEach((f) => {
+          includedOptions.forEach((f) => {
             pdf.text(`• ${f}`, margin + 4, y);
             y += 5;
           });
           y += 4;
         }
-
         pdf.setFontSize(12);
         pdf.setFont("helvetica", "bold");
         pdf.text(`Total matching rows: ${filteredData.length}`, margin, y);
@@ -194,30 +306,70 @@ function ChartPage() {
       if (typeReport === "mostRepeated") {
         pdf.setFontSize(11);
         pdf.setFont("helvetica", "bold");
-        pdf.text(`Column: ${selectedOptions.mostRepeated}`, margin, y);
+        pdf.text(
+          `Column analyzed: ${
+            headers[selectedOptions.mostRepeated] ||
+            selectedOptions.mostRepeated
+          }`,
+          margin,
+          y
+        );
         y += 8;
-        pdf.text("Top values:", margin, y);
+        pdf.text(`Top ${sortedMostRepeated.length} values:`, margin, y);
         y += 6;
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(10);
-        sorted.forEach(([val, count], i) => {
-          pdf.text(`${i + 1}. ${val} — ${count} occurrences`, margin + 4, y);
+        sortedMostRepeated.forEach(([val, count], i) => {
+          pdf.text(`${i + 1}. ${val || "(Empty)"} — ${count}`, margin + 4, y);
           y += 6;
         });
         y += 6;
       }
 
-      // ✅ Gráfico: tomar el canvas directamente de Chart.js
-      if (chartRef.current) {
-        const canvas = chartRef.current.canvas;
-        const imgData = canvas.toDataURL("image/png", 1.0);
-        const imgW = pageW - margin * 2;
-        const imgH = (canvas.height / canvas.width) * imgW;
-        if (y + imgH < pdf.internal.pageSize.getHeight() - margin) {
-          pdf.addImage(imgData, "PNG", margin, y, imgW, Math.min(imgH, 120));
-        }
+      if (typeReport === "groupBy") {
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(
+          `Grouped by: ${
+            headers[selectedOptions.groupByCol]
+          } | Operation: ${selectedOptions.aggregation.toUpperCase()} of ${
+            headers[selectedOptions.calcCol]
+          }`,
+          margin,
+          y
+        );
+        y += 8;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(10);
+        groupedData.forEach((item, i) => {
+          const fmtVal = Number.isInteger(item.value)
+            ? item.value.toLocaleString()
+            : item.value.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
+          pdf.text(`${i + 1}. ${item.label} — ${fmtVal}`, margin + 4, y);
+          y += 6;
+        });
+        y += 6;
       }
 
+      if (chartRef.current) {
+        const canvas = chartRef.current.canvas;
+        const imgH = (canvas.height / canvas.width) * (pageW - margin * 2);
+        if (y + imgH > pdf.internal.pageSize.getHeight() - margin) {
+          pdf.addPage();
+          y = margin;
+        }
+        pdf.addImage(
+          canvas.toDataURL("image/png", 1.0),
+          "PNG",
+          margin,
+          y,
+          pageW - margin * 2,
+          Math.min(imgH, 120)
+        );
+      }
       window.open(URL.createObjectURL(pdf.output("blob")), "_blank");
     } catch (err) {
       console.error("PDF error:", err);
@@ -244,104 +396,10 @@ function ChartPage() {
     }
   };
 
-  // ── Statistics data ──
-  const filteredData = data.filter((row) =>
-    Object.entries(selectedOptions).every(([key, value]) => {
-      if (!value || value === "") return true;
-      if (typeof value === "object" && value.from && value.to) {
-        const d = new Date(row[key]);
-        return d >= new Date(value.from) && d <= new Date(value.to);
-      }
-      return String(row[key]) === String(value);
-    })
-  );
-
-  const includedOptions = Object.entries(selectedOptions)
-    .filter(([, v]) => v !== "" && v !== null && v !== undefined)
-    .map(
-      ([k, v]) =>
-        `${k}: ${
-          typeof v === "object"
-            ? `${new Date(v.from).toLocaleDateString()} → ${new Date(
-                v.to
-              ).toLocaleDateString()}`
-            : v
-        }`
-    );
-
-  // ── Most repeated data ──
-  const counts = data.reduce((acc, row) => {
-    const v = row[selectedOptions.mostRepeated];
-    if (v != null && v !== "") acc[v] = (acc[v] || 0) + 1;
-    return acc;
-  }, {});
-  const sorted = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-  const labels = sorted.map(([k]) => k);
-  const values = sorted.map(([, v]) => v);
-
-  const sharedDataset = {
-    label: "Count",
-    data: values,
-    backgroundColor: COLORS.map((c) => c.bg),
-    borderColor: COLORS.map((c) => c.border),
-    borderWidth: 1,
-  };
-  const pieData = { labels, datasets: [sharedDataset] };
-  const barData = { labels, datasets: [{ ...sharedDataset, borderRadius: 6 }] };
-
-  // Trend line
-  const dateCol = columnAnalysis?.find((c) => c.type === "date");
-  const trendData = (() => {
-    if (!dateCol) return null;
-    const byDate = {};
-    data.forEach((row) => {
-      const raw = Object.values(row).find(
-        (v) =>
-          typeof v === "string" &&
-          !isNaN(new Date(v).getTime()) &&
-          v.trim() !== ""
-      );
-      if (!raw) return;
-      const d = new Date(raw);
-      if (isNaN(d)) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-        2,
-        "0"
-      )}`;
-      byDate[key] = (byDate[key] || 0) + 1;
-    });
-    const s = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
-    return {
-      labels: s.map(([k]) => k),
-      datasets: [
-        {
-          label: "Records / month",
-          data: s.map(([, v]) => v),
-          borderColor: "rgba(59,130,246,1)",
-          backgroundColor: "rgba(59,130,246,0.1)",
-          fill: true,
-          tension: 0.4,
-          pointRadius: 4,
-          pointBackgroundColor: "rgba(59,130,246,1)",
-        },
-      ],
-    };
-  })();
-
-  const baseOpts = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: false, // ✅ desactivar animación para que el canvas esté listo para PDF
-    plugins: {
-      legend: { position: "left" },
-      tooltip: { backgroundColor: "rgba(0,0,0,0.75)" },
-    },
-  };
-
   const hasData = data && data.length > 0 && typeReport;
-  const showCharts = typeReport === "mostRepeated" && sorted.length > 0;
+  const showCharts =
+    (typeReport === "mostRepeated" && sortedMostRepeated.length > 0) ||
+    (typeReport === "groupBy" && groupedData.length > 0);
 
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
@@ -352,91 +410,107 @@ function ChartPage() {
           onCancel={() => setShowSaveModal(false)}
         />
       )}
-
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/40 rounded-xl flex items-center justify-center text-orange-600 dark:text-orange-400">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600">
               <FontAwesomeIcon icon={faChartBar} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                Reports
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                <h1 className="text-xl font-black text-gray-900">
+                  Report Insights
+                </h1>
+                {selectedSheet && (
+                  <span className="flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md truncate max-w-[300px]">
+                    <FontAwesomeIcon icon={faFileExcel} />{" "}
+                    {fileName
+                      ? `${fileName.replace(".xlsx", "")} — ${selectedSheet}`
+                      : selectedSheet}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm font-medium text-gray-500">
                 {typeReport === "statistics"
-                  ? "Statistics"
-                  : typeReport === "mostRepeated"
-                  ? "Most repeated values"
-                  : "No report"}
+                  ? "Statistics Overview"
+                  : typeReport === "groupBy"
+                  ? "Pivot Table Analysis"
+                  : `Top ${limit} values`}
               </p>
             </div>
           </div>
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold text-gray-500 hover:bg-gray-100 transition-all"
           >
             <FontAwesomeIcon icon={faArrowLeft} className="text-xs" /> Back
           </button>
         </div>
 
         {saveStatus === "success" && (
-          <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300 text-sm px-4 py-2 rounded-xl mb-4">
-            <FontAwesomeIcon icon={faCheck} /> Report saved successfully.
-          </div>
-        )}
-        {saveStatus === "error" && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-xl mb-4">
-            Error saving report. Please try again.
+          <div className="bg-green-50 border-green-200 text-green-700 text-sm px-4 py-3 rounded-xl mb-4 font-medium">
+            <FontAwesomeIcon icon={faCheck} /> Saved successfully.
           </div>
         )}
 
         {!hasData && (
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-12 text-center">
+          <div className="bg-white border-dashed border-gray-200 rounded-2xl py-16 text-center">
             <FontAwesomeIcon
               icon={faChartPie}
-              className="text-4xl text-gray-300 dark:text-gray-600 mb-4"
+              className="text-4xl text-gray-300 mb-4"
             />
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              No report data. Go back to the file reader and generate a report
-              first.
-            </p>
+            <p className="text-gray-500 font-medium">No data.</p>
           </div>
         )}
 
         {hasData && (
           <>
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
               {typeReport === "statistics" && (
                 <StatisticsReport
                   totalRows={filteredData.length}
                   includedOptions={includedOptions}
                   filteredData={filteredData}
+                  headers={headers}
                 />
               )}
-              {typeReport === "mostRepeated" && sorted.length > 0 && (
-                <MostRepeatedReport mostRepeatedOptions={sorted} />
+              {typeReport === "mostRepeated" && (
+                <MostRepeatedReport
+                  mostRepeatedOptions={sortedMostRepeated}
+                  totalValidRows={Object.values(counts).reduce(
+                    (a, b) => a + b,
+                    0
+                  )}
+                />
               )}
-              {typeReport === "mostRepeated" && sorted.length === 0 && (
-                <p className="text-gray-500 text-sm">No data to display.</p>
+              {typeReport === "groupBy" && (
+                <GroupByReport
+                  aggData={groupedData}
+                  aggregation={selectedOptions.aggregation}
+                  gName={headers[selectedOptions.groupByCol]}
+                  cName={headers[selectedOptions.calcCol]}
+                />
               )}
             </div>
 
             {showCharts && (
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
-                <div className="flex items-center gap-1 mb-5 bg-gray-100 dark:bg-gray-700 rounded-xl p-1 w-fit">
-                  {CHART_TABS.filter((t) => t.id !== "line" || trendData).map(
+              <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
+                <div className="flex items-center gap-1 mb-5 bg-gray-100 rounded-xl p-1 w-fit">
+                  {CHART_TABS.filter((t) => t.id !== "line").map(
                     ({ id, label, icon }) => (
                       <button
                         key={id}
                         onClick={() => setChartType(id)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
                           chartType === id
-                            ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
-                            : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                            ? "bg-white text-gray-900 shadow-sm"
+                            : "text-gray-500 hover:text-gray-700"
                         }`}
                       >
-                        <FontAwesomeIcon icon={icon} className="text-xs" />{" "}
+                        <FontAwesomeIcon
+                          icon={icon}
+                          className={chartType === id ? "text-blue-500" : ""}
+                        />{" "}
                         {label}
                       </button>
                     )
@@ -444,32 +518,20 @@ function ChartPage() {
                 </div>
                 <div className="h-72">
                   {chartType === "pie" && (
-                    <Pie ref={chartRef} data={pieData} options={baseOpts} />
+                    <Pie
+                      ref={chartRef}
+                      data={pieData}
+                      options={{ responsive: true, maintainAspectRatio: false }}
+                    />
                   )}
                   {chartType === "bar" && (
                     <Bar
                       ref={chartRef}
                       data={barData}
                       options={{
-                        ...baseOpts,
-                        plugins: {
-                          ...baseOpts.plugins,
-                          legend: { display: false },
-                        },
-                      }}
-                    />
-                  )}
-                  {chartType === "line" && trendData && (
-                    <Line
-                      ref={chartRef}
-                      data={trendData}
-                      options={{
-                        ...baseOpts,
-                        plugins: {
-                          ...baseOpts.plugins,
-                          legend: { display: false },
-                        },
-                        scales: { y: { beginAtZero: true } },
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
                       }}
                     />
                   )}
@@ -477,44 +539,10 @@ function ChartPage() {
               </div>
             )}
 
-            {typeReport === "statistics" && trendData && (
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
-                  <FontAwesomeIcon
-                    icon={faChartLine}
-                    className="text-blue-500"
-                  />{" "}
-                  Records over time
-                </h2>
-                <div className="h-56">
-                  <Line
-                    ref={chartRef}
-                    data={trendData}
-                    options={{
-                      ...baseOpts,
-                      plugins: {
-                        ...baseOpts.plugins,
-                        legend: { display: false },
-                      },
-                      scales: { y: { beginAtZero: true } },
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-2 justify-end">
-              {isLoggedIn && (
-                <button
-                  onClick={() => setShowSaveModal(true)}
-                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
-                >
-                  <FontAwesomeIcon icon={faFloppyDisk} /> Save Report
-                </button>
-              )}
+            <div className="flex justify-end mt-6">
               <button
                 onClick={handlePrint}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-sm"
               >
                 <FontAwesomeIcon icon={faFilePdf} /> Export PDF
               </button>

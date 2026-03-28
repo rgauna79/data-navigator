@@ -1,42 +1,90 @@
-import React from "react";
+import React, { useMemo } from "react";
 
-function StatisticsReport({ filteredData, totalRows, includedOptions }) {
-  // ✅ FIX: calcular stats correctamente sobre filteredData como array de objetos
-  const numericStats = React.useMemo(() => {
-    if (!filteredData || filteredData.length === 0) return [];
-    const isObjectRows = !Array.isArray(filteredData[0]);
-    if (!isObjectRows) return []; // arrays sin headers — no podemos calcular
+const getMedian = (array) => {
+  if (!array.length) return 0;
+  const sorted = [...array].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
+};
 
-    const keys = Object.keys(filteredData[0]);
-    return keys
-      .map((key) => {
+const getStdDev = (array, mean) => {
+  if (array.length < 2) return 0;
+  const variance =
+    array.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / array.length;
+  return Math.sqrt(variance);
+};
+
+const cleanNumericValue = (val) => {
+  if (typeof val === "number") return val;
+  if (!val || typeof val !== "string") return NaN;
+  const clean = val.trim().replace(/[$\s,]/g, "");
+  if (clean.includes("/")) return NaN;
+  return parseFloat(clean);
+};
+
+function StatisticsReport({
+  filteredData,
+  totalRows,
+  includedOptions,
+  headers,
+}) {
+  const numericStats = useMemo(() => {
+    if (!filteredData || filteredData.length === 0 || !headers) return [];
+
+    return headers
+      .map((headerName, index) => {
         const vals = filteredData
-          .map((r) => parseFloat(r[key]))
+          .map((r) => cleanNumericValue(r[index]))
           .filter((v) => !isNaN(v));
-        if (vals.length === 0) return null;
+
+        // Asegurarnos de que tenga suficientes números para ser considerada numérica
+        if (vals.length === 0 || vals.length < filteredData.length * 0.4)
+          return null;
+
+        const sum = vals.reduce((a, b) => a + b, 0);
+        const avg = sum / vals.length;
+        const min = Math.min(...vals);
+        const max = Math.max(...vals);
+        const median = getMedian(vals);
+        const stdDev = getStdDev(vals, avg);
+        const range = max - min;
+
+        const fmt = (n) =>
+          Number.isInteger(n)
+            ? n.toLocaleString()
+            : n.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
+
         return {
-          name: key,
-          avg: (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2),
-          sum: vals.reduce((a, b) => a + b, 0).toFixed(2),
-          min: Math.min(...vals),
-          max: Math.max(...vals),
+          name: headerName,
+          avg: fmt(avg),
+          sum: fmt(sum),
+          median: fmt(median),
+          min: fmt(min),
+          max: fmt(max),
+          range: fmt(range),
+          stdDev: fmt(stdDev),
         };
       })
       .filter(Boolean);
-  }, [filteredData]);
+  }, [filteredData, headers]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {includedOptions.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
             Filters applied
           </p>
           <div className="flex flex-wrap gap-1.5">
             {includedOptions.map((option) => (
               <span
                 key={option}
-                className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 rounded-full px-2.5 py-1"
+                className="text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1"
               >
                 {option}
               </span>
@@ -45,61 +93,71 @@ function StatisticsReport({ filteredData, totalRows, includedOptions }) {
         </div>
       )}
 
-      <div className="bg-gray-50 dark:bg-gray-700/40 rounded-xl px-4 py-3 flex items-center justify-between">
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          Matching rows
+      <div className="bg-gray-50 rounded-xl px-4 py-4 flex items-center justify-between border border-gray-100 shadow-sm">
+        <span className="text-sm font-semibold text-gray-600">
+          Matching rows for this report
         </span>
-        <span className="text-2xl font-bold text-gray-900 dark:text-white">
-          {totalRows}
+        <span className="text-2xl font-black text-gray-900">
+          {totalRows.toLocaleString()}
         </span>
       </div>
 
       {numericStats.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-            Numeric column stats
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+            Advanced Numeric Stats
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {numericStats.map((col) => (
               <div
                 key={col.name}
-                className="border border-gray-100 dark:border-gray-700 rounded-xl p-4"
+                className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm"
               >
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 truncate">
+                <p className="text-xs font-black text-gray-800 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2 truncate">
                   {col.name}
                 </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    {
-                      label: "Average",
-                      val: col.avg,
-                      cls: "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400",
-                      vcls: "text-blue-700 dark:text-blue-300",
-                    },
-                    {
-                      label: "Sum",
-                      val: col.sum,
-                      cls: "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400",
-                      vcls: "text-emerald-700 dark:text-emerald-300",
-                    },
-                    {
-                      label: "Min",
-                      val: col.min,
-                      cls: "bg-gray-50 dark:bg-gray-700/50 text-gray-500",
-                      vcls: "text-gray-700 dark:text-gray-300",
-                    },
-                    {
-                      label: "Max",
-                      val: col.max,
-                      cls: "bg-gray-50 dark:bg-gray-700/50 text-gray-500",
-                      vcls: "text-gray-700 dark:text-gray-300",
-                    },
-                  ].map(({ label, val, cls, vcls }) => (
-                    <div key={label} className={`${cls} rounded-lg px-3 py-2`}>
-                      <p className="text-xs mb-0.5">{label}</p>
-                      <p className={`text-base font-bold ${vcls}`}>{val}</p>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div className="space-y-3 pr-2 border-r border-gray-100">
+                    {[
+                      {
+                        label: "Sum Total",
+                        val: col.sum,
+                        color: "text-emerald-600",
+                      },
+                      {
+                        label: "Average",
+                        val: col.avg,
+                        color: "text-blue-600",
+                      },
+                      {
+                        label: "Median",
+                        val: col.median,
+                        color: "text-purple-600",
+                      },
+                    ].map(({ label, val, color }) => (
+                      <div key={label}>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          {label}
+                        </p>
+                        <p className={`text-sm font-bold ${color}`}>{val}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-3 pl-2">
+                    {[
+                      { label: "Min", val: col.min },
+                      { label: "Max", val: col.max },
+                      { label: "Range", val: col.range },
+                      { label: "Std Dev (σ)", val: col.stdDev },
+                    ].map(({ label, val }) => (
+                      <div key={label}>
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                          {label}
+                        </p>
+                        <p className="text-sm font-bold text-gray-700">{val}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}

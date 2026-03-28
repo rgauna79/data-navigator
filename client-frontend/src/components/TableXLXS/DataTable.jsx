@@ -14,6 +14,9 @@ function DataTable({ isLoggedIn, handleSaveTrigger, showSaveButton }) {
   const { workbook, selectedSheet, fileData, setFileData } = useDataContext();
   const [globalFilter, setGlobalFilter] = useState("");
 
+  // ✅ Estado para guardar el historial de cambios
+  const [history, setHistory] = useState([]);
+
   const formatJson = (json) => {
     return json.map((row) =>
       row.map((cell) =>
@@ -27,7 +30,50 @@ function DataTable({ isLoggedIn, handleSaveTrigger, showSaveButton }) {
     const sheet = workbook.Sheets[selectedSheet];
     const json = XLSX.utils.sheet_to_json(sheet, { raw: false, header: 1 });
     setFileData(formatJson(json));
+    setHistory([]); // ✅ Limpiamos el historial al cambiar de hoja
   }, [workbook, selectedSheet]);
+
+  // ✅ Función para actualizar que ahora recibe el valor viejo
+  const updateData = (rowIndex, columnId, value, oldValue) => {
+    // 1. Guardamos la acción en el historial ANTES de cambiarla
+    setHistory((prev) => [...prev, { rowIndex, columnId, oldValue }]);
+
+    // 2. Aplicamos el cambio
+    setFileData((old) =>
+      old.map((row, index) => {
+        if (index === rowIndex + 1) {
+          const newRow = [...row];
+          newRow[columnId] = value.toUpperCase();
+          return newRow;
+        }
+        return row;
+      })
+    );
+  };
+
+  // ✅ Función para Deshacer
+  const undoLastChange = () => {
+    setHistory((prev) => {
+      const newHistory = [...prev];
+      const lastAction = newHistory.pop(); // Sacamos el último cambio
+
+      if (!lastAction) return prev;
+
+      // Revertimos el cambio en los datos
+      setFileData((old) =>
+        old.map((row, index) => {
+          if (index === lastAction.rowIndex + 1) {
+            const newRow = [...row];
+            newRow[lastAction.columnId] = lastAction.oldValue;
+            return newRow;
+          }
+          return row;
+        })
+      );
+
+      return newHistory; // Guardamos el historial actualizado
+    });
+  };
 
   const columns = useMemo(() => {
     if (!fileData || fileData.length === 0) return [];
@@ -55,6 +101,9 @@ function DataTable({ isLoggedIn, handleSaveTrigger, showSaveButton }) {
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 15 } },
+    meta: {
+      updateData,
+    },
   });
 
   return (
@@ -66,6 +115,8 @@ function DataTable({ isLoggedIn, handleSaveTrigger, showSaveButton }) {
       setGlobalFilter={setGlobalFilter}
       showSaveButton={showSaveButton}
       handleSaveTrigger={handleSaveTrigger}
+      canUndo={history.length > 0} // ✅ Pasamos si hay historial
+      onUndo={undoLastChange} // ✅ Pasamos la función de deshacer
     />
   );
 }

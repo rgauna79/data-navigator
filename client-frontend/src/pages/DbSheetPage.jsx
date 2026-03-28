@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDataContext } from "../context/DataContext";
-import SavedDataTable from "../components/TableXLXS/SavedDataTable.jsx"; // ✅ nuevo componente
+import SavedDataTable from "../components/TableXLXS/SavedDataTable.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSpinner,
@@ -10,7 +10,8 @@ import {
   faTrash,
   faExclamationTriangle,
 } from "@fortawesome/free-solid-svg-icons";
-import axios from "../api/axios";
+import { deleteData } from "../api/data"; // ✅ Importamos desde tu servicio API
+import toast from "react-hot-toast";
 
 function DbSheetPage() {
   const { readAllData, dataSaved, isLoadingData, error } = useDataContext();
@@ -54,29 +55,37 @@ function DbSheetPage() {
       name: "",
       rowCount: 0,
     });
+
+    const toastId = toast.loading("Deleting file...");
+
     try {
-      await axios.delete(`/data/${id}`);
+      // ✅ Usamos tu función limpia del servicio API
+      await deleteData(id);
+
       if (activeSheet?.index === index) setActiveSheet(null);
       await readAllData();
+
+      toast.success("File deleted successfully", { id: toastId });
     } catch (err) {
       console.error("Error deleting:", err);
+      toast.error("Failed to delete file", { id: toastId });
     } finally {
       setDeletingId(null);
     }
   };
 
   return (
-    <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)] relative">
+    <div className="flex-1 bg-gray-50 dark:bg-gray-900 relative">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/40 rounded-xl flex items-center justify-center text-purple-600 dark:text-purple-400">
             <FontAwesomeIcon icon={faDatabase} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">
               Saved Files
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
               Files stored in the database
               {sheets.length > 0 && ` · ${sheets.length} sheets`}
             </p>
@@ -84,14 +93,18 @@ function DbSheetPage() {
         </div>
 
         {isLoadingData && (
-          <div className="flex items-center gap-2 text-gray-500 py-8 justify-center">
-            <FontAwesomeIcon icon={faSpinner} spin />
-            <span className="text-sm">Loading saved files...</span>
+          <div className="flex items-center gap-3 text-gray-500 py-12 justify-center">
+            <FontAwesomeIcon
+              icon={faSpinner}
+              spin
+              className="text-2xl text-purple-500"
+            />
+            <span className="text-sm font-bold">Loading saved files...</span>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-xl">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 text-red-700 dark:text-red-300 text-sm font-bold px-4 py-3 rounded-xl">
             Error loading data. Please try again.
           </div>
         )}
@@ -99,37 +112,38 @@ function DbSheetPage() {
         {!isLoadingData && !error && (
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
             {sheets.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-sm">
+              <div className="text-center py-16 text-gray-400 text-sm font-medium">
                 No saved files yet. Upload an Excel file and click "Save Data".
               </div>
             ) : (
               sheets.map((item, index) => (
                 <div
                   key={item._id || index}
-                  className={`flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-0 transition-colors ${
+                  className={`flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700 last:border-0 transition-colors ${
                     activeSheet?.index === index
                       ? "bg-purple-50 dark:bg-purple-900/20"
                       : "hover:bg-gray-50 dark:hover:bg-gray-700/40"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600 text-xs font-bold">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center text-green-600 text-sm font-black shadow-sm">
                       XL
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
                         {item.sheetName}
                       </p>
                       {item.updatedAt && (
-                        <p className="text-[10px] text-gray-400">
+                        <p className="text-[11px] text-gray-500 font-medium mt-0.5">
+                          Saved on{" "}
                           {new Date(item.updatedAt).toLocaleDateString()}
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
                     <button
-                      className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                      className={`flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl transition-all active:scale-95 shadow-sm ${
                         activeSheet?.index === index
                           ? "bg-gray-200 dark:bg-gray-600 text-gray-700"
                           : "bg-purple-600 hover:bg-purple-700 text-white"
@@ -157,12 +171,12 @@ function DbSheetPage() {
                           )
                         }
                         disabled={deletingId === item._id}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
                       >
                         <FontAwesomeIcon
                           icon={deletingId === item._id ? faSpinner : faTrash}
                           spin={deletingId === item._id}
-                          className="text-xs"
+                          className="text-sm"
                         />
                       </button>
                     )}
@@ -173,9 +187,16 @@ function DbSheetPage() {
           </div>
         )}
 
-        {/* ✅ Usar SavedDataTable en lugar de DataTable */}
         {activeSheet && (
-          <div className="mt-6 border-t pt-6 border-gray-200 dark:border-gray-700">
+          <div className="mt-8 pt-8 border-t-2 border-dashed border-gray-200 dark:border-gray-700 animate-in slide-in-from-bottom-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-black text-gray-900 dark:text-white">
+                Viewing:{" "}
+                <span className="text-purple-600">
+                  {sheets[activeSheet.index].sheetName}
+                </span>
+              </h2>
+            </div>
             <SavedDataTable sheetData={activeSheet.data} />
           </div>
         )}
@@ -183,34 +204,31 @@ function DbSheetPage() {
 
       {/* Modal de confirmación de eliminación */}
       {showConfirm.show && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-3 text-red-500 mb-4">
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-[2rem] p-8 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-gray-700 animate-in zoom-in-95">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center text-3xl text-red-500 mb-4 shadow-sm">
                 <FontAwesomeIcon icon={faExclamationTriangle} />
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
-                  Permanent Delete
-                </h3>
-                <p className="text-xs text-red-500 font-medium">
-                  This cannot be undone
-                </p>
-              </div>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6 border border-gray-100 dark:border-gray-600">
-              <p className="text-sm text-gray-600 dark:text-gray-300 italic">
-                You are about to delete:
+              <h3 className="text-xl font-black text-gray-900 dark:text-white mb-1">
+                Delete this file?
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                This action cannot be undone.
               </p>
-              <p className="font-bold text-gray-900 dark:text-white truncate">
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 mb-8 border border-gray-100 dark:border-gray-600">
+              <p className="font-bold text-gray-900 dark:text-white truncate text-center">
                 {showConfirm.name}
               </p>
-              <div className="mt-2">
-                <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded">
+              <div className="mt-2 text-center">
+                <span className="text-[10px] uppercase tracking-wider font-black px-2.5 py-1 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-md">
                   {showConfirm.rowCount.toLocaleString()} Rows
                 </span>
               </div>
             </div>
+
             <div className="flex gap-3">
               <button
                 onClick={() =>
@@ -222,15 +240,15 @@ function DbSheetPage() {
                     rowCount: 0,
                   })
                 }
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
+                className="flex-1 px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 transition-all active:scale-95"
+                className="flex-1 px-4 py-3 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 transition-all active:scale-95 shadow-sm shadow-red-200 dark:shadow-none"
               >
-                Delete
+                Yes, Delete
               </button>
             </div>
           </div>

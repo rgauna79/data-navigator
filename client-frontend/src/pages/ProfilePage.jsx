@@ -3,17 +3,25 @@ import { useAuth } from "../context/AuthContext";
 import { getUserProfile, updateUserProfile } from "../context/UserContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faSpinner, faUser, faEnvelope, faLock, faCheck, faEye, faEyeSlash,
+  faSpinner,
+  faUser,
+  faEnvelope,
+  faLock,
+  faEye,
+  faEyeSlash,
 } from "@fortawesome/free-solid-svg-icons";
+import toast from "react-hot-toast"; // ✅ Importamos toast
 
 function ProfilePage() {
   const { user, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [changePassword, setChangePassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [formData, setFormData] = useState({ username: "", email: "", password: "" });
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+  });
 
   useEffect(() => {
     if (user) {
@@ -34,121 +42,128 @@ function ProfilePage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    setSuccessMessage("");
-    setErrorMessage("");
-    try {
-      await updateUserProfile(formData);
-      setSuccessMessage("Profile updated successfully.");
-      setTimeout(() => setSuccessMessage(""), 4000);
-    } catch (error) {
-      setErrorMessage(error.message);
-      setTimeout(() => setErrorMessage(""), 4000);
-    } finally {
-      setIsSaving(false);
-    }
+
+    // ✅ Toast automático con Loader, Success y Error integrados
+    toast
+      .promise(updateUserProfile(formData), {
+        loading: "Updating profile...",
+        success: "Profile updated successfully!",
+        error: (err) => err.message || "Could not update profile.",
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   if (isLoading) {
     return (
       <div className="flex-1 flex justify-center items-center bg-gray-50 dark:bg-gray-900">
-        <FontAwesomeIcon icon={faSpinner} spin className="text-gray-400 text-2xl" />
+        <FontAwesomeIcon
+          icon={faSpinner}
+          spin
+          className="text-gray-400 text-3xl"
+        />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
-      <div className="max-w-lg mx-auto px-4 py-10">
-
-        {/* Avatar + name header */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+    <div className="flex-1 bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-lg mx-auto px-4 py-12">
+        <div className="flex items-center gap-5 mb-8">
+          <div className="w-20 h-20 rounded-[1.25rem] bg-blue-600 flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-blue-200 dark:shadow-none flex-shrink-0">
             {user?.username?.[0]?.toUpperCase()}
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{user?.username}</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{user?.email}</p>
+            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+              {user?.username}
+            </h1>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {user?.email}
+            </p>
           </div>
         </div>
 
-        {/* Feedback */}
-        {successMessage && (
-          <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300 text-sm px-4 py-3 rounded-xl mb-4">
-            <FontAwesomeIcon icon={faCheck} />
-            {successMessage}
-          </div>
-        )}
-        {errorMessage && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 text-sm px-4 py-3 rounded-xl mb-4">
-            {errorMessage}
-          </div>
-        )}
-
-        {/* Form */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-5">
-            Edit profile
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm">
+          <h2 className="text-lg font-black text-gray-900 dark:text-white mb-6">
+            Account Settings
           </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-
-            {/* Username */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="username"
+                className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
+              >
                 Username
               </label>
               <div className="relative">
-                <FontAwesomeIcon icon={faUser} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                <FontAwesomeIcon
+                  icon={faUser}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
+                />
                 <input
                   type="text"
                   id="username"
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="w-full pl-11 pr-4 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 />
               </div>
             </div>
 
-            {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Email
+              <label
+                htmlFor="email"
+                className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
+              >
+                Email Address
               </label>
               <div className="relative">
-                <FontAwesomeIcon icon={faEnvelope} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                <FontAwesomeIcon
+                  icon={faEnvelope}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
+                />
                 <input
                   type="email"
                   id="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="w-full pl-11 pr-4 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 />
               </div>
             </div>
 
-            {/* Change password toggle */}
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-3 pt-2">
               <input
                 type="checkbox"
                 id="togglePassword"
                 checked={changePassword}
                 onChange={handleTogglePassword}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
-              <label htmlFor="togglePassword" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                Change password
+              <label
+                htmlFor="togglePassword"
+                className="text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none"
+              >
+                Update password
               </label>
             </div>
 
-            {/* New password */}
             {changePassword && (
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <div className="animate-in fade-in slide-in-from-top-2">
+                <label
+                  htmlFor="password"
+                  className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
+                >
                   New password
                 </label>
                 <div className="relative">
-                  <FontAwesomeIcon icon={faLock} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                  <FontAwesomeIcon
+                    icon={faLock}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
+                  />
                   <input
                     type={showPassword ? "text" : "password"}
                     id="password"
@@ -156,14 +171,17 @@ function ProfilePage() {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="••••••••"
-                    className="w-full pl-9 pr-10 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                    className="w-full pl-11 pr-12 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                   >
-                    <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} className="text-sm" />
+                    <FontAwesomeIcon
+                      icon={showPassword ? faEyeSlash : faEye}
+                      className="text-sm"
+                    />
                   </button>
                 </div>
               </div>
@@ -172,12 +190,14 @@ function ProfilePage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm mt-2"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-sm shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 text-sm mt-4"
             >
               {isSaving ? (
-                <><FontAwesomeIcon icon={faSpinner} spin /> Saving...</>
+                <>
+                  <FontAwesomeIcon icon={faSpinner} spin /> Saving changes...
+                </>
               ) : (
-                "Save changes"
+                "Save Preferences"
               )}
             </button>
           </form>

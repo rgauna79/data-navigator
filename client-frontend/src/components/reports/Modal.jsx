@@ -1,54 +1,46 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faXmark,
   faChartBar,
   faChartPie,
-  faHashtag,
-  faTag,
-  faListOl, // ✅ Corregido: faListNumbered no existe, se usa faListOl
+  faObjectGroup,
+  faListOl,
 } from "@fortawesome/free-solid-svg-icons";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useDataContext } from "../../context/DataContext.jsx";
 
 function Modal({ handleClose, columns, data }) {
-  const { setSelectedColumns, setSelectedOptions, setTypeReport, setData } =
-    useDataContext();
+  const {
+    setSelectedColumns,
+    setSelectedOptions,
+    setTypeReport,
+    setData,
+    columnAnalysis,
+  } = useDataContext();
   const navigate = useNavigate();
 
   const [localSelectedColumns, setLocalSelectedColumns] = useState([]);
   const [localSelectedOptions, setLocalSelectedOptions] = useState({});
-  const [localTypeReport, setLocalTypeReport] = useState("mostRepeated");
-  const [limitMostRepeated, setLimitMostRepeated] = useState(5);
+  const [localTypeReport, setLocalTypeReport] = useState("statistics");
+  const [limitMostRepeated, setLimitMostRepeated] = useState(10);
   const [dateRanges, setDateRanges] = useState({});
   const [error, setError] = useState("");
 
-  // --- Lógica de detección de columnas ---
-  const isDateColumn = (columnName) =>
-    data.some((item) => {
-      const value = item[columnName];
-      if (typeof value === "string" && value.trim() !== "") {
-        return !isNaN(new Date(value).getTime());
-      }
-      return false;
-    });
+  const isDateColumn = (headerName) =>
+    columnAnalysis?.find((c) => c.name === headerName)?.type === "date";
+  const isNumericColumn = (headerName) =>
+    columnAnalysis?.find((c) => c.name === headerName)?.type === "numeric";
 
-  const isNumericColumn = (columnName) => {
-    const vals = data
-      .map((r) => r[columnName])
-      .filter((v) => v !== "" && v !== null && v !== undefined);
-    if (vals.length === 0) return false;
-    const numCount = vals.filter(
-      (v) => !isNaN(parseFloat(v)) && isFinite(v)
-    ).length;
-    return numCount / vals.length > 0.6;
-  };
-
-  const getMinMaxDates = (columnName) => {
+  const getMinMaxDates = (headerName) => {
+    const col = columnAnalysis?.find((c) => c.name === headerName);
+    if (col && col.type === "date" && col.min && col.max)
+      return { minDate: col.min, maxDate: col.max };
+    const accessor = columns.find((c) => c.Header === headerName)?.accessor;
     const dates = data
-      .map((item) => new Date(item[columnName]))
+      .map((item) => new Date(item[accessor]))
       .filter((d) => !isNaN(d));
     return {
       minDate: new Date(Math.min(...dates)),
@@ -56,84 +48,58 @@ function Modal({ handleClose, columns, data }) {
     };
   };
 
-  const getUniqueValues = (columnName) =>
+  const getUniqueValues = (accessor) =>
     [
       ...new Set(
         data
-          .map((item) => item[columnName])
-          .filter((v) => v !== "" && v !== null)
+          .map((item) => item[accessor])
+          .filter((v) => v !== "" && v !== null && v !== undefined)
       ),
-    ].slice(0, 100);
-
-  // --- Handlers ---
-  const handleCheckboxChange = (e) => {
-    const { name, checked } = e.target;
-    if (checked) {
-      setLocalSelectedColumns((prev) => [...prev, name]);
-      if (isDateColumn(name) && !dateRanges[name]) {
-        const { minDate, maxDate } = getMinMaxDates(name);
-        setDateRanges((prev) => ({
-          ...prev,
-          [name]: { startDate: minDate, endDate: maxDate },
-        }));
-        setLocalSelectedOptions((prev) => ({
-          ...prev,
-          [name]: { from: minDate, to: maxDate },
-        }));
-      }
-    } else {
-      setLocalSelectedColumns((prev) => prev.filter((col) => col !== name));
-      setLocalSelectedOptions((prev) => {
-        const u = { ...prev };
-        delete u[name];
-        return u;
-      });
-    }
-  };
+    ]
+      .sort()
+      .slice(0, 100);
 
   const handleSelectChange = (e) => {
     const { name, value } = e.target;
     setLocalSelectedOptions((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleDateChange = (column, startDate, endDate) => {
+  const handleDateChange = (colAccessor, startDate, endDate) => {
     if (startDate > endDate) {
       setError("Start date cannot be after end date.");
       return;
     }
     setError("");
-    setDateRanges((prev) => ({ ...prev, [column]: { startDate, endDate } }));
+    setDateRanges((prev) => ({
+      ...prev,
+      [colAccessor]: { startDate, endDate },
+    }));
     setLocalSelectedOptions((prev) => ({
       ...prev,
-      [column]: { from: startDate, to: endDate },
+      [colAccessor]: { from: startDate, to: endDate },
     }));
   };
 
   const handleConfirm = () => {
-    if (!localTypeReport) {
-      setError("Please select a report type.");
-      return;
-    }
-
+    if (!localTypeReport) return setError("Please select a report type.");
     if (
       localTypeReport === "mostRepeated" &&
       !localSelectedOptions.mostRepeated
-    ) {
-      setError("Please select a column to analyze.");
-      setTimeout(() => setError(""), 4000);
-      return;
-    }
-
-    if (localTypeReport === "statistics" && localSelectedColumns.length === 0) {
-      setError("Please select at least one column to filter.");
-      setTimeout(() => setError(""), 4000);
-      return;
-    }
+    )
+      return setError("Select a column.");
+    if (localTypeReport === "statistics" && localSelectedColumns.length === 0)
+      return setError("Select at least one filter.");
+    if (
+      localTypeReport === "groupBy" &&
+      (!localSelectedOptions.groupByCol || !localSelectedOptions.calcCol)
+    )
+      return setError("Select both columns.");
 
     const finalOptions = { ...localSelectedOptions };
-    if (localTypeReport === "mostRepeated") {
+    if (localTypeReport === "mostRepeated" || localTypeReport === "groupBy")
       finalOptions.limit = limitMostRepeated;
-    }
+    if (localTypeReport === "groupBy" && !finalOptions.aggregation)
+      finalOptions.aggregation = "sum";
 
     setSelectedColumns(localSelectedColumns);
     setSelectedOptions(finalOptions);
@@ -144,10 +110,10 @@ function Modal({ handleClose, columns, data }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex justify-center items-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/50 flex justify-center items-center p-4 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white">
             Generate Report
           </h2>
           <button
@@ -159,28 +125,33 @@ function Modal({ handleClose, columns, data }) {
         </div>
 
         <div className="px-5 py-4 space-y-5">
-          {/* Report type selection */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {[
               {
                 value: "statistics",
                 label: "Statistics",
                 icon: faChartBar,
-                desc: "Filter values",
+                desc: "Overview",
               },
               {
                 value: "mostRepeated",
-                label: "Most repeated",
+                label: "Top Values",
                 icon: faChartPie,
-                desc: "Top values",
+                desc: "Frequencies",
+              },
+              {
+                value: "groupBy",
+                label: "Pivot Table",
+                icon: faObjectGroup,
+                desc: "Cross Data",
               },
             ].map(({ value, label, icon, desc }) => (
               <label
                 key={value}
-                className={`flex flex-col gap-1 px-3 py-3 rounded-xl border cursor-pointer transition-colors ${
+                className={`flex flex-col gap-1 px-3 py-3 rounded-xl border cursor-pointer transition-all ${
                   localTypeReport === value
-                    ? "bg-blue-50 dark:bg-blue-900/30 border-blue-400 text-blue-700"
-                    : "border-gray-200 dark:border-gray-600 text-gray-500"
+                    ? "bg-blue-50 border-blue-400 text-blue-700 shadow-sm"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
                 }`}
               >
                 <input
@@ -191,65 +162,99 @@ function Modal({ handleClose, columns, data }) {
                   className="sr-only"
                   checked={localTypeReport === value}
                 />
-                <span className="flex items-center gap-2 text-sm font-medium">
-                  <FontAwesomeIcon icon={icon} className="text-xs" /> {label}
+                <span className="flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-wider">
+                  <FontAwesomeIcon icon={icon} /> {label}
                 </span>
-                <span className="text-xs opacity-70">{desc}</span>
+                <span className="text-[10px] text-center opacity-70">
+                  {desc}
+                </span>
               </label>
             ))}
           </div>
 
-          {/* Statistics View */}
           {localTypeReport === "statistics" && (
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {columns.map((column) => (
                 <div key={column.accessor} className="space-y-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded-md transition-colors">
                     <input
                       type="checkbox"
-                      name={column.Header}
-                      onChange={handleCheckboxChange}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                      checked={localSelectedColumns.includes(column.accessor)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        const colAcc = column.accessor;
+                        const colHead = column.Header;
+                        if (checked) {
+                          setLocalSelectedColumns((prev) => [...prev, colAcc]);
+                          if (isDateColumn(colHead) && !dateRanges[colAcc]) {
+                            const { minDate, maxDate } =
+                              getMinMaxDates(colHead);
+                            setDateRanges((prev) => ({
+                              ...prev,
+                              [colAcc]: {
+                                startDate: minDate,
+                                endDate: maxDate,
+                              },
+                            }));
+                            setLocalSelectedOptions((prev) => ({
+                              ...prev,
+                              [colAcc]: { from: minDate, to: maxDate },
+                            }));
+                          }
+                        } else {
+                          setLocalSelectedColumns((prev) =>
+                            prev.filter((c) => c !== colAcc)
+                          );
+                          setLocalSelectedOptions((prev) => {
+                            const u = { ...prev };
+                            delete u[colAcc];
+                            return u;
+                          });
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="text-sm font-medium text-gray-700 truncate">
                       {column.Header}
                     </span>
                   </label>
-                  {localSelectedColumns.includes(column.Header) && (
-                    <div className="ml-6">
-                      {isDateColumn(column.accessor) ? (
+                  {localSelectedColumns.includes(column.accessor) && (
+                    <div className="ml-6 mt-1 mb-3">
+                      {isDateColumn(column.Header) ? (
                         <div className="flex gap-2">
                           <DatePicker
-                            selected={dateRanges[column.Header]?.startDate}
+                            selected={dateRanges[column.accessor]?.startDate}
                             onChange={(d) =>
                               handleDateChange(
-                                column.Header,
+                                column.accessor,
                                 d,
-                                dateRanges[column.Header]?.endDate
+                                dateRanges[column.accessor]?.endDate
                               )
                             }
-                            className="w-full text-xs bg-gray-50 dark:bg-gray-700 border rounded px-2 py-1"
+                            className="w-full text-xs font-medium bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholderText="Start Date"
                           />
                           <DatePicker
-                            selected={dateRanges[column.Header]?.endDate}
+                            selected={dateRanges[column.accessor]?.endDate}
                             onChange={(d) =>
                               handleDateChange(
-                                column.Header,
-                                dateRanges[column.Header]?.startDate,
+                                column.accessor,
+                                dateRanges[column.accessor]?.startDate,
                                 d
                               )
                             }
-                            className="w-full text-xs bg-gray-50 dark:bg-gray-700 border rounded px-2 py-1"
+                            className="w-full text-xs font-medium bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholderText="End Date"
                           />
                         </div>
                       ) : (
                         <select
-                          name={column.Header}
-                          value={localSelectedOptions[column.Header] || ""}
+                          name={column.accessor}
+                          value={localSelectedOptions[column.accessor] || ""}
                           onChange={handleSelectChange}
-                          className="w-full text-sm bg-gray-50 dark:bg-gray-700 border rounded-lg px-3 py-1.5"
+                          className="w-full text-sm font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-blue-500"
                         >
-                          <option value="">Select a value...</option>
+                          <option value="">Select a value to filter...</option>
                           {getUniqueValues(column.accessor).map((v) => (
                             <option key={v} value={v}>
                               {v}
@@ -264,36 +269,28 @@ function Modal({ handleClose, columns, data }) {
             </div>
           )}
 
-          {/* Most Repeated View */}
           {localTypeReport === "mostRepeated" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-top-1">
               <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">
                   Column to analyze
                 </label>
                 <select
                   name="mostRepeated"
                   value={localSelectedOptions.mostRepeated || ""}
                   onChange={handleSelectChange}
-                  className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full text-sm font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="">Select a column...</option>
-                  {columns
-                    .filter(
-                      (col) =>
-                        !isNumericColumn(col.accessor) &&
-                        !isDateColumn(col.accessor)
-                    )
-                    .map((column) => (
-                      <option key={column.accessor} value={column.accessor}>
-                        {column.Header}
-                      </option>
-                    ))}
+                  {columns.map((column) => (
+                    <option key={column.accessor} value={column.accessor}>
+                      {column.Header}
+                    </option>
+                  ))}
                 </select>
               </div>
-
               <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">
                   Number of top values
                 </label>
                 <div className="relative">
@@ -305,7 +302,7 @@ function Modal({ handleClose, columns, data }) {
                     onChange={(e) =>
                       setLimitMostRepeated(parseInt(e.target.value) || 1)
                     }
-                    className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg pl-9 pr-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full text-sm font-medium bg-gray-50 border border-gray-200 rounded-lg pl-9 pr-3 py-2 outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <FontAwesomeIcon
                     icon={faListOl}
@@ -316,23 +313,83 @@ function Modal({ handleClose, columns, data }) {
             </div>
           )}
 
+          {localTypeReport === "groupBy" && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-1">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">
+                  1. Group by
+                </label>
+                <select
+                  name="groupByCol"
+                  value={localSelectedOptions.groupByCol || ""}
+                  onChange={handleSelectChange}
+                  className="w-full text-sm font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">Select grouping column...</option>
+                  {columns.map((column) => (
+                    <option key={column.accessor} value={column.accessor}>
+                      {column.Header}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">
+                    2. Calculate
+                  </label>
+                  <select
+                    name="calcCol"
+                    value={localSelectedOptions.calcCol || ""}
+                    onChange={handleSelectChange}
+                    className="w-full text-sm font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">Numeric column...</option>
+                    {columns
+                      .filter((c) => isNumericColumn(c.Header))
+                      .map((column) => (
+                        <option key={column.accessor} value={column.accessor}>
+                          {column.Header}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1 block">
+                    3. Operation
+                  </label>
+                  <select
+                    name="aggregation"
+                    value={localSelectedOptions.aggregation || "sum"}
+                    onChange={handleSelectChange}
+                    className="w-full text-sm font-medium bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="sum">Sum</option>
+                    <option value="avg">Average</option>
+                    <option value="count">Count</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
           {error && (
-            <p className="text-red-500 text-xs bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-200">
+            <p className="text-red-600 text-[11px] font-bold bg-red-50 px-3 py-2 rounded-lg border border-red-200">
               {error}
             </p>
           )}
         </div>
 
-        <div className="px-5 pb-5 flex gap-2 justify-end">
+        <div className="px-5 pb-5 flex gap-2 justify-end mt-2">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm active:scale-95 transition-all"
+            className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm active:scale-95"
           >
             Generate
           </button>

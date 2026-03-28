@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
+import toast from "react-hot-toast"; // ✅ Importamos toast
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
@@ -21,28 +22,29 @@ export const RegisterPage = () => {
   const onSubmit = async (data) => {
     try {
       await signup(data);
+      // El Toast de bienvenida lo mandará el HomePage
     } catch (error) {
-      console.error(error);
+      toast.error("Registration failed. Please check your data.");
     }
   };
 
   return (
-    <div className="flex-1 flex justify-center items-center bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)] px-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 rounded-2xl shadow-sm">
-        <h1 className="text-2xl font-bold mb-1 text-gray-900 dark:text-white">
+    <div className="flex-1 flex justify-center items-center bg-gray-50 dark:bg-gray-900  px-4 py-8">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 sm:p-10 rounded-[2rem] shadow-sm">
+        <h1 className="text-3xl font-black mb-2 text-gray-900 dark:text-white tracking-tight">
           Create account
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-          Join Data Navigator today
+        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-8">
+          Join Data Navigator today. It's free!
         </p>
 
         {authErrors && (
-          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/40 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm mb-4">
+          <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/40 text-red-700 dark:text-red-300 px-4 py-3 rounded-xl text-sm font-bold mb-6">
             {authErrors}
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {[
             {
               id: "username",
@@ -53,7 +55,7 @@ export const RegisterPage = () => {
             },
             {
               id: "email",
-              label: "Email",
+              label: "Email Address",
               type: "email",
               placeholder: "you@example.com",
               rules: {
@@ -75,7 +77,7 @@ export const RegisterPage = () => {
             <div key={id}>
               <label
                 htmlFor={id}
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
               >
                 {label}
               </label>
@@ -83,15 +85,15 @@ export const RegisterPage = () => {
                 type={type}
                 id={id}
                 placeholder={placeholder}
-                className={`w-full bg-gray-50 dark:bg-gray-700 border rounded-lg px-3 py-2 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm ${
+                className={`w-full bg-gray-50 dark:bg-gray-700 border rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm font-medium ${
                   errors[id]
                     ? "border-red-500"
-                    : "border-gray-300 dark:border-gray-600"
+                    : "border-gray-200 dark:border-gray-600"
                 }`}
                 {...register(id, rules)}
               />
               {errors[id] && (
-                <p className="text-red-500 text-xs mt-1">
+                <p className="text-red-500 text-xs font-bold mt-1.5 ml-1">
                   {errors[id].message}
                 </p>
               )}
@@ -101,7 +103,7 @@ export const RegisterPage = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm mt-2"
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-sm shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 text-sm mt-4"
           >
             {isSubmitting ? (
               <>
@@ -113,11 +115,11 @@ export const RegisterPage = () => {
           </button>
         </form>
 
-        <p className="mt-5 text-center text-gray-500 dark:text-gray-400 text-sm">
+        <p className="mt-8 text-center text-gray-500 dark:text-gray-400 text-sm font-medium">
           Already have an account?{" "}
           <Link
             to="/login"
-            className="text-blue-500 hover:text-blue-400 font-medium"
+            className="text-blue-600 dark:text-blue-400 hover:underline font-bold"
           >
             Sign in
           </Link>
