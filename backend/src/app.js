@@ -1,16 +1,15 @@
 import express from "express";
 import cors from "cors";
-//import { FRONTEND_URL } from "./config.js";
 import morgan from "morgan";
 import AuthRoutes from "./routes/auth.routes.js";
 import UserRoutes from "./routes/user.routes.js";
 import DataRoutes from "./routes/data.routes.js";
 import cookieParser from "cookie-parser";
 import path from "path";
+import { rateLimit } from "./middlewares/rateLimit.middleware.js";
 
 const app = express();
-const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/,"");
-// const frontendUrl = "https://2yzskc-5173.csb.app/";
+const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
 
 console.log("FRONTEND_URL: ", frontendUrl);
 
@@ -26,6 +25,9 @@ app.use(morgan("dev"));
 app.use(cookieParser());
 app.use(express.json());
 
+// Límite de peticiones en rutas sensibles
+app.use("/api/auth", rateLimit);
+
 // Authentication routes
 app.use("/api/auth", AuthRoutes);
 
@@ -39,7 +41,6 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.resolve("client-frontend", "dist")));
 
   app.get("*", (req, res) => {
-    console.log(path.resolve("client-frontend", "dist", "index.html"));
     res.sendFile(path.resolve("client-frontend", "dist", "index.html"));
   });
 }

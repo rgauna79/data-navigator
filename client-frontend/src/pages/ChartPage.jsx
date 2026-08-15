@@ -36,10 +36,38 @@ const CHART_TABS = [
 ];
 
 function ChartPage() {
-  const { data, selectedOptions, typeReport, columnAnalysis } = useDataContext();
+  const { data, selectedOptions, typeReport, columnAnalysis, fileData } = useDataContext();
   const reportsRef = useRef();
   const navigate = useNavigate();
   const [chartType, setChartType] = useState("pie");
+
+  // Mapea el nombre de columna (header) a su índice dentro de cada fila
+  const headerIndex = {};
+  (fileData?.[0] || []).forEach((h, i) => {
+    headerIndex[h] = i;
+  });
+
+  const formatOptionValue = (value) => {
+    if (value && typeof value === "object" && "from" in value) {
+      const fmt = (d) => new Date(d).toLocaleDateString("en-US");
+      return `${fmt(value.from)} → ${fmt(value.to)}`;
+    }
+    return value;
+  };
+
+  const matchRow = (row, key, value) => {
+    const idx = headerIndex[key];
+    if (idx === undefined) return true;
+    if (value === "" || value == null) return true;
+    if (typeof value === "object" && "from" in value) {
+      const cell = row[idx];
+      if (cell == null || cell === "") return false;
+      const t = new Date(cell).getTime();
+      if (isNaN(t)) return false;
+      return t >= new Date(value.from).getTime() && t <= new Date(value.to).getTime();
+    }
+    return String(row[idx]) === String(value);
+  };
 
   const handlePrint = async () => {
     try {
@@ -58,12 +86,12 @@ function ChartPage() {
     if (!typeReport) return null;
     if (typeReport === "statistics") {
       const filteredData = data.filter((row) =>
-        Object.entries(selectedOptions).every(([, value]) => row.includes(value))
+        Object.entries(selectedOptions).every(([key, value]) => matchRow(row, key, value))
       );
       const includedOptions = Object.entries(selectedOptions)
-        .filter(([, v]) => v !== "")
-        .map(([k, v]) => `${k}: ${v}`);
-      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} />;
+        .filter(([, v]) => v !== "" && v != null)
+        .map(([k, v]) => `${k}: ${formatOptionValue(v)}`);
+      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} headers={fileData?.[0]} />;
     }
     if (typeReport === "mostRepeated") {
       const counts = {};

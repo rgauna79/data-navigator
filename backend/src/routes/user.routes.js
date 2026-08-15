@@ -15,7 +15,7 @@ const router = Router();
 router.get("/", verifyToken, getAllUsers);
 router.get("/:id", verifyToken, getUserById);
 router.post(
-  "update/:id",
+  "/update/:id",
   verifyToken,
   validateSchema(updateUserSchema),
   updateUser,
@@ -23,7 +23,14 @@ router.post(
 router.post("/delete/:id", verifyToken, softDeleteUser); // Soft delete
 router.delete("/delete/:id", verifyToken, deleteUser); // Hard delete
 
-router.get("/profile", verifyToken, getUserById);
-router.put("/profile", verifyToken, updateUser);
+// Perfil del usuario autenticado
+router.get("/profile", verifyToken, (req, res) => {
+  res.json({
+    id: req.user._id,
+    username: req.user.username,
+    email: req.user.email,
+  });
+});
+router.put("/profile", verifyToken, validateSchema(updateUserSchema), updateUser);
 
 export default router;

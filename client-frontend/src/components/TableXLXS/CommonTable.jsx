@@ -86,7 +86,7 @@ function CommonTable({
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {data && data.length > 0 && (
+      {data && data.length > 0 ? (
         <>
           {/* Search + heatmap toggle */}
           <div className="flex flex-wrap items-center gap-2">
@@ -255,6 +255,12 @@ function CommonTable({
             </div>
           </div>
         </>
+      ) : (
+        <div className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-8 text-center">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            No data to display.
+          </p>
+        </div>
       )}
     </div>
   );

@@ -1,3 +1,9 @@
-export const TOKEN_SECRET = process.env.TOKEN_SECRET || "some secret key";
-export const FRONTEND_URL =
-  process.env.FRONTEND_URL || "https://2yzskc-5173.csb.app";
+import "dotenv/config";
+
+export const TOKEN_SECRET = process.env.TOKEN_SECRET;
+
+if (!TOKEN_SECRET) {
+  throw new Error(
+    "TOKEN_SECRET is not defined. Set the TOKEN_SECRET environment variable in backend/.env (see backend/.sampleenv)."
+  );
+}

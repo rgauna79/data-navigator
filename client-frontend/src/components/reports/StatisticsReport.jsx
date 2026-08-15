@@ -1,6 +1,21 @@
 import React from "react";
 
-function StatisticsReport({ filteredData, totalRows, includedOptions }) {
+function StatisticsReport({ filteredData, totalRows, includedOptions, headers }) {
+  const numericCols = [];
+  if (filteredData.length > 0) {
+    const nCols = filteredData[0].length;
+    for (let idx = 0; idx < nCols; idx++) {
+      const vals = filteredData
+        .map((row) => row[idx])
+        .filter((v) => v !== "" && v !== null && !isNaN(parseFloat(v)) && isFinite(parseFloat(v)));
+      if (vals.length > 0 && vals.length / filteredData.length > 0.6) {
+        numericCols.push(idx);
+      }
+    }
+  }
+
+  const columnName = (idx) => headers?.[idx] || `Column ${idx + 1}`;
+
   const calculateAverage = (columnIndex) => {
     const values = filteredData
       .map((row) => parseFloat(row[columnIndex]))
@@ -45,35 +60,37 @@ function StatisticsReport({ filteredData, totalRows, includedOptions }) {
       </div>
 
       {/* Numeric stats per column */}
-      {includedOptions.map((option, index) => {
-        // option format is "columnName: value" — extract column index
-        const columnIndex = index;
-        const avg = calculateAverage(columnIndex);
-        const sum = calculateSum(columnIndex);
-        if (avg === null && sum === null) return null;
-
-        return (
-          <div key={option} className="border border-gray-100 dark:border-gray-700 rounded-xl p-4">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-              {option}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {avg !== null && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
-                  <p className="text-xs text-blue-600 dark:text-blue-400 mb-0.5">Average</p>
-                  <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{avg}</p>
-                </div>
-              )}
-              {sum !== null && (
-                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-0.5">Sum</p>
-                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{sum}</p>
-                </div>
-              )}
+      {numericCols.length === 0 ? (
+        <div className="border border-gray-100 dark:border-gray-700 rounded-xl p-4 text-sm text-gray-500 dark:text-gray-400">
+          No numeric columns to summarize.
+        </div>
+      ) : (
+        numericCols.map((idx) => {
+          const avg = calculateAverage(idx);
+          const sum = calculateSum(idx);
+          return (
+            <div key={idx} className="border border-gray-100 dark:border-gray-700 rounded-xl p-4">
+              <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+                {columnName(idx)}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {avg !== null && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2">
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mb-0.5">Average</p>
+                    <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{avg}</p>
+                  </div>
+                )}
+                {sum !== null && (
+                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mb-0.5">Sum</p>
+                    <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{sum}</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })
+      )}
     </div>
   );
 }

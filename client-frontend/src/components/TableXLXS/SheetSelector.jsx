@@ -2,19 +2,14 @@ import React from "react";
 import { useDataContext } from "../../context/DataContext";
 
 function SheetSelector() {
-  const { workbook, fileData, selectedSheet, setSelectedSheet } =
-    useDataContext();
-  if (!workbook || !fileData) {
-    return (
-      <div className="flex items-center mt-4 justify-center">
-        <span className="mr-2 w-full md:w-auto">Loading...</span>
-      </div>
-    );
-  }
+  const { workbook, selectedSheet, loadSheet } = useDataContext();
+
+  if (!workbook || workbook.SheetNames.length === 0) return null;
 
   const handleSheetChange = (e) => {
-    setSelectedSheet(e.target.value);
+    loadSheet(e.target.value);
   };
+
   return (
     <div className="flex items-center mt-4 justify-center">
       <span className="mr-2 w-full md:w-auto">Select sheet to show:</span>
@@ -25,12 +20,11 @@ function SheetSelector() {
         onChange={handleSheetChange}
         value={selectedSheet}
       >
-        {fileData &&
-          workbook.SheetNames.map((sheetName) => (
-            <option key={sheetName} value={sheetName}>
-              {sheetName}
-            </option>
-          ))}
+        {workbook.SheetNames.map((sheetName) => (
+          <option key={sheetName} value={sheetName}>
+            {sheetName}
+          </option>
+        ))}
       </select>
     </div>
   );

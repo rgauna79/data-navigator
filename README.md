@@ -31,21 +31,35 @@ In the future, we plan to introduce the following enhancements:
 ## Technologies Used
 
 - **Frontend**:
-  - HTML
-  - CSS
-  - JavaScript
-  - Bootstrap
   - React.js
   - Vite
+  - Tailwind CSS
+  - TanStack Table
+  - Chart.js / react-chartjs-2
+  - SheetJS (xlsx)
 
 - **Backend**:
   - Node.js
   - Express.js
-  - MongoDB
+  - MongoDB (Mongoose)
 
-## Live Demo
+## Local Setup
 
-Check out the live demo of Data Navigator [here](https://data-navigator-client.onrender.com/).
+### Backend (`backend/`)
+
+1. Copy `backend/.sampleenv` to `backend/.env` and fill in the real values:
+   - `MONGO_URI` — connection string for MongoDB
+   - `TOKEN_SECRET` — generate one with:
+     `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+2. `npm install` and run `npm run dev` (default port 3000).
+
+### Frontend (`client-frontend/`)
+
+1. Copy `client-frontend/.env.example` to `client-frontend/.env` and set `VITE_BACKEND_URL` to your backend URL.
+2. `npm install` and run `npm run dev` (default port 5173).
+
+> **Security note:** never commit `.env` files. They are gitignored. If credentials were
+> ever committed to the repository history, rotate them immediately.
 
 ## About the Developer
 

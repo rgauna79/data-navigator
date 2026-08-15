@@ -6,7 +6,6 @@ import {
   verifyTokenRequest,
   logoutRequest,
 } from "../api/auth.js";
-import Cookies from "js-cookie";
 
 const AuthContext = createContext();
 
@@ -28,7 +27,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (errors) {
       const timer = setTimeout(() => {
-        setError([]);
+        setError(null);
       }, 5000);
       return () => clearTimeout(timer);
     }
@@ -37,16 +36,13 @@ export const AuthProvider = ({ children }) => {
   const signup = async (user) => {
     try {
       const response = await registerRequest(user);
-      if (response.status === 200) {
-        setUser(response.data.user);
+      if (response.status === 200 || response.status === 201) {
+        setUser(response.data);
         setIsLoggedIn(true);
       }
     } catch (error) {
-      if (error.response.data.message) {
-        setError(error.response.data.message);
-      } else if (error.response.data.error) {
-        setError(error.response.data.error);
-      }
+      const data = error.response?.data;
+      setError(data?.message || data?.error || "Registration failed");
     }
   };
 
@@ -56,65 +52,42 @@ export const AuthProvider = ({ children }) => {
       setIsLoggedIn(true);
       setUser(response.data);
     } catch (error) {
-      if (error.response.data.message) {
-        setError(error.response.data.message);
-      } else if (error.response.data.error) {
-        setError(error.response.data.error);
-      } else if (error.message) {
-        setError(error.message)
-      }
+      const data = error.response?.data;
+      setError(data?.message || data?.error || error.message || "Login failed");
     }
   };
 
   const logout = async () => {
     setIsLoggedIn(false);
     setUser(null);
-    Cookies.remove("authToken");
-    await logoutRequest();
+    try {
+      await logoutRequest();
+    } catch (error) {
+      // El logout debe limpiar el estado local incluso si la petición falla
+      console.error("Error during logout:", error);
+    }
   };
 
   useEffect(() => {
     async function checkLogin() {
-      setIsLoading(true);
-      // Check if there's a cookie
-    //   const cookie = Cookies.get();
-    //   if (!cookie) {
-    //     setIsLoggedIn(false);
-    //     setIsLoading(false);
-    //     return setUser(null);
-    //   }
-    //   try {
-    //     const response = await verifyTokenRequest(cookie.authToken);
-    //     if (!response.data) {
-    //       return setIsLoggedIn(false);
-    //     }
-    //     setUser(response.data);
-    //     setIsLoggedIn(true);
-    //     setIsLoading(false);
-    //   } catch (error) {
-    //     setIsLoggedIn(false);
-    //     setIsLoading(false);
-    //   }
-    // }
-    try {
-      const response = await verifyTokenRequest();
-      if (!response.data) {
+      try {
+        const response = await verifyTokenRequest();
+        if (!response.data) {
+          setIsLoggedIn(false);
+          setUser(null);
+        } else {
+          setUser(response.data);
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        // Si da 401 (Unauthorized), el catch lo maneja silenciosamente
         setIsLoggedIn(false);
         setUser(null);
-      } else {
-        setUser(response.data);
-        setIsLoggedIn(true);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      // Si da 401 (Unauthorized), el catch lo maneja silenciosamente
-      setIsLoggedIn(false);
-      setUser(null);
-    } finally {
-      setIsLoading(false);
     }
-  }
     checkLogin();
-
   }, []);
 
   const value = {
