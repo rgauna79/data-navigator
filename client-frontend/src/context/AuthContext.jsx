@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }) => {
           setUser(response.data);
           setIsLoggedIn(true);
         }
-      } catch (error) {
+      } catch {
         // Si da 401 (Unauthorized), el catch lo maneja silenciosamente
         setIsLoggedIn(false);
         setUser(null);
