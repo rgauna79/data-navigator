@@ -58,6 +58,28 @@ In the future, we plan to introduce the following enhancements:
 1. Copy `client-frontend/.env.example` to `client-frontend/.env` and set `VITE_BACKEND_URL` to your backend URL.
 2. `npm install` and run `npm run dev` (default port 5173).
 
+### Roles and admin access
+
+User-management endpoints (`GET /api/users`, `/api/users/:id`, `/api/users/update/:id`,
+`/api/users/delete/:id`) are restricted to admins. Every user registers with role `user`;
+promote one manually in MongoDB:
+
+```js
+db.users.updateOne({ email: "you@example.com" }, { $set: { role: "admin" } })
+```
+
+### Upgrading an existing database
+
+Saved sheets now belong to the user who saved them. Documents saved before this change have
+no `owner` and are no longer listed for anyone. To assign them to a user:
+
+```js
+const owner = db.users.findOne({ email: "you@example.com" })._id;
+db.datas.updateMany({ owner: { $exists: false } }, { $set: { owner } });
+```
+
+The old global unique index on `sheetName` is dropped automatically when the server starts.
+
 > **Security note:** never commit `.env` files. They are gitignored. If credentials were
 > ever committed to the repository history, rotate them immediately.
 

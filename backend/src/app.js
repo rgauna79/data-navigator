@@ -6,7 +6,7 @@ import UserRoutes from "./routes/user.routes.js";
 import DataRoutes from "./routes/data.routes.js";
 import cookieParser from "cookie-parser";
 import path from "path";
-import { rateLimit } from "./middlewares/rateLimit.middleware.js";
+import { csrfProtection } from "./middlewares/csrf.middleware.js";
 
 const app = express();
 const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
@@ -24,9 +24,7 @@ app.use(
 app.use(morgan("dev"));
 app.use(cookieParser());
 app.use(express.json());
-
-// Límite de peticiones en rutas sensibles
-app.use("/api/auth", rateLimit);
+app.use("/api", csrfProtection([frontendUrl]));
 
 // Authentication routes
 app.use("/api/auth", AuthRoutes);

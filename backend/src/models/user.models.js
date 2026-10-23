@@ -5,6 +5,8 @@ const userSchema = new mongoose.Schema(
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    // Solo se asigna "admin" manualmente en la base de datos
+    role: { type: String, enum: ["user", "admin"], default: "user" },
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true },
