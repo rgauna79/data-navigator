@@ -6,7 +6,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 
 // Configuración "flat" de ESLint 9 (reemplaza a .eslintrc.cjs)
 export default [
-  { ignores: ["dist"] },
+  { ignores: ["dist", "playwright-report", "test-results"] },
   {
     files: ["**/*.{js,jsx}"],
     languageOptions: {
@@ -38,7 +38,7 @@ export default [
     rules: { "react-refresh/only-export-components": "off" },
   },
   {
-    files: ["**/*.test.js", "*.config.js"],
+    files: ["**/*.test.js", "e2e/**", "*.config.js"],
     languageOptions: { globals: globals.node },
   },
 ];
