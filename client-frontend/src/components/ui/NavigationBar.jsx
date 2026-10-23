@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -6,7 +6,6 @@ import {
   faBars,
   faXmark,
   faSignOutAlt,
-  faUser,
   faHome,
   faFileExcel,
   faDatabase,

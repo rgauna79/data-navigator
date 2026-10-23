@@ -1,7 +1,6 @@
 // context/DataContext.jsx
 // ✅ Capa de compatibilidad: re-exporta ExcelContext + ReportContext
 // Esto permite migrar gradualmente sin romper componentes que ya usen useDataContext
-import React from "react";
 import { ExcelProvider, useExcelContext } from "./ExcelContext.jsx";
 import { ReportProvider, useReportContext } from "./ReportContext.jsx";
 

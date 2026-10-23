@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getUserProfile, updateUserProfile } from "../api/auth";
+import { updateUserProfile } from "../api/auth";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSpinner, faUser, faEnvelope, faLock, faCheck, faEye, faEyeSlash,

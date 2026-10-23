@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -105,7 +105,7 @@ function LoginPage() {
         </form>
 
         <p className="mt-5 text-center text-gray-500 dark:text-gray-400 text-sm">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link to="/register" className="text-blue-500 hover:text-blue-400 font-medium">
             Create one
           </Link>

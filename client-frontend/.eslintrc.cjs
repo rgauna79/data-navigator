@@ -16,5 +16,18 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+    // El proyecto no usa PropTypes
+    'react/prop-types': 'off',
   },
+  overrides: [
+    {
+      // Los contextos exportan su Provider junto con su hook
+      files: ['src/context/**'],
+      rules: { 'react-refresh/only-export-components': 'off' },
+    },
+    {
+      files: ['**/*.test.js'],
+      env: { node: true },
+    },
+  ],
 }

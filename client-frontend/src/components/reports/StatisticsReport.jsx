@@ -1,4 +1,3 @@
-import React from "react";
 import { isNumericColumn, numericValues } from "../../utils/excelUtils.js";
 
 const fmt = (n) =>

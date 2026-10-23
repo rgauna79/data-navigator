@@ -1,10 +1,10 @@
-import React from "react";
 import { useDataContext } from "../context/DataContext.jsx";
 import { useAuth } from "../context/AuthContext";
 import DataTable from "../components/TableXLXS/DataTable.jsx";
 import FileInput from "../components/TableXLXS/FileInput.jsx";
 import SheetSelector from "../components/TableXLXS/SheetSelector.jsx";
 import ColumnSummary from "../components/ColumnSummary.jsx";
+import { hasUsableData } from "../utils/excelUtils.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileExcel, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 
@@ -12,7 +12,7 @@ function FileReaderPage() {
   const { workbook, selectedSheet, fileData, handleSaveData, columnAnalysis, loadError } = useDataContext();
   const { isLoggedIn } = useAuth();
 
-  const hasSheetData = fileData && fileData.length > 0;
+  const hasSheetData = hasUsableData(fileData);
 
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">

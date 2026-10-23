@@ -1,7 +1,5 @@
-import React, { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { useDataContext } from "../context/DataContext.jsx";
 import { Pie, Bar, Line } from "react-chartjs-2";
 import {
@@ -87,6 +85,11 @@ function ChartPage() {
   const handlePrint = async () => {
     try {
       if (!reportsRef.current) return;
+      // Se cargan solo al exportar para no aumentar el bundle de la página
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
       const pdf = new jsPDF("p", "pt", "letter");
       const canvas = await html2canvas(reportsRef.current, { scale: 2 });
       const margin = 40;

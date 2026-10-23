@@ -58,6 +58,17 @@ In the future, we plan to introduce the following enhancements:
 1. Copy `client-frontend/.env.example` to `client-frontend/.env` and set `VITE_BACKEND_URL` to your backend URL.
 2. `npm install` and run `npm run dev` (default port 5173).
 
+### Tests
+
+- Backend: `cd backend && npm test` (Node test runner + an in-memory MongoDB,
+  downloaded automatically on the first run).
+- Frontend: `cd client-frontend && npm test` (Vitest), `npm run lint`.
+
+Both run in GitHub Actions on every pull request (`.github/workflows/ci.yml`).
+
+> `xlsx` is installed from the SheetJS CDN because the npm registry version is no longer
+> maintained. Check https://cdn.sheetjs.com for new releases; Dependabot does not track it.
+
 ### Roles and admin access
 
 User-management endpoints (`GET /api/users`, `/api/users/:id`, `/api/users/update/:id`,

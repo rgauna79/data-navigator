@@ -10,3 +10,14 @@ updates:
    directory: "/"
    schedule:
      interval: weekly
+ - package-ecosystem: "npm"
+   directory: "/backend"
+   schedule:
+     interval: weekly
+ - package-ecosystem: "npm"
+   directory: "/client-frontend"
+   schedule:
+     interval: weekly
+   # xlsx se instala desde el CDN de SheetJS; Dependabot no puede actualizarlo
+   ignore:
+     - dependency-name: "xlsx"

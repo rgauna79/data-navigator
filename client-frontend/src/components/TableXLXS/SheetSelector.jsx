@@ -1,8 +1,9 @@
-import React from "react";
 import { useDataContext } from "../../context/DataContext";
+import { useExcelData } from "../../hooks/useExcelData.js";
 
 function SheetSelector() {
-  const { workbook, selectedSheet, loadSheet } = useDataContext();
+  const { workbook, selectedSheet } = useDataContext();
+  const { loadSheet } = useExcelData();
 
   if (!workbook || workbook.SheetNames.length === 0) return null;
 
@@ -11,12 +12,14 @@ function SheetSelector() {
   };
 
   return (
-    <div className="flex items-center mt-4 justify-center">
-      <span className="mr-2 w-full md:w-auto">Select sheet to show:</span>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-center">
+      <label htmlFor="sheetDropdown" className="text-sm text-gray-700 dark:text-gray-300">
+        Select sheet to show:
+      </label>
       <select
         name="sheetDropdown"
         id="sheetDropdown"
-        className="p-2 rounded border-gray-300 border w-full md:w-auto"
+        className="w-full sm:w-auto text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         onChange={handleSheetChange}
         value={selectedSheet}
       >

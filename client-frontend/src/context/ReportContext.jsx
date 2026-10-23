@@ -1,6 +1,6 @@
 // context/ReportContext.jsx
 // ✅ Maneja reportes, datos guardados y opciones de configuración de reportes
-import React, { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import { saveData, readData } from "../api/data.js";
 
 const ReportContext = createContext();
@@ -35,7 +35,8 @@ export const ReportProvider = ({ children }) => {
     }
   };
 
-  const readAllData = async () => {
+  // useCallback: se usa como dependencia de useEffect en DbSheetPage
+  const readAllData = useCallback(async () => {
     setIsLoadingData(true);
     setError(null);
     try {
@@ -46,7 +47,7 @@ export const ReportProvider = ({ children }) => {
     } finally {
       setIsLoadingData(false);
     }
-  };
+  }, []);
 
   return (
     <ReportContext.Provider

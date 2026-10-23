@@ -7,9 +7,9 @@ import {
   isNumericColumn,
   minMax,
   parseDate,
-  parseSheet,
   toNumber,
 } from "./excelUtils.js";
+import { parseSheet } from "./sheetParser.js";
 
 describe("toNumber", () => {
   test.each([

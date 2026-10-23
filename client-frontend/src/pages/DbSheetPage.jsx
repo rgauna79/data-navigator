@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useDataContext } from "../context/DataContext";
 import DataTable from "../components/TableXLXS/DataTable.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -10,7 +10,7 @@ function DbSheetPage() {
 
   useEffect(() => {
     readAllData();
-  }, []);
+  }, [readAllData]);
 
   const handleViewTable = (index) => {
     setActiveSheet({ index, data: dataSaved.data[index].fileData });

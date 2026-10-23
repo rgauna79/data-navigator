@@ -1,4 +1,3 @@
-import React from "react";
 
 function MostRepeatedReport({ column, mostRepeatedOptions }) {
   const max = mostRepeatedOptions[0]?.[1] || 1;
