@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faFloppyDisk, faXmark, faChartBar, faSearch,
   faChevronUp, faChevronDown, faChevronLeft, faChevronRight,
-  faAnglesLeft, faAnglesRight, faPalette,
+  faAnglesLeft, faAnglesRight, faPalette, faFilter,
 } from "@fortawesome/free-solid-svg-icons";
 import { flexRender } from "@tanstack/react-table";
 import { minMax, numericValues, toNumber } from "../../utils/excelUtils.js";
@@ -20,6 +20,72 @@ const getColumnRanges = (data, numericCols) => {
   });
   return ranges;
 };
+
+const filterInput =
+  "w-full min-w-[5rem] px-2 py-1 text-xs font-normal normal-case tracking-normal bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+// Filtro de una columna según su tipo (ver DataTable: meta.type)
+function ColumnFilter({ column }) {
+  const type = column.columnDef.meta?.type;
+  const value = column.getFilterValue();
+  const label = column.columnDef.header;
+
+  if (type === "numeric") {
+    const [min = "", max = ""] = value || [];
+    return (
+      <div className="flex gap-1">
+        <input
+          inputMode="decimal"
+          placeholder="Min"
+          aria-label={`${label} minimum`}
+          value={min}
+          onChange={(e) => column.setFilterValue([e.target.value, max])}
+          className={filterInput}
+        />
+        <input
+          inputMode="decimal"
+          placeholder="Max"
+          aria-label={`${label} maximum`}
+          value={max}
+          onChange={(e) => column.setFilterValue([min, e.target.value])}
+          className={filterInput}
+        />
+      </div>
+    );
+  }
+
+  if (type === "date") {
+    const { from = "", to = "" } = value || {};
+    return (
+      <div className="flex flex-col gap-1">
+        <input
+          type="date"
+          aria-label={`${label} from`}
+          value={from}
+          onChange={(e) => column.setFilterValue({ from: e.target.value, to })}
+          className={filterInput}
+        />
+        <input
+          type="date"
+          aria-label={`${label} to`}
+          value={to}
+          onChange={(e) => column.setFilterValue({ from, to: e.target.value })}
+          className={filterInput}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <input
+      placeholder="Contains..."
+      aria-label={`Filter ${label}`}
+      value={value ?? ""}
+      onChange={(e) => column.setFilterValue(e.target.value)}
+      className={filterInput}
+    />
+  );
+}
 
 // Genera clase de color condicional para una celda numérica
 const getHeatClass = (value, range) => {
@@ -43,6 +109,8 @@ function CommonTable({
   // Nombre con el que se guardó la hoja, para el aviso de éxito
   const [savedName, setSavedName] = useState("");
   const [heatmap, setHeatmap] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const activeColumnFilters = table.getState().columnFilters.length;
 
   const colRanges = useMemo(() => getColumnRanges(data, numericCols), [data, numericCols]);
 
@@ -88,13 +156,38 @@ function CommonTable({
                 Heatmap
               </button>
             )}
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              aria-pressed={showFilters}
+              className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-colors ${
+                showFilters
+                  ? "bg-blue-600 border-blue-600 text-white"
+                  : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-400"
+              }`}
+            >
+              <FontAwesomeIcon icon={faFilter} className="text-xs" />
+              Filters
+              {activeColumnFilters > 0 && (
+                <span className={`text-xs rounded-full px-1.5 ${showFilters ? "bg-white/25" : "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"}`}>
+                  {activeColumnFilters}
+                </span>
+              )}
+            </button>
+            {activeColumnFilters > 0 && (
+              <button
+                onClick={() => table.resetColumnFilters()}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline px-1"
+              >
+                Clear filters
+              </button>
+            )}
             <ExportMenu
               headers={headers}
               // Filas filtradas y ordenadas, sin paginar
               getRows={() => table.getPrePaginationRowModel().rows.map((r) => r.original)}
               numericCols={numericCols}
               sheetName={sheetName}
-              isFiltered={Boolean(globalFilter)}
+              isFiltered={Boolean(globalFilter) || activeColumnFilters > 0}
             />
           </div>
 
@@ -175,8 +268,24 @@ function CommonTable({
                     ))}
                   </tr>
                 ))}
+                {showFilters && (
+                  <tr>
+                    {table.getHeaderGroups()[0].headers.map((header) => (
+                      <th key={header.id} className="px-2 py-2 align-top border-b border-gray-200 dark:border-gray-600">
+                        <ColumnFilter column={header.column} />
+                      </th>
+                    ))}
+                  </tr>
+                )}
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {table.getRowModel().rows.length === 0 && (
+                  <tr>
+                    <td colSpan={headers.length} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No rows match the current search or filters.
+                    </td>
+                  </tr>
+                )}
                 {table.getRowModel().rows.map((row, i) => (
                   <tr
                     key={row.id}
