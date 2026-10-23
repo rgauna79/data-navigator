@@ -7,29 +7,14 @@ import {
   faAnglesLeft, faAnglesRight, faPalette,
 } from "@fortawesome/free-solid-svg-icons";
 import { flexRender } from "@tanstack/react-table";
-import { useDataContext } from "../../context/DataContext.jsx";
-
-// Detecta columnas numéricas en los datos
-const detectNumericColumns = (data) => {
-  if (!data || data.length === 0) return new Set();
-  const numeric = new Set();
-  const keys = Object.keys(data[0]);
-  keys.forEach((key) => {
-    const vals = data.map((r) => r[key]).filter((v) => v !== "" && v !== null);
-    const numCount = vals.filter((v) => !isNaN(parseFloat(v)) && isFinite(v)).length;
-    if (vals.length > 0 && numCount / vals.length > 0.6) numeric.add(key);
-  });
-  return numeric;
-};
+import { minMax, numericValues, toNumber } from "../../utils/excelUtils.js";
 
 // Calcula min/max por columna numérica
 const getColumnRanges = (data, numericCols) => {
   const ranges = {};
   numericCols.forEach((col) => {
-    const vals = data.map((r) => parseFloat(r[col])).filter((v) => !isNaN(v));
-    if (vals.length > 0) {
-      ranges[col] = { min: Math.min(...vals), max: Math.max(...vals) };
-    }
+    const vals = numericValues(data.map((r) => r[col]));
+    if (vals.length > 0) ranges[col] = minMax(vals);
   });
   return ranges;
 };
@@ -37,7 +22,9 @@ const getColumnRanges = (data, numericCols) => {
 // Genera clase de color condicional para una celda numérica
 const getHeatClass = (value, range) => {
   if (!range || range.max === range.min) return "";
-  const pct = (parseFloat(value) - range.min) / (range.max - range.min);
+  const n = toNumber(value);
+  if (isNaN(n)) return "";
+  const pct = (n - range.min) / (range.max - range.min);
   if (pct >= 0.8) return "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-medium";
   if (pct >= 0.6) return "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300";
   if (pct >= 0.4) return "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300";
@@ -46,17 +33,15 @@ const getHeatClass = (value, range) => {
 };
 
 function CommonTable({
-  data, table, handleCloseTable, handleSaveData,
-  showSaveButton = false, globalFilter, setGlobalFilter,
+  data, table, headers, numericCols, sheetName, fileData, handleCloseTable,
+  handleSaveData, showSaveButton = false, globalFilter, setGlobalFilter,
 }) {
-  const { selectedSheet, fileData } = useDataContext();
   const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [saveError, setSaveError] = useState("");
   const [heatmap, setHeatmap] = useState(false);
 
-  // Detectar columnas numéricas y rangos una sola vez
-  const numericCols = useMemo(() => detectNumericColumns(data), [data]);
   const colRanges = useMemo(() => getColumnRanges(data, numericCols), [data, numericCols]);
 
   const handleSaveDataClick = async (e) => {
@@ -64,12 +49,15 @@ function CommonTable({
     setIsSaving(true);
     setSaveStatus(null);
     try {
-      await handleSaveData({ sheetName: selectedSheet, fileData });
+      await handleSaveData({ sheetName, fileData });
       setSaveStatus("success");
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (error) {
+      setSaveError(
+        error.response?.data?.message || "Error saving. Please try again."
+      );
       setSaveStatus("error");
-      setTimeout(() => setSaveStatus(null), 3000);
+      setTimeout(() => setSaveStatus(null), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -79,10 +67,7 @@ function CommonTable({
   const pageCount = table.getPageCount();
   const canPreviousPage = table.getCanPreviousPage();
   const canNextPage = table.getCanNextPage();
-  const columns = table.getAllColumns().map((col) => ({
-    Header: col.columnDef.header,
-    accessor: col.id,
-  }));
+  const columns = headers.map((header, i) => ({ Header: header, accessor: i }));
 
   return (
     <div className="flex flex-col gap-4 w-full">
@@ -119,12 +104,12 @@ function CommonTable({
           {/* Toasts */}
           {saveStatus === "success" && (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300 text-sm px-4 py-2 rounded-lg">
-              ✓ <strong>{selectedSheet}</strong> saved successfully.
+              ✓ <strong>{sheetName}</strong> saved successfully.
             </div>
           )}
           {saveStatus === "error" && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-lg">
-              ✗ Error saving. Please try again.
+              ✗ {saveError}
             </div>
           )}
 

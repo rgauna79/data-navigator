@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -9,6 +9,7 @@ import {
   CategoryScale, LinearScale, BarElement, PointElement,
   LineElement, Title, Filler,
 } from "chart.js";
+import { analyzeColumns, parseDate } from "../utils/excelUtils.js";
 import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -35,86 +36,103 @@ const CHART_TABS = [
   { id: "line", label: "Trend",icon: faChartLine },
 ];
 
+const fmtDate = (d) => new Date(d).toLocaleDateString("en-US");
+
+// Fin del día, para que el rango de fechas incluya el día "hasta"
+const endOfDay = (d) => {
+  const e = new Date(d);
+  e.setHours(23, 59, 59, 999);
+  return e;
+};
+
+// Compara una fila con el filtro de una columna (valor exacto o rango de fechas)
+const matchRow = (row, idx, value) => {
+  if (value === "" || value == null) return true;
+  if (typeof value === "object" && "from" in value) {
+    const d = parseDate(row[idx]);
+    if (!d) return false;
+    return d >= new Date(value.from) && d <= endOfDay(value.to);
+  }
+  return String(row[idx]) === String(value);
+};
+
 function ChartPage() {
-  const { data, selectedOptions, typeReport, columnAnalysis, fileData } = useDataContext();
+  const { data, headers, selectedOptions, typeReport } = useDataContext();
   const reportsRef = useRef();
   const navigate = useNavigate();
   const [chartType, setChartType] = useState("pie");
 
-  // Mapea el nombre de columna (header) a su índice dentro de cada fila
-  const headerIndex = {};
-  (fileData?.[0] || []).forEach((h, i) => {
-    headerIndex[h] = i;
-  });
+  const columnName = (idx) => headers?.[idx] ?? `Column ${Number(idx) + 1}`;
 
   const formatOptionValue = (value) => {
     if (value && typeof value === "object" && "from" in value) {
-      const fmt = (d) => new Date(d).toLocaleDateString("en-US");
-      return `${fmt(value.from)} → ${fmt(value.to)}`;
+      return `${fmtDate(value.from)} → ${fmtDate(value.to)}`;
     }
     return value;
   };
 
-  const matchRow = (row, key, value) => {
-    const idx = headerIndex[key];
-    if (idx === undefined) return true;
-    if (value === "" || value == null) return true;
-    if (typeof value === "object" && "from" in value) {
-      const cell = row[idx];
-      if (cell == null || cell === "") return false;
-      const t = new Date(cell).getTime();
-      if (isNaN(t)) return false;
-      return t >= new Date(value.from).getTime() && t <= new Date(value.to).getTime();
-    }
-    return String(row[idx]) === String(value);
-  };
+  // Análisis de columnas de los datos del informe (no del archivo abierto en el lector)
+  const analysis = useMemo(
+    () => (headers?.length ? analyzeColumns([headers, ...data]) : []),
+    [headers, data]
+  );
+
+  const filteredData = useMemo(() => {
+    if (typeReport !== "statistics") return data;
+    return data.filter((row) =>
+      Object.entries(selectedOptions).every(([idx, value]) => matchRow(row, Number(idx), value))
+    );
+  }, [data, selectedOptions, typeReport]);
 
   const handlePrint = async () => {
     try {
+      if (!reportsRef.current) return;
       const pdf = new jsPDF("p", "pt", "letter");
-      if (reportsRef.current) {
-        const canvas = await html2canvas(reportsRef.current);
-        pdf.addImage(canvas.toDataURL("image/png"), "PNG", 40, 40, 520, 320);
+      const canvas = await html2canvas(reportsRef.current, { scale: 2 });
+      const margin = 40;
+      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+      const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
+      // Mantiene la proporción de la captura y la reparte en varias páginas si hace falta
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
+      const img = canvas.toDataURL("image/png");
+      for (let offset = 0; offset < imgHeight; offset += pageHeight) {
+        if (offset > 0) pdf.addPage();
+        pdf.addImage(img, "PNG", margin, margin - offset, pageWidth, imgHeight);
       }
-      window.open(URL.createObjectURL(await pdf.output("blob")), "_blank");
+      window.open(URL.createObjectURL(pdf.output("blob")), "_blank");
     } catch (err) {
       console.error("PDF error:", err);
     }
   };
 
+  // Data for most-repeated report and charts
+  const mostRepeatedIdx = selectedOptions.mostRepeated;
+  const sorted = useMemo(() => {
+    if (typeReport !== "mostRepeated") return [];
+    const counts = {};
+    data.forEach((row) => {
+      const v = row[mostRepeatedIdx];
+      if (v != null && v !== "") counts[v] = (counts[v] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  }, [data, mostRepeatedIdx, typeReport]);
+  const labels = sorted.map(([k]) => k);
+  const values = sorted.map(([, v]) => v);
+
   const generateReportData = () => {
     if (!typeReport) return null;
     if (typeReport === "statistics") {
-      const filteredData = data.filter((row) =>
-        Object.entries(selectedOptions).every(([key, value]) => matchRow(row, key, value))
-      );
       const includedOptions = Object.entries(selectedOptions)
         .filter(([, v]) => v !== "" && v != null)
-        .map(([k, v]) => `${k}: ${formatOptionValue(v)}`);
-      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} headers={fileData?.[0]} />;
+        .map(([idx, v]) => `${columnName(idx)}: ${formatOptionValue(v)}`);
+      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} headers={headers} />;
     }
     if (typeReport === "mostRepeated") {
-      const counts = {};
-      data.forEach((row) => {
-        const v = row[selectedOptions.mostRepeated];
-        if (v != null && v !== "") counts[v] = (counts[v] || 0) + 1;
-      });
-      const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      return top.length > 0
-        ? <MostRepeatedReport mostRepeatedOptions={top} />
+      return sorted.length > 0
+        ? <MostRepeatedReport column={columnName(mostRepeatedIdx)} mostRepeatedOptions={sorted} />
         : <p className="text-gray-500 text-sm">No data to display.</p>;
     }
   };
-
-  // Data for most-repeated charts
-  const counts = data.reduce((acc, row) => {
-    const v = row[selectedOptions.mostRepeated];
-    if (v != null && v !== "") acc[v] = (acc[v] || 0) + 1;
-    return acc;
-  }, {});
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const labels = sorted.map(([k]) => k);
-  const values = sorted.map(([, v]) => v);
 
   const sharedDataset = {
     label: "Count",
@@ -127,27 +145,24 @@ function ChartPage() {
   const pieData  = { labels, datasets: [sharedDataset] };
   const barData  = { labels, datasets: [{ ...sharedDataset, borderRadius: 6 }] };
 
-  // Trend line: group data by date column if available
-  const dateCol = columnAnalysis?.find((c) => c.type === "date");
-  const trendData = (() => {
+  // Trend line: agrupa por mes usando la primera columna de fecha detectada
+  const dateCol = analysis.find((c) => c.type === "date");
+  const trendData = useMemo(() => {
     if (!dateCol) return null;
     const byDate = {};
-    data.forEach((row) => {
-      const raw = row[Object.keys(row).find((k) =>
-        (row[k] && !isNaN(new Date(row[k]).getTime()) && typeof row[k] === "string")
-      )];
-      if (!raw) return;
-      const d = new Date(raw);
-      if (isNaN(d)) return;
+    filteredData.forEach((row) => {
+      const d = parseDate(row[dateCol.index]);
+      if (!d) return;
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       byDate[key] = (byDate[key] || 0) + 1;
     });
-    const sorted = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
+    const months = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
+    if (months.length === 0) return null;
     return {
-      labels: sorted.map(([k]) => k),
+      labels: months.map(([k]) => k),
       datasets: [{
-        label: "Records per month",
-        data: sorted.map(([, v]) => v),
+        label: `Records per month (${dateCol.name})`,
+        data: months.map(([, v]) => v),
         borderColor: "rgba(59,130,246,1)",
         backgroundColor: "rgba(59,130,246,0.1)",
         fill: true,
@@ -156,7 +171,7 @@ function ChartPage() {
         pointBackgroundColor: "rgba(59,130,246,1)",
       }],
     };
-  })();
+  }, [dateCol, filteredData]);
 
   const baseOpts = {
     responsive: true, maintainAspectRatio: false,
@@ -201,8 +216,9 @@ function ChartPage() {
 
         {hasData && (
           <>
+            <div ref={reportsRef}>
             {/* Report content */}
-            <div ref={reportsRef} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
               {generateReportData()}
             </div>
 
@@ -246,7 +262,7 @@ function ChartPage() {
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
                 <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
                   <FontAwesomeIcon icon={faChartLine} className="text-blue-500" />
-                  Records over time
+                  Records over time · {dateCol?.name}
                 </h2>
                 <div className="h-56">
                   <Line data={trendData} options={{
@@ -257,6 +273,8 @@ function ChartPage() {
                 </div>
               </div>
             )}
+
+            </div>
 
             <div className="flex justify-end">
               <button onClick={handlePrint}
@@ -271,4 +289,4 @@ function ChartPage() {
   );
 }
 
-export default ChartPage;
+export default ChartPage;

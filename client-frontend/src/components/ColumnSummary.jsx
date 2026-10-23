@@ -121,9 +121,9 @@ function ColumnSummary({ analysis }) {
       {expanded && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {analysis.map((col) =>
-            col.type === "numeric" ? <NumericCard key={col.name} col={col} /> :
-            col.type === "date"    ? <DateCard    key={col.name} col={col} /> :
-                                     <CategoricalCard key={col.name} col={col} />
+            col.type === "numeric" ? <NumericCard key={col.index} col={col} /> :
+            col.type === "date"    ? <DateCard    key={col.index} col={col} /> :
+                                     <CategoricalCard key={col.index} col={col} />
           )}
         </div>
       )}

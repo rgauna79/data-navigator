@@ -7,7 +7,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 function ProfilePage() {
-  const { user, isLoading } = useAuth();
+  const { user, setUser, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [changePassword, setChangePassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,7 +37,12 @@ function ProfilePage() {
     setSuccessMessage("");
     setErrorMessage("");
     try {
-      await updateUserProfile(formData);
+      // Solo se envía la contraseña si el usuario eligió cambiarla
+      const { password, ...profile } = formData;
+      const payload = changePassword && password ? { ...profile, password } : profile;
+      const updated = await updateUserProfile(payload);
+      setUser({ id: updated._id, username: updated.username, email: updated.email });
+      setFormData((prev) => ({ ...prev, password: "" }));
       setSuccessMessage("Profile updated successfully.");
       setTimeout(() => setSuccessMessage(""), 4000);
     } catch (error) {

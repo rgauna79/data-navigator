@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "install-client": "npm install",
     "build-client": "npm run build",
-    "start-client": "npm run dev"
+    "start-client": "npm run dev",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fortawesome/free-solid-svg-icons": "^6.5.1",
@@ -39,6 +40,7 @@
     "eslint-plugin-react-refresh": "^0.4.5",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
-    "vite": "^5.0.12"
+    "vite": "^5.0.12",
+    "vitest": "^3.2.7"
   }
 }

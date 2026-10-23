@@ -58,9 +58,8 @@ function FileReaderPage() {
         {selectedSheet && hasSheetData && !loadError && (
           <div className="w-full">
             <DataTable
-              workbook={workbook}
-              selectedSheet={selectedSheet}
-              isLoggedIn={isLoggedIn}
+              rows={fileData}
+              sheetName={selectedSheet}
               handleSaveData={handleSaveData}
               showSaveButton={isLoggedIn}
             />

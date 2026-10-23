@@ -1,56 +1,67 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faXmark, faChartBar, faChartPie } from "@fortawesome/free-solid-svg-icons";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useDataContext } from "../../context/DataContext.jsx";
+import { isDateColumn, minMax, parseDate } from "../../utils/excelUtils.js";
 
+// columns: [{ Header, accessor }] donde accessor es el índice de la columna.
+// Todas las selecciones se guardan por índice para soportar encabezados repetidos.
 function Modal({ handleClose, columns, data }) {
-  const { setSelectedColumns, setSelectedOptions, setTypeReport, setData } = useDataContext();
+  const { setSelectedColumns, setSelectedOptions, setTypeReport, setData, setHeaders } =
+    useDataContext();
   const navigate = useNavigate();
 
   const [localSelectedColumns, setLocalSelectedColumns] = useState([]);
   const [localSelectedOptions, setLocalSelectedOptions] = useState({});
   const [localTypeReport, setLocalTypeReport] = useState("");
-  const [dateRanges, setDateRanges] = useState({});
   const [error, setError] = useState("");
 
-  const isDateColumn = (columnName) =>
-    data.some((item) => {
-      const value = item[columnName];
-      if (typeof value === "string" && value.trim() !== "") {
-        return !isNaN(new Date(value).getTime());
-      }
-      return false;
-    });
+  const dateColumns = useMemo(
+    () =>
+      new Set(
+        columns
+          .map((c) => c.accessor)
+          .filter((idx) => isDateColumn(data.map((row) => row[idx])))
+      ),
+    [columns, data]
+  );
 
-  const getMinMaxDates = (columnName) => {
-    const dates = data
-      .map((item) => new Date(item[columnName]))
-      .filter((d) => !isNaN(d));
-    return {
-      minDate: new Date(Math.min(...dates)),
-      maxDate: new Date(Math.max(...dates)),
-    };
+  const getMinMaxDates = (idx) => {
+    const times = data
+      .map((row) => parseDate(row[idx]))
+      .filter(Boolean)
+      .map((d) => d.getTime());
+    const { min, max } = minMax(times);
+    return { from: new Date(min), to: new Date(max) };
   };
 
-  const getUniqueValues = (columnName) =>
-    [...new Set(data.map((item) => item[columnName]))];
+  const getUniqueValues = (idx) =>
+    [...new Set(data.map((row) => row[idx]).filter((v) => v !== "" && v != null))].sort(
+      (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })
+    );
 
-  const handleCheckboxChange = (e) => {
-    const { name, checked } = e.target;
+  const showError = (message) => {
+    setError(message);
+    setTimeout(() => setError(""), 5000);
+  };
+
+  const handleCheckboxChange = (idx, checked) => {
     if (checked) {
-      setLocalSelectedColumns((prev) => [...prev, name]);
-      if (isDateColumn(name) && !dateRanges[name]) {
-        const { minDate, maxDate } = getMinMaxDates(name);
-        setDateRanges((prev) => ({ ...prev, [name]: { startDate: minDate, endDate: maxDate } }));
-        setLocalSelectedOptions((prev) => ({ ...prev, [name]: { from: minDate, to: maxDate } }));
+      setLocalSelectedColumns((prev) => [...prev, idx]);
+      // Las columnas de fecha empiezan con el rango completo de la columna
+      if (dateColumns.has(idx)) {
+        setLocalSelectedOptions((prev) => ({ ...prev, [idx]: getMinMaxDates(idx) }));
       }
     } else {
-      setLocalSelectedColumns((prev) => prev.filter((col) => col !== name));
-      setLocalSelectedOptions((prev) => { const u = { ...prev }; delete u[name]; return u; });
-      setDateRanges((prev) => { const u = { ...prev }; delete u[name]; return u; });
+      setLocalSelectedColumns((prev) => prev.filter((col) => col !== idx));
+      setLocalSelectedOptions((prev) => {
+        const u = { ...prev };
+        delete u[idx];
+        return u;
+      });
     }
   };
 
@@ -59,60 +70,56 @@ function Modal({ handleClose, columns, data }) {
     setLocalSelectedOptions((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleDateChange = (column, startDate, endDate) => {
-    if (startDate > endDate) {
-      setError("Start date cannot be after end date.");
+  const handleDateChange = (idx, field, date) => {
+    const range = { ...localSelectedOptions[idx], [field]: date };
+    if (range.from && range.to && range.from > range.to) {
+      showError("Start date cannot be after end date.");
       return;
     }
     setError("");
-    setDateRanges((prev) => ({ ...prev, [column]: { startDate, endDate } }));
-    setLocalSelectedOptions((prev) => ({ ...prev, [column]: { from: startDate, to: endDate } }));
+    setLocalSelectedOptions((prev) => ({ ...prev, [idx]: range }));
   };
 
   const handleConfirm = () => {
-    // Validate date columns
-    for (const column of localSelectedColumns) {
-      if (isDateColumn(column)) {
-        const { startDate, endDate } = dateRanges[column] || {};
-        if (!startDate || !endDate || startDate > endDate) {
-          setError("Please select valid date ranges for all date columns.");
-          setTimeout(() => setError(""), 5000);
+    if (localTypeReport === "mostRepeated") {
+      if (localSelectedOptions.mostRepeated === undefined || localSelectedOptions.mostRepeated === "") {
+        showError("Please select a column to analyze.");
+        return;
+      }
+    } else {
+      if (localSelectedColumns.length === 0) {
+        showError("Must select at least one column.");
+        return;
+      }
+      for (const idx of localSelectedColumns) {
+        const option = localSelectedOptions[idx];
+        if (dateColumns.has(idx)) {
+          if (!option?.from || !option?.to) {
+            showError("Please select valid date ranges for all date columns.");
+            return;
+          }
+        } else if (!option) {
+          showError("Please select a record for all selected columns.");
           return;
         }
       }
     }
 
-    // Validate non-date columns have a selection
-    const nonDateCols = localSelectedColumns.filter((col) => !isDateColumn(col));
-    if (nonDateCols.some((col) => !localSelectedOptions[col])) {
-      setError("Please select a record for all selected columns.");
-      setTimeout(() => setError(""), 5000);
-      return;
-    }
-
-    if (localSelectedColumns.length === 0 && localTypeReport !== "mostRepeated") {
-      setError("Must select at least one column.");
-      setTimeout(() => setError(""), 5000);
-      return;
-    }
+    const options =
+      localTypeReport === "mostRepeated"
+        ? { mostRepeated: Number(localSelectedOptions.mostRepeated) }
+        : Object.fromEntries(
+            localSelectedColumns.map((idx) => [idx, localSelectedOptions[idx]])
+          );
 
     setSelectedColumns(localSelectedColumns);
-    setSelectedOptions(localSelectedOptions);
+    setSelectedOptions(options);
     setTypeReport(localTypeReport);
     setData(data);
+    setHeaders(columns.map((c) => c.Header));
     handleClose();
     navigate("/charts");
   };
-
-  useEffect(() => {
-    localSelectedColumns.forEach((column) => {
-      if (isDateColumn(column) && !dateRanges[column]) {
-        const { minDate, maxDate } = getMinMaxDates(column);
-        setDateRanges((prev) => ({ ...prev, [column]: { startDate: minDate, endDate: maxDate } }));
-        setLocalSelectedOptions((prev) => ({ ...prev, [column]: { from: minDate, to: maxDate } }));
-      }
-    });
-  }, [localSelectedColumns]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex justify-center items-center p-4">
@@ -165,60 +172,65 @@ function Modal({ handleClose, columns, data }) {
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select columns to filter</p>
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {columns.map((column) => (
-                  <div key={column.accessor} className="space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name={column.Header}
-                        onChange={handleCheckboxChange}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{column.Header}</span>
-                    </label>
+                {columns.map((column) => {
+                  const idx = column.accessor;
+                  const checked = localSelectedColumns.includes(idx);
+                  const range = localSelectedOptions[idx] || {};
+                  return (
+                    <div key={idx} className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => handleCheckboxChange(idx, e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{column.Header}</span>
+                      </label>
 
-                    {localSelectedColumns.includes(column.Header) && (
-                      <div className="ml-6">
-                        {isDateColumn(column.accessor) ? (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Date range</span>
-                            <div className="flex gap-2">
-                              <DatePicker
-                                selected={dateRanges[column.Header]?.startDate || null}
-                                onChange={(date) => handleDateChange(column.Header, date, dateRanges[column.Header]?.endDate)}
-                                selectsStart
-                                startDate={dateRanges[column.Header]?.startDate}
-                                endDate={dateRanges[column.Header]?.endDate}
-                                className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 text-gray-900 dark:text-white"
-                              />
-                              <DatePicker
-                                selected={dateRanges[column.Header]?.endDate || null}
-                                onChange={(date) => handleDateChange(column.Header, dateRanges[column.Header]?.startDate, date)}
-                                selectsEnd
-                                startDate={dateRanges[column.Header]?.startDate}
-                                endDate={dateRanges[column.Header]?.endDate}
-                                minDate={dateRanges[column.Header]?.startDate}
-                                className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 text-gray-900 dark:text-white"
-                              />
+                      {checked && (
+                        <div className="ml-6">
+                          {dateColumns.has(idx) ? (
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">Date range</span>
+                              <div className="flex gap-2">
+                                <DatePicker
+                                  selected={range.from || null}
+                                  onChange={(date) => handleDateChange(idx, "from", date)}
+                                  selectsStart
+                                  startDate={range.from}
+                                  endDate={range.to}
+                                  className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 text-gray-900 dark:text-white"
+                                />
+                                <DatePicker
+                                  selected={range.to || null}
+                                  onChange={(date) => handleDateChange(idx, "to", date)}
+                                  selectsEnd
+                                  startDate={range.from}
+                                  endDate={range.to}
+                                  minDate={range.from}
+                                  className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 text-gray-900 dark:text-white"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <select
-                            name={column.Header}
-                            value={localSelectedOptions[column.Header] || ""}
-                            onChange={handleSelectChange}
-                            className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="">Select a value</option>
-                            {getUniqueValues(column.accessor).map((value) => (
-                              <option key={value} value={value}>{value}</option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                          ) : (
+                            <select
+                              name={idx}
+                              value={localSelectedOptions[idx] || ""}
+                              onChange={handleSelectChange}
+                              className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">Select a value</option>
+                              {getUniqueValues(idx).map((value) => (
+                                <option key={value} value={value}>{value}</option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -232,7 +244,7 @@ function Modal({ handleClose, columns, data }) {
               <select
                 name="mostRepeated"
                 id="mostRepeatedSelect"
-                value={localSelectedOptions.mostRepeated || ""}
+                value={localSelectedOptions.mostRepeated ?? ""}
                 onChange={handleSelectChange}
                 className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -273,4 +285,4 @@ function Modal({ handleClose, columns, data }) {
   );
 }
 
-export default Modal;
+export default Modal;

@@ -15,6 +15,8 @@ export const ReportProvider = ({ children }) => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [typeReport, setTypeReport] = useState("");
   const [data, setData] = useState([]);
+  // Encabezados de la hoja del informe (índice -> nombre)
+  const [headers, setHeaders] = useState([]);
   const [error, setError] = useState(null);
   const [dataSaved, setDataSaved] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -55,6 +57,8 @@ export const ReportProvider = ({ children }) => {
         setTypeReport,
         data,
         setData,
+        headers,
+        setHeaders,
         error,
         dataSaved,
         isSaving,

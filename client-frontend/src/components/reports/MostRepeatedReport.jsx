@@ -1,12 +1,12 @@
 import React from "react";
 
-function MostRepeatedReport({ mostRepeatedOptions }) {
+function MostRepeatedReport({ column, mostRepeatedOptions }) {
   const max = mostRepeatedOptions[0]?.[1] || 1;
 
   return (
     <div>
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-        Top {mostRepeatedOptions.length} most repeated values
+        Top {mostRepeatedOptions.length} most repeated values{column ? ` in ${column}` : ""}
       </h3>
       <div className="space-y-2">
         {mostRepeatedOptions.map(([option, count], index) => (

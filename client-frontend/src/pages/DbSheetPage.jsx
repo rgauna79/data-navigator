@@ -106,7 +106,7 @@ function DbSheetPage() {
         {/* Table section */}
         {activeSheet && (
           <div className="mt-6">
-            <DataTable sheetSaved={activeSheet.data} />
+            <DataTable key={activeSheet.index} rows={activeSheet.data} sheetName={dataSaved.data[activeSheet.index].sheetName} />
           </div>
         )}
       </div>
