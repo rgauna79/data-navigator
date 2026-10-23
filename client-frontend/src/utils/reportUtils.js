@@ -249,6 +249,21 @@ export const groupRows = ({
   return { groups, total, skipped };
 };
 
+// Prepara filas para exportar: encabezados + datos. Con numericCols, las
+// columnas numéricas se convierten a número (para que Excel pueda sumarlas);
+// los valores que no se pueden convertir se dejan como texto.
+export const exportRows = (headers, rows, numericCols = new Set()) => [
+  headers,
+  ...rows.map((row) =>
+    headers.map((_, i) => {
+      const cell = row[i] ?? "";
+      if (!numericCols.has(i)) return cell;
+      const n = toNumber(cell);
+      return isNaN(n) ? cell : n;
+    })
+  ),
+];
+
 // Convierte una matriz a CSV (RFC 4180): comillas para valores con , " o saltos de línea
 export const toCsv = (rows) =>
   rows
