@@ -67,7 +67,7 @@ function NavigationBar() {
 
           {/* Logo + desktop links */}
           <div className="flex items-center gap-6">
-            <Link to="/" className="flex-shrink-0">
+            <Link to="/" className="shrink-0">
               <img className="h-10 rounded-lg" src={logo} alt="Data Navigator" />
             </Link>
 

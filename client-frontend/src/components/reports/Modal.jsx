@@ -9,7 +9,7 @@ import { columnDateParser, isDateColumn, isNumericColumn, minMax } from "../../u
 import { METRICS, PERIODS } from "../../utils/reportUtils.js";
 
 const SELECT_CLASS =
-  "w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500";
+  "w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500";
 
 const TOP_N_OPTIONS = [5, 10, 20, 0]; // 0 = todos
 
@@ -335,7 +335,7 @@ function Modal({ handleClose, columns, data }) {
                           type="checkbox"
                           checked={checked}
                           onChange={(e) => handleCheckboxChange(idx, e.target.checked)}
-                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          className="w-4 h-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                         <span className="text-sm text-gray-700 dark:text-gray-300">{column.Header}</span>
                       </label>
@@ -370,7 +370,7 @@ function Modal({ handleClose, columns, data }) {
                               name={idx}
                               value={localSelectedOptions[idx] || ""}
                               onChange={handleSelectChange}
-                              className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                             >
                               <option value="">Select a value</option>
                               {getUniqueValues(idx).map((value) => (
@@ -398,7 +398,7 @@ function Modal({ handleClose, columns, data }) {
                 id="mostRepeatedSelect"
                 value={localSelectedOptions.mostRepeated ?? ""}
                 onChange={handleSelectChange}
-                className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select a column</option>
                 {columns.map((column) => (

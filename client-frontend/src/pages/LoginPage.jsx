@@ -34,7 +34,7 @@ function LoginPage() {
 
   return (
     <div className="flex-1 flex justify-center items-center bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)] px-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 rounded-2xl shadow-sm">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 rounded-2xl shadow-xs">
         <h1 className="text-2xl font-bold mb-1 text-gray-900 dark:text-white">Sign in</h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
           Welcome back to Data Navigator
@@ -59,7 +59,7 @@ function LoginPage() {
               onChange={handleChange}
               placeholder="you@example.com"
               required
-              className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
             />
           </div>
 
@@ -76,7 +76,7 @@ function LoginPage() {
                 onChange={handleChange}
                 placeholder="••••••••"
                 required
-                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
               />
               <button
                 type="button"

@@ -122,7 +122,7 @@ function FileInput() {
       {/* File preview */}
       {selectedFile && !isLoading && (
         <div className="flex items-center gap-3 w-full bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl px-4 py-3">
-          <div className="w-10 h-10 bg-green-100 dark:bg-green-800/40 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400 flex-shrink-0">
+          <div className="w-10 h-10 bg-green-100 dark:bg-green-800/40 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400 shrink-0">
             <FontAwesomeIcon icon={faFileExcel} />
           </div>
           <div className="flex-1 min-w-0">
@@ -133,10 +133,10 @@ function FileInput() {
               {formatFileSize(selectedFile.size)}
             </p>
           </div>
-          <FontAwesomeIcon icon={faCircleCheck} className="text-green-500 flex-shrink-0" />
+          <FontAwesomeIcon icon={faCircleCheck} className="text-green-500 shrink-0" />
           <button
             onClick={clearFile}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors flex-shrink-0 ml-1"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors shrink-0 ml-1"
             title="Remove file"
           >
             <FontAwesomeIcon icon={faXmark} />
