@@ -22,7 +22,7 @@ const getColumnRanges = (data, numericCols) => {
 };
 
 const filterInput =
-  "w-full min-w-[5rem] px-2 py-1 text-xs font-normal normal-case tracking-normal bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500";
+  "w-full min-w-20 px-2 py-1 text-xs font-normal normal-case tracking-normal bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500";
 
 // Filtro de una columna según su tipo (ver DataTable: meta.type)
 function ColumnFilter({ column }) {
@@ -139,7 +139,7 @@ function CommonTable({
                 value={globalFilter ?? ""}
                 onChange={(e) => setGlobalFilter(e.target.value)}
                 placeholder="Search all columns..."
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
               />
             </div>
             {numericCols.size > 0 && (
@@ -238,7 +238,7 @@ function CommonTable({
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
               <span>Low</span>
               {["bg-green-100","bg-blue-100","bg-yellow-100","bg-orange-100","bg-red-100"].map((c) => (
-                <span key={c} className={`w-5 h-3 rounded ${c} border border-gray-200`} />
+                <span key={c} className={`w-5 h-3 rounded-sm ${c} border border-gray-200`} />
               ))}
               <span>High</span>
               <span className="ml-2 text-gray-400">· numeric columns only</span>
@@ -321,7 +321,7 @@ function CommonTable({
               <select
                 value={pageSize}
                 onChange={(e) => table.setPageSize(Number(e.target.value))}
-                className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg px-2 py-1 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 {[10, 15, 25, 50, 100].map((s) => <option key={s} value={s}>{s}</option>)}
               </select>

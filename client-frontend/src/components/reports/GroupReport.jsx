@@ -162,7 +162,7 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
                   onClick={() => setChartType(id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     activeChart === id
-                      ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
+                      ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-xs"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                   }`}
                 >

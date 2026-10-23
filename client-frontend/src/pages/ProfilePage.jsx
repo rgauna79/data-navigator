@@ -67,7 +67,7 @@ function ProfilePage() {
 
         {/* Avatar + name header */}
         <div className="flex items-center gap-4 mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shrink-0">
             {user?.username?.[0]?.toUpperCase()}
           </div>
           <div>
@@ -109,7 +109,7 @@ function ProfilePage() {
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
                 />
               </div>
             </div>
@@ -127,7 +127,7 @@ function ProfilePage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
                 />
               </div>
             </div>
@@ -139,7 +139,7 @@ function ProfilePage() {
                 id="togglePassword"
                 checked={changePassword}
                 onChange={handleTogglePassword}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="w-4 h-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="togglePassword" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                 Change password
@@ -161,7 +161,7 @@ function ProfilePage() {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="••••••••"
-                    className="w-full pl-9 pr-10 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                    className="w-full pl-9 pr-10 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
                   />
                   <button
                     type="button"
