@@ -437,4 +437,4 @@ function Modal({ handleClose, columns, data }) {
   );
 }
 
-export default Modal;
+export default Modal;
