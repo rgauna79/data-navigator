@@ -8,8 +8,10 @@ import {
   LineElement, Title, Filler,
 } from "chart.js";
 import { analyzeColumns, parseDate } from "../utils/excelUtils.js";
+import { applyFilters, groupRows } from "../utils/reportUtils.js";
 import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
+import GroupReport from "../components/reports/GroupReport.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faFilePdf, faArrowLeft, faChartBar, faChartPie, faChartLine, faSpinner,
@@ -36,27 +38,8 @@ const CHART_TABS = [
 
 const fmtDate = (d) => new Date(d).toLocaleDateString("en-US");
 
-// Fin del día, para que el rango de fechas incluya el día "hasta"
-const endOfDay = (d) => {
-  const e = new Date(d);
-  e.setHours(23, 59, 59, 999);
-  return e;
-};
-
-// Compara una fila con el filtro de una columna (valor exacto o rango de fechas).
-// dateOrder: "mdy" o "dmy" según el formato de fechas de esa columna.
-const matchRow = (row, idx, value, dateOrder) => {
-  if (value === "" || value == null) return true;
-  if (typeof value === "object" && "from" in value) {
-    const d = parseDate(row[idx], dateOrder);
-    if (!d) return false;
-    return d >= new Date(value.from) && d <= endOfDay(value.to);
-  }
-  return String(row[idx]) === String(value);
-};
-
 function ChartPage() {
-  const { data, headers, selectedOptions, typeReport, isRestoringReport } = useDataContext();
+  const { data, headers, selectedOptions, typeReport, config, isRestoringReport } = useDataContext();
   const reportsRef = useRef();
   const navigate = useNavigate();
   const [chartType, setChartType] = useState("pie");
@@ -76,14 +59,24 @@ function ChartPage() {
     [headers, data]
   );
 
+  // "statistics" y "group" usan selectedOptions como filtros por columna
   const filteredData = useMemo(() => {
-    if (typeReport !== "statistics") return data;
-    return data.filter((row) =>
-      Object.entries(selectedOptions).every(([idx, value]) =>
-        matchRow(row, Number(idx), value, analysis[idx]?.dateOrder)
-      )
-    );
+    if (typeReport !== "statistics" && typeReport !== "group") return data;
+    return applyFilters(data, selectedOptions, analysis);
   }, [data, selectedOptions, typeReport, analysis]);
+
+  const groupResult = useMemo(() => {
+    if (typeReport !== "group" || !config) return null;
+    return groupRows({
+      ...config,
+      rows: filteredData,
+      dateOrder: analysis[config.groupIdx]?.dateOrder,
+    });
+  }, [typeReport, config, filteredData, analysis]);
+
+  const includedOptions = Object.entries(selectedOptions)
+    .filter(([, v]) => v !== "" && v != null)
+    .map(([idx, v]) => `${columnName(idx)}: ${formatOptionValue(v)}`);
 
   const handlePrint = async () => {
     try {
@@ -128,15 +121,23 @@ function ChartPage() {
   const generateReportData = () => {
     if (!typeReport) return null;
     if (typeReport === "statistics") {
-      const includedOptions = Object.entries(selectedOptions)
-        .filter(([, v]) => v !== "" && v != null)
-        .map(([idx, v]) => `${columnName(idx)}: ${formatOptionValue(v)}`);
       return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} headers={headers} />;
     }
     if (typeReport === "mostRepeated") {
       return sorted.length > 0
         ? <MostRepeatedReport column={columnName(mostRepeatedIdx)} mostRepeatedOptions={sorted} />
         : <p className="text-gray-500 text-sm">No data to display.</p>;
+    }
+    if (typeReport === "group" && groupResult) {
+      return (
+        <GroupReport
+          result={groupResult}
+          config={config}
+          headers={headers}
+          includedOptions={includedOptions}
+          rowCount={filteredData.length}
+        />
+      );
     }
   };
 
@@ -200,7 +201,11 @@ function ChartPage() {
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">Reports</h1>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {typeReport === "statistics" ? "Statistics report" : typeReport === "mostRepeated" ? "Most repeated values" : "No report selected"}
+                {{
+                  statistics: "Statistics report",
+                  mostRepeated: "Most repeated values",
+                  group: "Group & summarize",
+                }[typeReport] || "No report selected"}
               </p>
             </div>
           </div>

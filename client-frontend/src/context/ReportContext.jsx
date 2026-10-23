@@ -20,6 +20,8 @@ export const ReportProvider = ({ children }) => {
   const [data, setData] = useState([]);
   // Encabezados de la hoja del informe (índice -> nombre)
   const [headers, setHeaders] = useState([]);
+  // Configuración del informe "group": agrupación, métrica, etc.
+  const [config, setConfig] = useState(null);
   const [isRestoringReport, setIsRestoringReport] = useState(true);
   const restored = useRef(false);
 
@@ -32,6 +34,7 @@ export const ReportProvider = ({ children }) => {
         setTypeReport(saved.typeReport);
         setData(saved.data);
         setHeaders(saved.headers);
+        setConfig(saved.config ?? null);
       }
       restored.current = true;
       setIsRestoringReport(false);
@@ -45,6 +48,7 @@ export const ReportProvider = ({ children }) => {
     setTypeReport(report.typeReport);
     setData(report.data);
     setHeaders(report.headers);
+    setConfig(report.config ?? null);
     saveSession(SESSION_KEY, report);
   }, []);
 
@@ -53,6 +57,7 @@ export const ReportProvider = ({ children }) => {
     setTypeReport("");
     setData([]);
     setHeaders([]);
+    setConfig(null);
     clearSession(SESSION_KEY);
   }, []);
 
@@ -63,6 +68,7 @@ export const ReportProvider = ({ children }) => {
         typeReport,
         data,
         headers,
+        config,
         isRestoringReport,
         setReport,
         resetReport,

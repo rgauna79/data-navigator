@@ -1,11 +1,17 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faXmark, faChartBar, faChartPie } from "@fortawesome/free-solid-svg-icons";
+import { faXmark, faChartBar, faChartPie, faLayerGroup } from "@fortawesome/free-solid-svg-icons";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useDataContext } from "../../context/DataContext.jsx";
-import { columnDateParser, isDateColumn, minMax } from "../../utils/excelUtils.js";
+import { columnDateParser, isDateColumn, isNumericColumn, minMax } from "../../utils/excelUtils.js";
+import { METRICS, PERIODS } from "../../utils/reportUtils.js";
+
+const SELECT_CLASS =
+  "w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+const TOP_N_OPTIONS = [5, 10, 20, 0]; // 0 = todos
 
 // columns: [{ Header, accessor }] donde accessor es el índice de la columna.
 // Todas las selecciones se guardan por índice para soportar encabezados repetidos.
@@ -17,6 +23,14 @@ function Modal({ handleClose, columns, data }) {
   const [localSelectedOptions, setLocalSelectedOptions] = useState({});
   const [localTypeReport, setLocalTypeReport] = useState("");
   const [error, setError] = useState("");
+  // Configuración del informe "group" (tabla dinámica simple)
+  const [group, setGroup] = useState({
+    groupIdx: "",
+    period: "month",
+    metric: "count",
+    valueIdx: "",
+    topN: 10,
+  });
 
   const dateColumns = useMemo(
     () =>
@@ -27,6 +41,17 @@ function Modal({ handleClose, columns, data }) {
       ),
     [columns, data]
   );
+
+  const numericColumns = useMemo(
+    () =>
+      columns
+        .map((c) => c.accessor)
+        .filter((idx) => isNumericColumn(data.map((row) => row[idx]))),
+    [columns, data]
+  );
+
+  const updateGroup = (field, value) => setGroup((prev) => ({ ...prev, [field]: value }));
+  const groupIsDate = group.groupIdx !== "" && dateColumns.has(Number(group.groupIdx));
 
   const getMinMaxDates = (idx) => {
     const values = data.map((row) => row[idx]);
@@ -88,10 +113,22 @@ function Modal({ handleClose, columns, data }) {
         return;
       }
     } else {
-      if (localSelectedColumns.length === 0) {
+      if (localTypeReport === "statistics" && localSelectedColumns.length === 0) {
         showError("Must select at least one column.");
         return;
       }
+      if (localTypeReport === "group") {
+        if (group.groupIdx === "") {
+          showError("Please select a column to group by.");
+          return;
+        }
+        if (group.metric !== "count" && group.valueIdx === "") {
+          showError("Please select the numeric column to summarize.");
+          return;
+        }
+      }
+      // Los filtros son obligatorios en "statistics" y opcionales en "group",
+      // pero cada columna marcada necesita un valor
       for (const idx of localSelectedColumns) {
         const option = localSelectedOptions[idx];
         if (dateColumns.has(idx)) {
@@ -113,9 +150,23 @@ function Modal({ handleClose, columns, data }) {
             localSelectedColumns.map((idx) => [idx, localSelectedOptions[idx]])
           );
 
+    const groupIdx = Number(group.groupIdx);
+    const config =
+      localTypeReport === "group"
+        ? {
+            groupIdx,
+            groupType: dateColumns.has(groupIdx) ? "date" : "category",
+            period: group.period,
+            metric: group.metric,
+            valueIdx: group.metric === "count" ? null : Number(group.valueIdx),
+            topN: Number(group.topN),
+          }
+        : null;
+
     setReport({
       typeReport: localTypeReport,
       selectedOptions: options,
+      config,
       data,
       headers: columns.map((c) => c.Header),
     });
@@ -142,14 +193,15 @@ function Modal({ handleClose, columns, data }) {
           {/* Report type selector */}
           <div>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Report type</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {[
                 { value: "statistics", label: "Statistics", icon: faChartBar },
                 { value: "mostRepeated", label: "Most repeated", icon: faChartPie },
+                { value: "group", label: "Group & summarize", icon: faLayerGroup },
               ].map(({ value, label, icon }) => (
                 <label
                   key={value}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors text-sm ${
+                  className={`flex flex-col items-center justify-center text-center gap-1.5 px-2 py-2.5 rounded-xl border cursor-pointer transition-colors text-xs sm:text-sm ${
                     localTypeReport === value
                       ? "bg-blue-50 dark:bg-blue-900/30 border-blue-400 text-blue-700 dark:text-blue-300"
                       : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -169,10 +221,108 @@ function Modal({ handleClose, columns, data }) {
             </div>
           </div>
 
-          {/* Statistics: column checkboxes */}
-          {localTypeReport === "statistics" && (
+          {/* Group & summarize: agrupación y métrica */}
+          {localTypeReport === "group" && (
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="groupBySelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                  Group by
+                </label>
+                <select
+                  id="groupBySelect"
+                  value={group.groupIdx}
+                  onChange={(e) => updateGroup("groupIdx", e.target.value)}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">Select a column</option>
+                  {columns.map((column) => (
+                    <option key={column.accessor} value={column.accessor}>
+                      {column.Header}{dateColumns.has(column.accessor) ? " (date)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="metricSelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                    Calculate
+                  </label>
+                  <select
+                    id="metricSelect"
+                    value={group.metric}
+                    onChange={(e) => updateGroup("metric", e.target.value)}
+                    className={SELECT_CLASS}
+                  >
+                    {Object.entries(METRICS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                {group.metric !== "count" && (
+                  <div>
+                    <label htmlFor="valueSelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                      Of column
+                    </label>
+                    <select
+                      id="valueSelect"
+                      value={group.valueIdx}
+                      onChange={(e) => updateGroup("valueIdx", e.target.value)}
+                      className={SELECT_CLASS}
+                    >
+                      <option value="">Select a column</option>
+                      {numericColumns.map((idx) => (
+                        <option key={idx} value={idx}>{columns[idx].Header}</option>
+                      ))}
+                    </select>
+                    {numericColumns.length === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">This sheet has no numeric columns.</p>
+                    )}
+                  </div>
+                )}
+                {groupIsDate ? (
+                  <div>
+                    <label htmlFor="periodSelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                      Per
+                    </label>
+                    <select
+                      id="periodSelect"
+                      value={group.period}
+                      onChange={(e) => updateGroup("period", e.target.value)}
+                      className={SELECT_CLASS}
+                    >
+                      {Object.entries(PERIODS).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label htmlFor="topNSelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                      Show
+                    </label>
+                    <select
+                      id="topNSelect"
+                      value={group.topN}
+                      onChange={(e) => updateGroup("topN", e.target.value)}
+                      className={SELECT_CLASS}
+                    >
+                      {TOP_N_OPTIONS.map((n) => (
+                        <option key={n} value={n}>{n ? `Top ${n}` : "All groups"}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Filtros por columna: obligatorios en Statistics, opcionales en Group */}
+          {(localTypeReport === "statistics" || localTypeReport === "group") && (
             <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select columns to filter</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {localTypeReport === "group" ? "Filter rows (optional)" : "Select columns to filter"}
+              </p>
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {columns.map((column) => {
                   const idx = column.accessor;
