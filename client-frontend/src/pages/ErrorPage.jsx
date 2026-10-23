@@ -1,4 +1,3 @@
-import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faHome } from "@fortawesome/free-solid-svg-icons";
@@ -15,7 +14,7 @@ function ErrorPage() {
         Page not found
       </h1>
       <p className="text-gray-500 dark:text-gray-400 text-sm mb-8 max-w-sm">
-        The page you're looking for doesn't exist or has been moved.
+        The page you&apos;re looking for doesn&apos;t exist or has been moved.
       </p>
       <div className="flex gap-3">
         <button

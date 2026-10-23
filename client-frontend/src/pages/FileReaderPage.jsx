@@ -1,18 +1,19 @@
-import React from "react";
 import { useDataContext } from "../context/DataContext.jsx";
 import { useAuth } from "../context/AuthContext";
 import DataTable from "../components/TableXLXS/DataTable.jsx";
 import FileInput from "../components/TableXLXS/FileInput.jsx";
 import SheetSelector from "../components/TableXLXS/SheetSelector.jsx";
 import ColumnSummary from "../components/ColumnSummary.jsx";
+import { hasUsableData } from "../utils/excelUtils.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFileExcel, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+import { faFileExcel, faSpinner, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 
 function FileReaderPage() {
-  const { workbook, selectedSheet, fileData, handleSaveData, columnAnalysis, loadError } = useDataContext();
+  const { workbook, selectedSheet, fileData, columnAnalysis, loadError, isRestoringFile } =
+    useDataContext();
   const { isLoggedIn } = useAuth();
 
-  const hasSheetData = fileData && fileData.length > 0;
+  const hasSheetData = hasUsableData(fileData);
 
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
@@ -37,6 +38,14 @@ function FileReaderPage() {
           </div>
         )}
 
+        {/* Restaurando el último archivo abierto */}
+        {isRestoringFile && (
+          <div className="max-w-4xl mx-auto mb-6 flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <FontAwesomeIcon icon={faSpinner} spin />
+            Restoring your last file...
+          </div>
+        )}
+
         {/* Upload + sheet selector */}
         <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 mb-6">
           <FileInput />
@@ -58,10 +67,8 @@ function FileReaderPage() {
         {selectedSheet && hasSheetData && !loadError && (
           <div className="w-full">
             <DataTable
-              workbook={workbook}
-              selectedSheet={selectedSheet}
-              isLoggedIn={isLoggedIn}
-              handleSaveData={handleSaveData}
+              rows={fileData}
+              sheetName={selectedSheet}
               showSaveButton={isLoggedIn}
             />
           </div>

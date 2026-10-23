@@ -1,88 +1,235 @@
-import * as XLSX from "xlsx";
+// Funciones puras para analizar los datos de una hoja.
+// Las que dependen de la librería xlsx están en sheetParser.js para que esa
+// librería solo se cargue en las páginas que leen archivos.
 
+// Solo recorta espacios. No se cambia mayúsculas/minúsculas para no alterar
+// los datos originales (emails, nombres, códigos...).
 export const formatJson = (json) =>
   json.map((row) =>
-    row.map((cell) =>
-      typeof cell === "string" ? cell.trim().toUpperCase() : cell
-    )
+    row.map((cell) => (typeof cell === "string" ? cell.trim() : cell))
   );
 
-export const parseSheet = (workbook, sheetName) => {
-  if (!workbook || !workbook.Sheets[sheetName]) return [];
-  const sheet = workbook.Sheets[sheetName];
-  const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
-  return formatJson(json);
+// Completa filas cortas para que todas tengan el mismo número de columnas
+export const normalizeRows = (rows) => {
+  const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
+  return rows.map((row) =>
+    row.length === width ? row : [...row, ...Array(width - row.length).fill("")]
+  );
 };
+
+// Encabezados de la hoja; celdas vacías se nombran "Column N"
+export const getHeaders = (fileData) =>
+  (fileData?.[0] || []).map((h, i) =>
+    h === "" || h == null ? `Column ${i + 1}` : String(h)
+  );
 
 export const hasUsableData = (formatted) =>
   formatted
     .slice(1)
     .some((row) => Object.values(row).some((cell) => cell !== ""));
 
-export const isHiddenSheet = (workbook, sheetName) => {
-  const meta = workbook?.Workbook?.Sheets?.find((s) => s.name === sheetName);
-  return Boolean(meta && meta.Hidden > 0);
+const isEmpty = (v) => v === null || v === undefined || v === "";
+
+const NUMBER_RE = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
+
+// Normaliza separadores de miles/decimales a formato "1234.5".
+// Acepta formato inglés ("1,234.50", el que genera SheetJS) y español
+// ("1.234,50", habitual en CSV exportados con Excel en español):
+// - Con "." y ",": el último que aparece es el separador decimal.
+// - Solo ",": es de miles si separa grupos de 3 dígitos ("1,234"), si no es
+//   decimal ("2000,25", "3,5").
+// - Solo ".": es decimal, salvo varios grupos de 3 dígitos ("1.234.567").
+const normalizeSeparators = (s) => {
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  if (lastComma !== -1 && lastDot !== -1) {
+    return lastComma > lastDot
+      ? s.replace(/\./g, "").replace(",", ".")
+      : s.replace(/,/g, "");
+  }
+  if (lastComma !== -1) {
+    return /^[-+]?\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g, "") : s.replace(",", ".");
+  }
+  // Varios puntos solo son miles si separan grupos de 3 ("15.01.2024" no es número)
+  if (/^[-+]?\d{1,3}(\.\d{3}){2,}$/.test(s)) return s.replace(/\./g, "");
+  return s;
 };
 
-// Detecta si una columna es numérica (>60% de valores son números)
+// Convierte a número el texto que se ve en la hoja: quita símbolos de moneda,
+// espacios y "%", y entiende separadores en formato inglés o español.
+// Los negativos contables "(1,200)" se convierten a -1200.
+// Devuelve NaN si el valor no es numérico.
+export const toNumber = (value) => {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string") return NaN;
+  let s = value.trim();
+  if (s === "") return NaN;
+  let negative = false;
+  if (/^\(.*\)$/.test(s)) {
+    negative = true;
+    s = s.slice(1, -1);
+  }
+  s = normalizeSeparators(s.replace(/[$€£¥\s]/g, "").replace(/%$/, ""));
+  if (s.startsWith("-") && negative) return NaN;
+  if (!NUMBER_RE.test(s)) return NaN;
+  const n = parseFloat(s);
+  return negative ? -n : n;
+};
+
+const MONTH_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i;
+const ISO_DATE_RE = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](.+))?$/;
+const SHORT_DATE_RE = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})(?:[ T,]+(.+))?$/;
+const TIME_RE = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*(am|pm)?$/i;
+
+// Años de 2 dígitos como Excel: 00-29 -> 2000s, 30-99 -> 1900s
+const fullYear = (y) => (y.length === 2 ? (Number(y) < 30 ? 2000 : 1900) + Number(y) : Number(y));
+
+// Construye una fecha local y comprueba que exista (rechaza 31/02, mes 13...)
+const buildDate = (year, month, day, time) => {
+  let h = 0, m = 0, sec = 0;
+  if (time) {
+    const t = time.trim().match(TIME_RE);
+    if (!t) return null;
+    h = Number(t[1]) % (t[4] ? 12 : 24) + (t[4]?.toLowerCase() === "pm" ? 12 : 0);
+    m = Number(t[2]);
+    sec = Number(t[3] || 0);
+  }
+  const d = new Date(year, month - 1, day, h, m, sec);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return d;
+};
+
+// Deduce si las fechas cortas de una columna son día/mes/año ("dmy") o
+// mes/día/año ("mdy"): "15/01/2024" solo puede ser dmy y "01/15/2024" solo mdy.
+// Sin evidencia se usa mdy, el formato que genera SheetJS.
+export const inferDateOrder = (values) => {
+  let dmy = 0;
+  let mdy = 0;
+  for (const v of values) {
+    if (typeof v !== "string") continue;
+    const match = v.trim().match(SHORT_DATE_RE);
+    if (!match) continue;
+    const a = Number(match[1]);
+    const b = Number(match[2]);
+    if (a > 12 && b <= 12) dmy++;
+    else if (b > 12 && a <= 12) mdy++;
+  }
+  return dmy > mdy ? "dmy" : "mdy";
+};
+
+// Interpreta un valor como fecha solo si "parece" una fecha.
+// new Date("1") o new Date("12.5") son fechas válidas en JS, así que los
+// números nunca se consideran fechas. Las fechas numéricas se construyen en
+// hora local (new Date("2024-02-03") sería UTC y podría mostrar el día anterior).
+// order: "mdy" o "dmy" para fechas cortas ambiguas (ver inferDateOrder).
+export const parseDate = (value, order = "mdy") => {
+  if (value instanceof Date) return isNaN(value) ? null : value;
+  if (typeof value !== "string") return null;
+  const s = value.trim();
+  if (s === "" || !isNaN(toNumber(s))) return null;
+
+  const iso = s.match(ISO_DATE_RE);
+  if (iso) return buildDate(Number(iso[1]), Number(iso[2]), Number(iso[3]), iso[4]);
+
+  const short = s.match(SHORT_DATE_RE);
+  if (short) {
+    const [first, second] = [Number(short[1]), Number(short[2])];
+    const year = fullYear(short[3]);
+    const dayFirst = order === "dmy";
+    return (
+      buildDate(year, dayFirst ? second : first, dayFirst ? first : second, short[4]) ||
+      // Si no encaja en el orden de la columna se prueba el otro ("15/01" en mdy)
+      buildDate(year, dayFirst ? first : second, dayFirst ? second : first, short[4])
+    );
+  }
+
+  if (!MONTH_RE.test(s)) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+// Devuelve un parser de fechas con el orden día/mes deducido de la columna
+export const columnDateParser = (values) => {
+  const order = inferDateOrder(values);
+  return (v) => parseDate(v, order);
+};
+
+// Detecta si una columna es numérica (>60% de valores no vacíos son números)
 export const isNumericColumn = (values) => {
-  const nonEmpty = values.filter((v) => v !== null && v !== "");
+  const nonEmpty = values.filter((v) => !isEmpty(v));
   if (nonEmpty.length === 0) return false;
-  const numeric = nonEmpty.filter((v) => !isNaN(parseFloat(v)) && isFinite(v));
+  const numeric = nonEmpty.filter((v) => !isNaN(toNumber(v)));
   return numeric.length / nonEmpty.length > 0.6;
 };
 
-// Detecta si una columna es de fecha
+// Detecta si una columna es de fecha (>60% de valores no vacíos son fechas)
 export const isDateColumn = (values) => {
-  const nonEmpty = values.filter(
-    (v) => v !== null && v !== "" && typeof v === "string"
-  );
+  const nonEmpty = values.filter((v) => !isEmpty(v));
   if (nonEmpty.length === 0) return false;
-  const dates = nonEmpty.filter((v) => !isNaN(new Date(v).getTime()));
+  const parse = columnDateParser(nonEmpty);
+  const dates = nonEmpty.filter((v) => parse(v) !== null);
   return dates.length / nonEmpty.length > 0.6;
 };
+
+// Mínimo y máximo sin usar Math.min(...arr), que desborda la pila con
+// arrays muy grandes
+export const minMax = (values) => {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return values.length ? { min, max } : { min: undefined, max: undefined };
+};
+
+export const numericValues = (values) =>
+  values.map(toNumber).filter((n) => !isNaN(n));
+
+// Filas de datos (sin encabezado ni filas vacías)
+export const dataRows = (fileData) =>
+  (fileData || [])
+    .slice(1)
+    .filter((row) => Object.values(row).some((cell) => !isEmpty(cell)));
 
 // Analiza todas las columnas del sheet y genera un resumen automático
 export const analyzeColumns = (fileData) => {
   if (!fileData || fileData.length < 2) return [];
 
-  const headers = fileData[0];
-  const rows = fileData.slice(1).filter((row) =>
-    Object.values(row).some((cell) => cell !== "")
-  );
+  const headers = getHeaders(fileData);
+  const rows = dataRows(fileData);
 
   return headers.map((header, colIndex) => {
     const values = rows.map((row) => row[colIndex]);
-    const nonEmpty = values.filter((v) => v !== null && v !== "");
-    const uniqueValues = [...new Set(nonEmpty)];
+    const nonEmpty = values.filter((v) => !isEmpty(v));
+    const uniqueValues = new Set(nonEmpty);
+    const base = {
+      index: colIndex,
+      name: header,
+      count: nonEmpty.length,
+      unique: uniqueValues.size,
+    };
 
     if (isNumericColumn(values)) {
-      const nums = nonEmpty.map((v) => parseFloat(v)).filter((v) => !isNaN(v));
+      const nums = numericValues(nonEmpty);
+      const sum = nums.reduce((a, b) => a + b, 0);
       return {
-        name: header,
+        ...base,
         type: "numeric",
-        count: nonEmpty.length,
-        unique: uniqueValues.length,
-        min: Math.min(...nums),
-        max: Math.max(...nums),
-        avg: nums.reduce((a, b) => a + b, 0) / nums.length,
-        sum: nums.reduce((a, b) => a + b, 0),
+        ...minMax(nums),
+        avg: sum / nums.length,
+        sum,
       };
     }
 
     if (isDateColumn(values)) {
-      const dates = nonEmpty
-        .map((v) => new Date(v))
-        .filter((d) => !isNaN(d))
-        .sort((a, b) => a - b);
-      return {
-        name: header,
-        type: "date",
-        count: nonEmpty.length,
-        unique: uniqueValues.length,
-        min: dates[0],
-        max: dates[dates.length - 1],
-      };
+      const dateOrder = inferDateOrder(nonEmpty);
+      const times = nonEmpty
+        .map((v) => parseDate(v, dateOrder))
+        .filter(Boolean)
+        .map((d) => d.getTime());
+      const { min, max } = minMax(times);
+      return { ...base, type: "date", dateOrder, min: new Date(min), max: new Date(max) };
     }
 
     // Categórica: top 5 valores más frecuentes
@@ -94,25 +241,6 @@ export const analyzeColumns = (fileData) => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
-    return {
-      name: header,
-      type: "categorical",
-      count: nonEmpty.length,
-      unique: uniqueValues.length,
-      topValues,
-    };
+    return { ...base, type: "categorical", topValues };
   });
-};
-
-// Devuelve la primera hoja no oculta con datos utilizables.
-// Si ninguna tiene datos, devuelve la primera hoja no oculta (o null).
-export const findBestSheet = (workbook) => {
-  if (!workbook?.SheetNames?.length) return null;
-  const visibleSheets = workbook.SheetNames.filter(
-    (name) => !isHiddenSheet(workbook, name)
-  );
-  for (const name of visibleSheets) {
-    if (hasUsableData(parseSheet(workbook, name))) return name;
-  }
-  return visibleSheets[0] || workbook.SheetNames[0] || null;
 };

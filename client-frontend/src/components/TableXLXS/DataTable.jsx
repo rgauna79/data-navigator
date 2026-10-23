@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,47 +7,56 @@ import {
   getPaginationRowModel,
 } from "@tanstack/react-table";
 import CommonTable from "./CommonTable.jsx";
-import * as XLSX from "xlsx";
+import {
+  dataRows,
+  formatJson,
+  getHeaders,
+  isNumericColumn,
+  normalizeRows,
+  toNumber,
+} from "../../utils/excelUtils.js";
 
-function DataTable({ workbook, selectedSheet, isLoggedIn, sheetSaved }) {
-  const [fileData, setFileData] = useState([]);
+// Ordena por valor numérico ("1,200" > "950"); vacíos al final
+const numericSort = (a, b, columnId) => {
+  const x = toNumber(a.getValue(columnId));
+  const y = toNumber(b.getValue(columnId));
+  if (isNaN(x)) return isNaN(y) ? 0 : 1;
+  if (isNaN(y)) return -1;
+  return x - y;
+};
+
+// rows: matriz de la hoja (primera fila = encabezados)
+function DataTable({ rows, sheetName, showSaveButton = false, handleCloseTable }) {
   const [globalFilter, setGlobalFilter] = useState("");
 
-  const formatJson = (json) => {
-    return json.map((row) =>
-      row.map((cell) =>
-        typeof cell === "string" ? cell.trim().toUpperCase() : cell
-      )
-    );
-  };
+  const fileData = useMemo(() => normalizeRows(formatJson(rows || [])), [rows]);
+  const headers = useMemo(() => getHeaders(fileData), [fileData]);
 
-  useEffect(() => {
-    if (sheetSaved) {
-      setFileData(formatJson(sheetSaved));
-      return;
-    }
-    if (!workbook || !selectedSheet) return;
-    const sheet = workbook.Sheets[selectedSheet];
-    const json = XLSX.utils.sheet_to_json(sheet, { raw: false, header: 1 });
-    setFileData(formatJson(json));
-  }, [workbook, selectedSheet, sheetSaved]);
+  const data = useMemo(() => dataRows(fileData), [fileData]);
 
-  // ✅ TanStack v8: column defs usan `header` y `accessorKey`
-  const columns = useMemo(() => {
-    if (!fileData || fileData.length === 0) return [];
-    return Object.keys(fileData[0]).map((col) => ({
-      id: col,
-      header: String(fileData[0][col] ?? col),
-      accessorKey: col,
-    }));
-  }, [fileData]);
+  // Índices de columnas numéricas (como string, igual que el id de columna)
+  const numericCols = useMemo(
+    () =>
+      new Set(
+        headers
+          .map((_, i) => i)
+          .filter((i) => isNumericColumn(data.map((row) => row[i])))
+          .map(String)
+      ),
+    [headers, data]
+  );
 
-  const data = useMemo(() => {
-    if (!fileData || fileData.length === 0) return [];
-    return fileData
-      .slice(1)
-      .filter((row) => Object.values(row).some((cell) => cell !== ""));
-  }, [fileData]);
+  // ✅ TanStack v8: column defs usan `header` y `accessorFn`
+  const columns = useMemo(
+    () =>
+      headers.map((header, i) => ({
+        id: String(i),
+        header,
+        accessorFn: (row) => row[i],
+        sortingFn: numericCols.has(String(i)) ? numericSort : "alphanumeric",
+      })),
+    [headers, numericCols]
+  );
 
   // ✅ TanStack v8: useReactTable con model getters
   const table = useReactTable({
@@ -66,7 +75,12 @@ function DataTable({ workbook, selectedSheet, isLoggedIn, sheetSaved }) {
     <CommonTable
       table={table}
       data={data}
-      isLoggedIn={isLoggedIn}
+      headers={headers}
+      numericCols={numericCols}
+      sheetName={sheetName}
+      fileData={fileData}
+      handleCloseTable={handleCloseTable}
+      showSaveButton={showSaveButton}
       globalFilter={globalFilter}
       setGlobalFilter={setGlobalFilter}
     />

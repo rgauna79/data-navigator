@@ -1,5 +1,5 @@
 //AuthContext.jsx
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   registerRequest,
   loginRequest,
@@ -92,6 +92,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    setUser,
     isLoggedIn,
     isLoading,
     errors,

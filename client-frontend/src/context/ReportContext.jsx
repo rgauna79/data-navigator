@@ -1,7 +1,8 @@
 // context/ReportContext.jsx
-// ✅ Maneja reportes, datos guardados y opciones de configuración de reportes
-import React, { createContext, useContext, useState } from "react";
-import { saveData, readData } from "../api/data.js";
+// ✅ Maneja el informe actual y sus opciones de configuración.
+// El último informe se guarda en IndexedDB para que sobreviva a una recarga.
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { clearSession, loadSession, saveSession } from "../utils/sessionStore.js";
 
 const ReportContext = createContext();
 
@@ -11,56 +12,60 @@ export const useReportContext = () => {
   return context;
 };
 
+const SESSION_KEY = "report";
+
 export const ReportProvider = ({ children }) => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [typeReport, setTypeReport] = useState("");
   const [data, setData] = useState([]);
-  const [error, setError] = useState(null);
-  const [dataSaved, setDataSaved] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  // Encabezados de la hoja del informe (índice -> nombre)
+  const [headers, setHeaders] = useState([]);
+  const [isRestoringReport, setIsRestoringReport] = useState(true);
+  const restored = useRef(false);
 
-  const handleSaveData = async (dataToSave) => {
-    setIsSaving(true);
-    setError(null);
-    try {
-      await saveData(dataToSave);
-    } catch (err) {
-      setError(err);
-      throw err; // re-throw para que CommonTable pueda mostrar el error
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // Recupera el último informe al cargar la app
+  useEffect(() => {
+    loadSession(SESSION_KEY).then((saved) => {
+      // Si ya se generó un informe nuevo mientras se leía, no se pisa
+      if (saved && !restored.current) {
+        setSelectedOptions(saved.selectedOptions);
+        setTypeReport(saved.typeReport);
+        setData(saved.data);
+        setHeaders(saved.headers);
+      }
+      restored.current = true;
+      setIsRestoringReport(false);
+    });
+  }, []);
 
-  const readAllData = async () => {
-    setIsLoadingData(true);
-    setError(null);
-    try {
-      const dataFound = await readData();
-      setDataSaved(dataFound);
-    } catch (err) {
-      setError(err);
-    } finally {
-      setIsLoadingData(false);
-    }
-  };
+  // Genera un informe nuevo y lo persiste
+  const setReport = useCallback((report) => {
+    restored.current = true;
+    setSelectedOptions(report.selectedOptions);
+    setTypeReport(report.typeReport);
+    setData(report.data);
+    setHeaders(report.headers);
+    saveSession(SESSION_KEY, report);
+  }, []);
+
+  const resetReport = useCallback(() => {
+    setSelectedOptions({});
+    setTypeReport("");
+    setData([]);
+    setHeaders([]);
+    clearSession(SESSION_KEY);
+  }, []);
 
   return (
     <ReportContext.Provider
       value={{
         selectedOptions,
-        setSelectedOptions,
         typeReport,
-        setTypeReport,
         data,
-        setData,
-        error,
-        dataSaved,
-        isSaving,
-        isLoadingData,
-        handleSaveData,
-        readAllData,
+        headers,
+        isRestoringReport,
+        setReport,
+        resetReport,
       }}
     >
       {children}

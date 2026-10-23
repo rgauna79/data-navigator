@@ -1,35 +1,22 @@
-import React from "react";
+import { isNumericColumn, numericValues } from "../../utils/excelUtils.js";
+
+const fmt = (n) =>
+  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function StatisticsReport({ filteredData, totalRows, includedOptions, headers }) {
+  const nCols = headers?.length || filteredData[0]?.length || 0;
   const numericCols = [];
-  if (filteredData.length > 0) {
-    const nCols = filteredData[0].length;
-    for (let idx = 0; idx < nCols; idx++) {
-      const vals = filteredData
-        .map((row) => row[idx])
-        .filter((v) => v !== "" && v !== null && !isNaN(parseFloat(v)) && isFinite(parseFloat(v)));
-      if (vals.length > 0 && vals.length / filteredData.length > 0.6) {
-        numericCols.push(idx);
-      }
-    }
+  for (let idx = 0; idx < nCols; idx++) {
+    if (isNumericColumn(filteredData.map((row) => row[idx]))) numericCols.push(idx);
   }
 
   const columnName = (idx) => headers?.[idx] || `Column ${idx + 1}`;
 
-  const calculateAverage = (columnIndex) => {
-    const values = filteredData
-      .map((row) => parseFloat(row[columnIndex]))
-      .filter((v) => !isNaN(v));
-    if (values.length === 0) return null;
-    return (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2);
-  };
-
-  const calculateSum = (columnIndex) => {
-    const values = filteredData
-      .map((row) => parseFloat(row[columnIndex]))
-      .filter((v) => !isNaN(v));
-    if (values.length === 0) return null;
-    return values.reduce((a, b) => a + b, 0).toFixed(2);
+  const stats = (columnIndex) => {
+    const values = numericValues(filteredData.map((row) => row[columnIndex]));
+    if (values.length === 0) return { avg: null, sum: null };
+    const sum = values.reduce((a, b) => a + b, 0);
+    return { avg: fmt(sum / values.length), sum: fmt(sum) };
   };
 
   return (
@@ -66,8 +53,7 @@ function StatisticsReport({ filteredData, totalRows, includedOptions, headers })
         </div>
       ) : (
         numericCols.map((idx) => {
-          const avg = calculateAverage(idx);
-          const sum = calculateSum(idx);
+          const { avg, sum } = stats(idx);
           return (
             <div key={idx} className="border border-gray-100 dark:border-gray-700 rounded-xl p-4">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">

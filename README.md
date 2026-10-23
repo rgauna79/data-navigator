@@ -16,17 +16,12 @@ Data Navigator is a robust web application built on the MERN (MongoDB, Express.j
 
 ## Features
 
-- **Excel Files Management**: Seamlessly manage Excel files, extracting relevant data with ease.
+- **Excel and CSV Files**: Read `.xlsx`, `.xls`, `.xlsm`, `.ods`, `.csv` and `.tsv` files. CSV files in UTF-8 or Windows-1252 are supported, and numbers and dates in English (`1,234.50`, `01/15/2024`) or Spanish (`1.234,50`, `15/01/2024`) format are recognised.
 - **Dynamic Data Filtering**: Effortlessly filter data columns to focus on pertinent information.
 - **Customized Reporting**: Generate personalized reports tailored to specific needs, including top records and recurring values analysis.
 - **Intuitive User Interface**: User-friendly interface designed for smooth navigation and efficient task execution.
-- **Data Storage and Management**: Store and manage data securely in MongoDB, ensuring accessibility and scalability.
-
-## Future Additions
-
-In the future, we plan to introduce the following enhancements:
-
-- **Database Content Management Panel**: Implement a dedicated panel for managing database content directly within the application.
+- **Data Storage and Management**: Store sheets in MongoDB under your account, then search, open, rename or delete them from the Saved Files page. Saving with an existing name asks before replacing it.
+- **Work survives a reload**: The open file and the last report are kept in the browser (IndexedDB) and cleared when you sign out.
 
 ## Technologies Used
 
@@ -57,6 +52,39 @@ In the future, we plan to introduce the following enhancements:
 
 1. Copy `client-frontend/.env.example` to `client-frontend/.env` and set `VITE_BACKEND_URL` to your backend URL.
 2. `npm install` and run `npm run dev` (default port 5173).
+
+### Tests
+
+- Backend: `cd backend && npm test` (Node test runner + an in-memory MongoDB,
+  downloaded automatically on the first run).
+- Frontend: `cd client-frontend && npm test` (Vitest), `npm run lint`.
+
+Both run in GitHub Actions on every pull request (`.github/workflows/ci.yml`).
+
+> `xlsx` is installed from the SheetJS CDN because the npm registry version is no longer
+> maintained. Check https://cdn.sheetjs.com for new releases; Dependabot does not track it.
+
+### Roles and admin access
+
+User-management endpoints (`GET /api/users`, `/api/users/:id`, `/api/users/update/:id`,
+`/api/users/delete/:id`) are restricted to admins. Every user registers with role `user`;
+promote one manually in MongoDB:
+
+```js
+db.users.updateOne({ email: "you@example.com" }, { $set: { role: "admin" } })
+```
+
+### Upgrading an existing database
+
+Saved sheets now belong to the user who saved them. Documents saved before this change have
+no `owner` and are no longer listed for anyone. To assign them to a user:
+
+```js
+const owner = db.users.findOne({ email: "you@example.com" })._id;
+db.datas.updateMany({ owner: { $exists: false } }, { $set: { owner } });
+```
+
+The old global unique index on `sheetName` is dropped automatically when the server starts.
 
 > **Security note:** never commit `.env` files. They are gitignored. If credentials were
 > ever committed to the repository history, rotate them immediately.

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { verifyToken } from "../middlewares/auth.middleware.js";
+import { verifyToken, requireAdmin } from "../middlewares/auth.middleware.js";
 import {
   getAllUsers,
   getUserById,
@@ -12,18 +12,8 @@ import { updateUserSchema } from "../schemas/auth.schema.js";
 
 const router = Router();
 
-router.get("/", verifyToken, getAllUsers);
-router.get("/:id", verifyToken, getUserById);
-router.post(
-  "/update/:id",
-  verifyToken,
-  validateSchema(updateUserSchema),
-  updateUser,
-);
-router.post("/delete/:id", verifyToken, softDeleteUser); // Soft delete
-router.delete("/delete/:id", verifyToken, deleteUser); // Hard delete
-
-// Perfil del usuario autenticado
+// Perfil del usuario autenticado.
+// Debe declararse antes de "/:id" para que "profile" no se tome como id.
 router.get("/profile", verifyToken, (req, res) => {
   res.json({
     id: req.user._id,
@@ -32,5 +22,18 @@ router.get("/profile", verifyToken, (req, res) => {
   });
 });
 router.put("/profile", verifyToken, validateSchema(updateUserSchema), updateUser);
+
+// Administración de usuarios: solo admins
+router.get("/", verifyToken, requireAdmin, getAllUsers);
+router.get("/:id", verifyToken, requireAdmin, getUserById);
+router.post(
+  "/update/:id",
+  verifyToken,
+  requireAdmin,
+  validateSchema(updateUserSchema),
+  updateUser,
+);
+router.post("/delete/:id", verifyToken, requireAdmin, softDeleteUser); // Soft delete
+router.delete("/delete/:id", verifyToken, requireAdmin, deleteUser); // Hard delete
 
 export default router;

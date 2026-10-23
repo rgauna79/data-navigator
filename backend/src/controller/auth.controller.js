@@ -1,8 +1,6 @@
 import User from "../models/user.models.js";
 import bcrypt from "bcryptjs";
 import { createAccessToken } from "../libs/jwt.js";
-import { TOKEN_SECRET } from "../config.js";
-import jwt from "jsonwebtoken";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -62,14 +60,14 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
     const userFound = await User.findOne({ email });
 
-    if (!userFound) {
-      return res.status(400).json({ message: "User not found" });
-    }
-
-    const match = await bcrypt.compare(password, userFound.password);
+    // Mismo mensaje en todos los casos para no revelar qué emails existen
+    const match =
+      userFound &&
+      !userFound.isDeleted &&
+      (await bcrypt.compare(password, userFound.password));
 
     if (!match) {
-      return res.status(401).json({ message: "Wrong password" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
     //Set cookie with auth token
     const token = await createAccessToken({ _id: userFound._id });
@@ -107,20 +105,11 @@ export const profile = async (req, res) => {
   }
 };
 
-export const verifyToken = async (req, res) => {
-  const { authToken } = req.cookies;
-  if (!authToken) return res.status(401).json({ message: "Unauthorized" });
-
-  jwt.verify(authToken, TOKEN_SECRET, async (err, user) => {
-    if (err) return res.status(401).json({ message: "Unauthorized" });
-
-    const userFound = await User.findById(user._id);
-    if (!userFound) return res.status(401).json({ message: "Unauthorized" });
-
-    return res.json({
-      id: userFound._id,
-      username: userFound.username,
-      email: userFound.email,
-    });
+// La ruta usa el middleware verifyToken, que ya validó el token y cargó req.user
+export const verifyToken = (req, res) => {
+  res.json({
+    id: req.user._id,
+    username: req.user.username,
+    email: req.user.email,
   });
 };
