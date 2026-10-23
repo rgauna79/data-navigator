@@ -9,6 +9,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useExcelData } from "../../hooks/useExcelData.js";
 import { useExcelContext } from "../../context/ExcelContext.jsx";
+import { SUPPORTED_EXTENSIONS, isSupportedFile } from "../../utils/sheetParser.js";
 
 function FileInput() {
   const { handleFileChange, isLoading } = useExcelData();
@@ -20,12 +21,9 @@ function FileInput() {
 
   const validateFile = (file) => {
     if (!file) return "No file selected.";
-    const validTypes = [
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-excel",
-    ];
-    if (!validTypes.includes(file.type) && !file.name.endsWith(".xlsx")) {
-      return "Only .xlsx files are supported.";
+    // Se valida por extensión: el tipo MIME de CSV y XLS varía según el sistema
+    if (!isSupportedFile(file.name)) {
+      return "Unsupported file type. Use Excel (.xlsx, .xls), OpenDocument (.ods) or CSV files.";
     }
     if (file.size > 20 * 1024 * 1024) {
       return "File must be under 20MB.";
@@ -105,17 +103,17 @@ function FileInput() {
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {isDragging ? "Drop your file here" : "Drag & drop your Excel file"}
+              {isDragging ? "Drop your file here" : "Drag & drop your Excel or CSV file"}
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              or <span className="text-blue-500 font-medium">browse files</span> · .xlsx up to 20MB
+              or <span className="text-blue-500 font-medium">browse files</span> · .xlsx, .xls, .ods, .csv up to 20MB
             </p>
           </div>
           <input
             ref={inputRef}
             type="file"
             className="hidden"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            accept={SUPPORTED_EXTENSIONS.join(",")}
             onChange={handleInputChange}
           />
         </div>

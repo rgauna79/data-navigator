@@ -35,7 +35,7 @@ export const ExcelProvider = ({ children }) => {
         const saved = await loadSession(EXCEL_SESSION_KEY);
         if (!saved || fileOpened.current) return;
         const { readWorkbook, parseSheet } = await import("../utils/sheetParser.js");
-        const wb = readWorkbook(await saved.file.arrayBuffer());
+        const wb = readWorkbook(await saved.file.arrayBuffer(), saved.name);
         if (fileOpened.current) return;
         const sheet = wb.Sheets[saved.selectedSheet] ? saved.selectedSheet : wb.SheetNames[0];
         const formatted = parseSheet(wb, sheet);

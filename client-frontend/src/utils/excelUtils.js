@@ -32,9 +32,31 @@ const isEmpty = (v) => v === null || v === undefined || v === "";
 
 const NUMBER_RE = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
 
-// Convierte el texto formateado por Excel a número.
-// SheetJS formatea siempre con "," de miles y "." decimal, así que se pueden
-// quitar símbolos de moneda, separadores de miles y "%".
+// Normaliza separadores de miles/decimales a formato "1234.5".
+// Acepta formato inglés ("1,234.50", el que genera SheetJS) y español
+// ("1.234,50", habitual en CSV exportados con Excel en español):
+// - Con "." y ",": el último que aparece es el separador decimal.
+// - Solo ",": es de miles si separa grupos de 3 dígitos ("1,234"), si no es
+//   decimal ("2000,25", "3,5").
+// - Solo ".": es decimal, salvo varios grupos de 3 dígitos ("1.234.567").
+const normalizeSeparators = (s) => {
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  if (lastComma !== -1 && lastDot !== -1) {
+    return lastComma > lastDot
+      ? s.replace(/\./g, "").replace(",", ".")
+      : s.replace(/,/g, "");
+  }
+  if (lastComma !== -1) {
+    return /^[-+]?\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g, "") : s.replace(",", ".");
+  }
+  // Varios puntos solo son miles si separan grupos de 3 ("15.01.2024" no es número)
+  if (/^[-+]?\d{1,3}(\.\d{3}){2,}$/.test(s)) return s.replace(/\./g, "");
+  return s;
+};
+
+// Convierte a número el texto que se ve en la hoja: quita símbolos de moneda,
+// espacios y "%", y entiende separadores en formato inglés o español.
 // Los negativos contables "(1,200)" se convierten a -1200.
 // Devuelve NaN si el valor no es numérico.
 export const toNumber = (value) => {
@@ -47,7 +69,7 @@ export const toNumber = (value) => {
     negative = true;
     s = s.slice(1, -1);
   }
-  s = s.replace(/[$€£¥\s]/g, "").replace(/,/g, "").replace(/%$/, "");
+  s = normalizeSeparators(s.replace(/[$€£¥\s]/g, "").replace(/%$/, ""));
   if (s.startsWith("-") && negative) return NaN;
   if (!NUMBER_RE.test(s)) return NaN;
   const n = parseFloat(s);
@@ -55,19 +77,81 @@ export const toNumber = (value) => {
 };
 
 const MONTH_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i;
-const DATE_SEP_RE = /^\d{1,4}[-/.]\d{1,2}([-/.]\d{1,4})?([ T].*)?$/;
+const ISO_DATE_RE = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](.+))?$/;
+const SHORT_DATE_RE = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})(?:[ T,]+(.+))?$/;
+const TIME_RE = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*(am|pm)?$/i;
+
+// Años de 2 dígitos como Excel: 00-29 -> 2000s, 30-99 -> 1900s
+const fullYear = (y) => (y.length === 2 ? (Number(y) < 30 ? 2000 : 1900) + Number(y) : Number(y));
+
+// Construye una fecha local y comprueba que exista (rechaza 31/02, mes 13...)
+const buildDate = (year, month, day, time) => {
+  let h = 0, m = 0, sec = 0;
+  if (time) {
+    const t = time.trim().match(TIME_RE);
+    if (!t) return null;
+    h = Number(t[1]) % (t[4] ? 12 : 24) + (t[4]?.toLowerCase() === "pm" ? 12 : 0);
+    m = Number(t[2]);
+    sec = Number(t[3] || 0);
+  }
+  const d = new Date(year, month - 1, day, h, m, sec);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return d;
+};
+
+// Deduce si las fechas cortas de una columna son día/mes/año ("dmy") o
+// mes/día/año ("mdy"): "15/01/2024" solo puede ser dmy y "01/15/2024" solo mdy.
+// Sin evidencia se usa mdy, el formato que genera SheetJS.
+export const inferDateOrder = (values) => {
+  let dmy = 0;
+  let mdy = 0;
+  for (const v of values) {
+    if (typeof v !== "string") continue;
+    const match = v.trim().match(SHORT_DATE_RE);
+    if (!match) continue;
+    const a = Number(match[1]);
+    const b = Number(match[2]);
+    if (a > 12 && b <= 12) dmy++;
+    else if (b > 12 && a <= 12) mdy++;
+  }
+  return dmy > mdy ? "dmy" : "mdy";
+};
 
 // Interpreta un valor como fecha solo si "parece" una fecha.
 // new Date("1") o new Date("12.5") son fechas válidas en JS, así que los
-// números nunca se consideran fechas.
-export const parseDate = (value) => {
+// números nunca se consideran fechas. Las fechas numéricas se construyen en
+// hora local (new Date("2024-02-03") sería UTC y podría mostrar el día anterior).
+// order: "mdy" o "dmy" para fechas cortas ambiguas (ver inferDateOrder).
+export const parseDate = (value, order = "mdy") => {
   if (value instanceof Date) return isNaN(value) ? null : value;
   if (typeof value !== "string") return null;
   const s = value.trim();
   if (s === "" || !isNaN(toNumber(s))) return null;
-  if (!DATE_SEP_RE.test(s) && !MONTH_RE.test(s)) return null;
+
+  const iso = s.match(ISO_DATE_RE);
+  if (iso) return buildDate(Number(iso[1]), Number(iso[2]), Number(iso[3]), iso[4]);
+
+  const short = s.match(SHORT_DATE_RE);
+  if (short) {
+    const [first, second] = [Number(short[1]), Number(short[2])];
+    const year = fullYear(short[3]);
+    const dayFirst = order === "dmy";
+    return (
+      buildDate(year, dayFirst ? second : first, dayFirst ? first : second, short[4]) ||
+      // Si no encaja en el orden de la columna se prueba el otro ("15/01" en mdy)
+      buildDate(year, dayFirst ? first : second, dayFirst ? second : first, short[4])
+    );
+  }
+
+  if (!MONTH_RE.test(s)) return null;
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
+};
+
+// Devuelve un parser de fechas con el orden día/mes deducido de la columna
+export const columnDateParser = (values) => {
+  const order = inferDateOrder(values);
+  return (v) => parseDate(v, order);
 };
 
 // Detecta si una columna es numérica (>60% de valores no vacíos son números)
@@ -82,7 +166,8 @@ export const isNumericColumn = (values) => {
 export const isDateColumn = (values) => {
   const nonEmpty = values.filter((v) => !isEmpty(v));
   if (nonEmpty.length === 0) return false;
-  const dates = nonEmpty.filter((v) => parseDate(v) !== null);
+  const parse = columnDateParser(nonEmpty);
+  const dates = nonEmpty.filter((v) => parse(v) !== null);
   return dates.length / nonEmpty.length > 0.6;
 };
 
@@ -138,12 +223,13 @@ export const analyzeColumns = (fileData) => {
     }
 
     if (isDateColumn(values)) {
+      const dateOrder = inferDateOrder(nonEmpty);
       const times = nonEmpty
-        .map(parseDate)
+        .map((v) => parseDate(v, dateOrder))
         .filter(Boolean)
         .map((d) => d.getTime());
       const { min, max } = minMax(times);
-      return { ...base, type: "date", min: new Date(min), max: new Date(max) };
+      return { ...base, type: "date", dateOrder, min: new Date(min), max: new Date(max) };
     }
 
     // Categórica: top 5 valores más frecuentes

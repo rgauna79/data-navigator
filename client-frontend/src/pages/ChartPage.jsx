@@ -43,11 +43,12 @@ const endOfDay = (d) => {
   return e;
 };
 
-// Compara una fila con el filtro de una columna (valor exacto o rango de fechas)
-const matchRow = (row, idx, value) => {
+// Compara una fila con el filtro de una columna (valor exacto o rango de fechas).
+// dateOrder: "mdy" o "dmy" según el formato de fechas de esa columna.
+const matchRow = (row, idx, value, dateOrder) => {
   if (value === "" || value == null) return true;
   if (typeof value === "object" && "from" in value) {
-    const d = parseDate(row[idx]);
+    const d = parseDate(row[idx], dateOrder);
     if (!d) return false;
     return d >= new Date(value.from) && d <= endOfDay(value.to);
   }
@@ -78,9 +79,11 @@ function ChartPage() {
   const filteredData = useMemo(() => {
     if (typeReport !== "statistics") return data;
     return data.filter((row) =>
-      Object.entries(selectedOptions).every(([idx, value]) => matchRow(row, Number(idx), value))
+      Object.entries(selectedOptions).every(([idx, value]) =>
+        matchRow(row, Number(idx), value, analysis[idx]?.dateOrder)
+      )
     );
-  }, [data, selectedOptions, typeReport]);
+  }, [data, selectedOptions, typeReport, analysis]);
 
   const handlePrint = async () => {
     try {
@@ -154,7 +157,7 @@ function ChartPage() {
     if (!dateCol) return null;
     const byDate = {};
     filteredData.forEach((row) => {
-      const d = parseDate(row[dateCol.index]);
+      const d = parseDate(row[dateCol.index], dateCol.dateOrder);
       if (!d) return;
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       byDate[key] = (byDate[key] || 0) + 1;

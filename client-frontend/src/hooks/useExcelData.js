@@ -44,7 +44,7 @@ export const useExcelData = () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const wb = readWorkbook(e.target.result);
+        const wb = readWorkbook(e.target.result, file.name);
         setWorkbook(wb);
         setFileInfo({ name: file.name, size: file.size });
 
@@ -74,7 +74,7 @@ export const useExcelData = () => {
         setSelectedSheet("");
         setFileData([]);
         setColumnAnalysis([]);
-        setLoadError("Could not read the file. Make sure it is a valid Excel file.");
+        setLoadError("Could not read the file. Make sure it is a valid spreadsheet or CSV file.");
       } finally {
         setIsLoading(false);
       }

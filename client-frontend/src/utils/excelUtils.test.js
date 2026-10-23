@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import {
   analyzeColumns,
   getHeaders,
+  inferDateOrder,
   isDateColumn,
   isNumericColumn,
   minMax,
@@ -20,13 +21,20 @@ describe("toNumber", () => {
     ["(1,200)", -1200],
     ["15%", 15],
     ["1e3", 1000],
+    // Formato español
+    ["1.234,50", 1234.5],
+    ["2000,25", 2000.25],
+    ["-3,5", -3.5],
+    ["1.234.567", 1234567],
+    ["€1.234,50", 1234.5],
+    ["1\u00a0234,5", 1234.5],
     [".5", 0.5],
     [42, 42],
   ])("%j -> %d", (input, expected) => {
     expect(toNumber(input)).toBe(expected);
   });
 
-  test.each(["", "abc", "12abc", "1/15/2024", "A1", null, undefined])(
+  test.each(["", "abc", "12abc", "1/15/2024", "15.01.2024", "2024-02-03", "A1", null, undefined])(
     "%j no es un número",
     (input) => {
       expect(toNumber(input)).toBeNaN();
@@ -48,6 +56,32 @@ describe("parseDate", () => {
     }
   });
 
+  test("las fechas numéricas son locales: 2024-02-03 es 3 de febrero en cualquier zona horaria", () => {
+    const d = parseDate("2024-02-03");
+    expect([d.getFullYear(), d.getMonth(), d.getDate()]).toEqual([2024, 1, 3]);
+  });
+
+  test("día/mes según el orden de la columna", () => {
+    const mdy = parseDate("03/02/2024");
+    const dmy = parseDate("03/02/2024", "dmy");
+    expect([mdy.getMonth(), mdy.getDate()]).toEqual([2, 2]);
+    expect([dmy.getMonth(), dmy.getDate()]).toEqual([1, 3]);
+    // Un día > 12 no deja dudas aunque la columna se suponga mdy
+    expect(parseDate("15/01/2024").getMonth()).toBe(0);
+    expect(parseDate("15.01.2024", "dmy").getDate()).toBe(15);
+  });
+
+  test("con hora y años de 2 dígitos", () => {
+    const d = parseDate("1/15/24 2:30 PM");
+    expect([d.getFullYear(), d.getHours(), d.getMinutes()]).toEqual([2024, 14, 30]);
+    expect(parseDate("1/1/45").getFullYear()).toBe(1945);
+  });
+
+  test("rechaza fechas imposibles", () => {
+    expect(parseDate("2024-02-30")).toBeNull();
+    expect(parseDate("13/13/2024")).toBeNull();
+  });
+
   test("texto cualquiera no es fecha", () => {
     expect(parseDate("hello")).toBeNull();
     expect(parseDate("")).toBeNull();
@@ -59,6 +93,16 @@ describe("detección de tipo de columna", () => {
     const values = ["1", "2", "1,234.50", "$2,000", ""];
     expect(isNumericColumn(values)).toBe(true);
     expect(isDateColumn(values)).toBe(false);
+  });
+
+  test("inferDateOrder detecta columnas día/mes/año", () => {
+    expect(inferDateOrder(["15/01/2024", "03/02/2024"])).toBe("dmy");
+    expect(inferDateOrder(["01/15/2024", "03/02/2024"])).toBe("mdy");
+    expect(inferDateOrder(["03/02/2024"])).toBe("mdy");
+  });
+
+  test("columna de números en formato español es numérica", () => {
+    expect(isNumericColumn(["1.234,50", "2000,25", "3"])).toBe(true);
   });
 
   test("columna de fechas", () => {

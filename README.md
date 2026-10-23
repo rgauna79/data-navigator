@@ -16,7 +16,7 @@ Data Navigator is a robust web application built on the MERN (MongoDB, Express.j
 
 ## Features
 
-- **Excel Files Management**: Seamlessly manage Excel files, extracting relevant data with ease.
+- **Excel and CSV Files**: Read `.xlsx`, `.xls`, `.xlsm`, `.ods`, `.csv` and `.tsv` files. CSV files in UTF-8 or Windows-1252 are supported, and numbers and dates in English (`1,234.50`, `01/15/2024`) or Spanish (`1.234,50`, `15/01/2024`) format are recognised.
 - **Dynamic Data Filtering**: Effortlessly filter data columns to focus on pertinent information.
 - **Customized Reporting**: Generate personalized reports tailored to specific needs, including top records and recurring values analysis.
 - **Intuitive User Interface**: User-friendly interface designed for smooth navigation and efficient task execution.

@@ -5,7 +5,7 @@ import { faXmark, faChartBar, faChartPie } from "@fortawesome/free-solid-svg-ico
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useDataContext } from "../../context/DataContext.jsx";
-import { isDateColumn, minMax, parseDate } from "../../utils/excelUtils.js";
+import { columnDateParser, isDateColumn, minMax } from "../../utils/excelUtils.js";
 
 // columns: [{ Header, accessor }] donde accessor es el índice de la columna.
 // Todas las selecciones se guardan por índice para soportar encabezados repetidos.
@@ -29,8 +29,10 @@ function Modal({ handleClose, columns, data }) {
   );
 
   const getMinMaxDates = (idx) => {
-    const times = data
-      .map((row) => parseDate(row[idx]))
+    const values = data.map((row) => row[idx]);
+    const parse = columnDateParser(values);
+    const times = values
+      .map(parse)
       .filter(Boolean)
       .map((d) => d.getTime());
     const { min, max } = minMax(times);

@@ -47,8 +47,8 @@ function HomePage() {
         {/* Quick action destacada */}
         <div className="bg-blue-600 rounded-2xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex-1">
-            <h2 className="text-white font-semibold text-lg mb-1">Upload an Excel file</h2>
-            <p className="text-blue-100 text-sm">Read, filter, and explore any .xlsx file instantly</p>
+            <h2 className="text-white font-semibold text-lg mb-1">Upload a spreadsheet</h2>
+            <p className="text-blue-100 text-sm">Read, filter, and explore Excel and CSV files instantly</p>
           </div>
           <Link
             to="/filereader"
@@ -66,7 +66,7 @@ function HomePage() {
             icon={faFileExcel}
             color="bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400"
             title="Excel Reader"
-            description="Load any .xlsx file, select sheets, filter columns and preview your data."
+            description="Load Excel, OpenDocument or CSV files, select sheets, filter columns and preview your data."
             cta="Open reader"
           />
           {isLoggedIn && (
