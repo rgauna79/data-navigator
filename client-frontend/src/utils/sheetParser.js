@@ -75,3 +75,10 @@ export const findBestSheet = (workbook) => {
   }
   return visibleSheets[0] || workbook.SheetNames[0] || null;
 };
+
+// Descarga una matriz como archivo .xlsx (primera fila = encabezados)
+export const downloadXlsx = (fileName, sheetName, rows) => {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetNameFromFile(sheetName || "Data"));
+  XLSX.writeFile(wb, fileName);
+};

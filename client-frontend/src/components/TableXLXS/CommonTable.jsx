@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import Modal from "../reports/Modal.jsx";
 import SaveDialog from "./SaveDialog.jsx";
+import ExportMenu from "./ExportMenu.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faFloppyDisk, faXmark, faChartBar, faSearch,
@@ -87,6 +88,14 @@ function CommonTable({
                 Heatmap
               </button>
             )}
+            <ExportMenu
+              headers={headers}
+              // Filas filtradas y ordenadas, sin paginar
+              getRows={() => table.getPrePaginationRowModel().rows.map((r) => r.original)}
+              numericCols={numericCols}
+              sheetName={sheetName}
+              isFiltered={Boolean(globalFilter)}
+            />
           </div>
 
           {/* Toasts */}

@@ -7,6 +7,8 @@ import {
   CategoryScale, LinearScale, BarElement, PointElement,
   LineElement, Title, Filler,
 } from "chart.js";
+// Colores de los gráficos según el modo claro/oscuro
+import "../utils/chartTheme.js";
 import { analyzeColumns, parseDate } from "../utils/excelUtils.js";
 import { applyFilters, groupRows } from "../utils/reportUtils.js";
 import StatisticsReport from "../components/reports/StatisticsReport.jsx";
@@ -267,7 +269,7 @@ function ChartPage() {
                     <Line data={trendData} options={{
                       ...baseOpts,
                       plugins: { ...baseOpts.plugins, legend: { display: false } },
-                      scales: { y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } } },
+                      scales: { y: { beginAtZero: true } },
                     }} />
                   )}
                 </div>
@@ -285,7 +287,7 @@ function ChartPage() {
                   <Line data={trendData} options={{
                     ...baseOpts,
                     plugins: { ...baseOpts.plugins, legend: { display: false } },
-                    scales: { y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.05)" } } },
+                    scales: { y: { beginAtZero: true } },
                   }} />
                 </div>
               </div>

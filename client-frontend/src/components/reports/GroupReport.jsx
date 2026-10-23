@@ -87,7 +87,6 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
       scales: {
         y: {
           beginAtZero: true,
-          grid: { color: "rgba(0,0,0,0.05)" },
           // Un conteo no tiene decimales
           ticks: metric === "count" ? { precision: 0 } : {},
         },

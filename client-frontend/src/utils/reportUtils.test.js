@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { aggregate, applyFilters, groupRows, periodOf, toCsv } from "./reportUtils.js";
+import { aggregate, applyFilters, exportRows, groupRows, periodOf, toCsv } from "./reportUtils.js";
 
 // Cliente, Categoría, Monto, Fecha
 const rows = [
@@ -118,5 +118,21 @@ describe("toCsv", () => {
     expect(toCsv([["a", "b,c"], ['say "hi"', "x\ny"], [1, null]])).toBe(
       'a,"b,c"\r\n"say ""hi""","x\ny"\r\n1,'
     );
+  });
+});
+
+describe("exportRows", () => {
+  test("encabezados + filas; columnas numéricas como número", () => {
+    const headers = ["Name", "Amount", "Code"];
+    const data = [["Ana", "$1,234.50", "007"], ["Luis", "n/a"]];
+    expect(exportRows(headers, data, new Set([1]))).toEqual([
+      ["Name", "Amount", "Code"],
+      ["Ana", 1234.5, "007"],
+      ["Luis", "n/a", ""],
+    ]);
+  });
+
+  test("sin columnas numéricas conserva el texto", () => {
+    expect(exportRows(["A"], [["1,5"]])).toEqual([["A"], ["1,5"]]);
   });
 });
