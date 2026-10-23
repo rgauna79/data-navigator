@@ -1,6 +1,9 @@
 import * as XLSX from "xlsx";
 import { formatJson, hasUsableData, normalizeRows } from "./excelUtils.js";
 
+export const readWorkbook = (arrayBuffer) =>
+  XLSX.read(arrayBuffer, { type: "array" });
+
 export const parseSheet = (workbook, sheetName) => {
   if (!workbook || !workbook.Sheets[sheetName]) return [];
   const sheet = workbook.Sheets[sheetName];

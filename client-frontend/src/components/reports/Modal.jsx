@@ -10,8 +10,7 @@ import { isDateColumn, minMax, parseDate } from "../../utils/excelUtils.js";
 // columns: [{ Header, accessor }] donde accessor es el índice de la columna.
 // Todas las selecciones se guardan por índice para soportar encabezados repetidos.
 function Modal({ handleClose, columns, data }) {
-  const { setSelectedColumns, setSelectedOptions, setTypeReport, setData, setHeaders } =
-    useDataContext();
+  const { setReport } = useDataContext();
   const navigate = useNavigate();
 
   const [localSelectedColumns, setLocalSelectedColumns] = useState([]);
@@ -112,11 +111,12 @@ function Modal({ handleClose, columns, data }) {
             localSelectedColumns.map((idx) => [idx, localSelectedOptions[idx]])
           );
 
-    setSelectedColumns(localSelectedColumns);
-    setSelectedOptions(options);
-    setTypeReport(localTypeReport);
-    setData(data);
-    setHeaders(columns.map((c) => c.Header));
+    setReport({
+      typeReport: localTypeReport,
+      selectedOptions: options,
+      data,
+      headers: columns.map((c) => c.Header),
+    });
     handleClose();
     navigate("/charts");
   };

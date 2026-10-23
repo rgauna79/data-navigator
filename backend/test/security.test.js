@@ -73,8 +73,22 @@ test("cada usuario solo ve y sobrescribe sus propios archivos guardados", async 
 
   const daveFiles = (await dave.agent.get("/api/data/savedfiles")).body;
   const erinFiles = (await erin.agent.get("/api/data/savedfiles")).body;
-  assert.deepEqual(daveFiles.map((f) => f.fileData), [daveRows]);
-  assert.deepEqual(erinFiles.map((f) => f.fileData), [erinRows]);
+  assert.equal(daveFiles.length, 1);
+  assert.equal(erinFiles.length, 1);
+  const daveFile = (await dave.agent.get(`/api/data/savedfiles/${daveFiles[0]._id}`)).body;
+  const erinFile = (await erin.agent.get(`/api/data/savedfiles/${erinFiles[0]._id}`)).body;
+  assert.deepEqual(daveFile.fileData, daveRows);
+  assert.deepEqual(erinFile.fileData, erinRows);
+
+  // Nadie puede leer, renombrar ni borrar un archivo ajeno
+  const daveId = daveFiles[0]._id;
+  assert.equal((await erin.agent.get(`/api/data/savedfiles/${daveId}`)).status, 404);
+  assert.equal(
+    (await erin.agent.patch(`/api/data/savedfiles/${daveId}`).send({ sheetName: "x" })).status,
+    404,
+  );
+  assert.equal((await erin.agent.delete(`/api/data/savedfiles/${daveId}`)).status, 404);
+  assert.equal((await dave.agent.get(`/api/data/savedfiles/${daveId}`)).status, 200);
 });
 
 test("login usa el mismo mensaje para email inexistente y contraseña incorrecta", async () => {

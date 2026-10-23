@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import Modal from "../reports/Modal.jsx";
+import SaveDialog from "./SaveDialog.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faSpinner, faFloppyDisk, faXmark, faChartBar, faSearch,
+  faFloppyDisk, faXmark, faChartBar, faSearch,
   faChevronUp, faChevronDown, faChevronLeft, faChevronRight,
   faAnglesLeft, faAnglesRight, faPalette,
 } from "@fortawesome/free-solid-svg-icons";
@@ -34,33 +35,20 @@ const getHeatClass = (value, range) => {
 
 function CommonTable({
   data, table, headers, numericCols, sheetName, fileData, handleCloseTable,
-  handleSaveData, showSaveButton = false, globalFilter, setGlobalFilter,
+  showSaveButton = false, globalFilter, setGlobalFilter,
 }) {
-  const [isSaving, setIsSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [saveStatus, setSaveStatus] = useState(null);
-  const [saveError, setSaveError] = useState("");
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  // Nombre con el que se guardó la hoja, para el aviso de éxito
+  const [savedName, setSavedName] = useState("");
   const [heatmap, setHeatmap] = useState(false);
 
   const colRanges = useMemo(() => getColumnRanges(data, numericCols), [data, numericCols]);
 
-  const handleSaveDataClick = async (e) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setSaveStatus(null);
-    try {
-      await handleSaveData({ sheetName, fileData });
-      setSaveStatus("success");
-      setTimeout(() => setSaveStatus(null), 3000);
-    } catch (error) {
-      setSaveError(
-        error.response?.data?.message || "Error saving. Please try again."
-      );
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus(null), 5000);
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSaved = (name) => {
+    setShowSaveDialog(false);
+    setSavedName(name);
+    setTimeout(() => setSavedName(""), 4000);
   };
 
   const { pageIndex, pageSize } = table.getState().pagination;
@@ -102,20 +90,23 @@ function CommonTable({
           </div>
 
           {/* Toasts */}
-          {saveStatus === "success" && (
+          {savedName && (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 text-green-700 dark:text-green-300 text-sm px-4 py-2 rounded-lg">
-              ✓ <strong>{sheetName}</strong> saved successfully.
-            </div>
-          )}
-          {saveStatus === "error" && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 text-sm px-4 py-2 rounded-lg">
-              ✗ {saveError}
+              ✓ <strong>{savedName}</strong> saved successfully.
             </div>
           )}
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
             {showModal && <Modal handleClose={() => setShowModal(false)} columns={columns} data={data} />}
+            {showSaveDialog && (
+              <SaveDialog
+                defaultName={sheetName}
+                fileData={fileData}
+                onClose={() => setShowSaveDialog(false)}
+                onSaved={handleSaved}
+              />
+            )}
             <button
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
               onClick={() => setShowModal(true)}
@@ -124,14 +115,10 @@ function CommonTable({
             </button>
             {showSaveButton && (
               <button
-                disabled={isSaving}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm px-4 py-2 rounded-lg transition-colors"
-                onClick={handleSaveDataClick}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+                onClick={() => setShowSaveDialog(true)}
               >
-                {isSaving
-                  ? <><FontAwesomeIcon icon={faSpinner} spin /> Saving...</>
-                  : <><FontAwesomeIcon icon={faFloppyDisk} /> Save Data</>
-                }
+                <FontAwesomeIcon icon={faFloppyDisk} /> Save Data
               </button>
             )}
             {handleCloseTable && (

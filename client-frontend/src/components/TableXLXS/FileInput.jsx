@@ -8,11 +8,13 @@ import {
   faCircleCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import { useExcelData } from "../../hooks/useExcelData.js";
+import { useExcelContext } from "../../context/ExcelContext.jsx";
 
 function FileInput() {
   const { handleFileChange, isLoading } = useExcelData();
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
+  // El archivo abierto vive en el contexto para sobrevivir a recargas
+  const { fileInfo: selectedFile, resetExcel } = useExcelContext();
   const [error, setError] = useState(null);
   const inputRef = useRef(null);
 
@@ -36,11 +38,9 @@ function FileInput() {
       const validationError = validateFile(file);
       if (validationError) {
         setError(validationError);
-        setSelectedFile(null);
         return;
       }
       setError(null);
-      setSelectedFile(file);
       handleFileChange(file);
     },
     [handleFileChange]
@@ -71,8 +71,9 @@ function FileInput() {
     setIsDragging(false);
   };
 
+  // Cierra el archivo: limpia la tabla, el resumen y la copia guardada en el navegador
   const clearFile = () => {
-    setSelectedFile(null);
+    resetExcel();
     setError(null);
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -86,7 +87,7 @@ function FileInput() {
   return (
     <div className="w-full">
       {/* Drop zone */}
-      {!selectedFile && (
+      {!selectedFile && !isLoading && (
         <div
           onDrop={handleDrop}
           onDragOver={handleDragOver}

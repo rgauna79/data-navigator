@@ -26,7 +26,7 @@ const numericSort = (a, b, columnId) => {
 };
 
 // rows: matriz de la hoja (primera fila = encabezados)
-function DataTable({ rows, sheetName, handleSaveData, showSaveButton = false }) {
+function DataTable({ rows, sheetName, showSaveButton = false, handleCloseTable }) {
   const [globalFilter, setGlobalFilter] = useState("");
 
   const fileData = useMemo(() => normalizeRows(formatJson(rows || [])), [rows]);
@@ -79,7 +79,7 @@ function DataTable({ rows, sheetName, handleSaveData, showSaveButton = false }) 
       numericCols={numericCols}
       sheetName={sheetName}
       fileData={fileData}
-      handleSaveData={handleSaveData}
+      handleCloseTable={handleCloseTable}
       showSaveButton={showSaveButton}
       globalFilter={globalFilter}
       setGlobalFilter={setGlobalFilter}

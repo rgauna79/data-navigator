@@ -6,10 +6,11 @@ import SheetSelector from "../components/TableXLXS/SheetSelector.jsx";
 import ColumnSummary from "../components/ColumnSummary.jsx";
 import { hasUsableData } from "../utils/excelUtils.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFileExcel, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+import { faFileExcel, faSpinner, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 
 function FileReaderPage() {
-  const { workbook, selectedSheet, fileData, handleSaveData, columnAnalysis, loadError } = useDataContext();
+  const { workbook, selectedSheet, fileData, columnAnalysis, loadError, isRestoringFile } =
+    useDataContext();
   const { isLoggedIn } = useAuth();
 
   const hasSheetData = hasUsableData(fileData);
@@ -37,6 +38,14 @@ function FileReaderPage() {
           </div>
         )}
 
+        {/* Restaurando el último archivo abierto */}
+        {isRestoringFile && (
+          <div className="max-w-4xl mx-auto mb-6 flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <FontAwesomeIcon icon={faSpinner} spin />
+            Restoring your last file...
+          </div>
+        )}
+
         {/* Upload + sheet selector */}
         <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 mb-6">
           <FileInput />
@@ -60,7 +69,6 @@ function FileReaderPage() {
             <DataTable
               rows={fileData}
               sheetName={selectedSheet}
-              handleSaveData={handleSaveData}
               showSaveButton={isLoggedIn}
             />
           </div>

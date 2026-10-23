@@ -1,18 +1,20 @@
 import { useState } from "react";
-import * as XLSX from "xlsx";
-import { useExcelContext } from "../context/ExcelContext";
+import { EXCEL_SESSION_KEY, useExcelContext } from "../context/ExcelContext";
 import { analyzeColumns, hasUsableData } from "../utils/excelUtils.js";
-import { parseSheet, findBestSheet } from "../utils/sheetParser.js";
+import { parseSheet, findBestSheet, readWorkbook } from "../utils/sheetParser.js";
+import { saveSession, updateSession } from "../utils/sessionStore.js";
 
 export const useExcelData = () => {
   const [isLoading, setIsLoading] = useState(false);
   const {
     workbook,
     setWorkbook,
+    setFileInfo,
     setSelectedSheet,
     setFileData,
     setColumnAnalysis,
     setLoadError,
+    markFileOpened,
   } = useExcelContext();
 
   // Carga una hoja concreta del workbook y actualiza el contexto.
@@ -31,17 +33,20 @@ export const useExcelData = () => {
     setColumnAnalysis(hasData ? analyzeColumns(formatted) : []);
     // Una hoja sin datos no es un error: FileReaderPage muestra un aviso propio
     setLoadError(null);
+    updateSession(EXCEL_SESSION_KEY, { selectedSheet: sheetName });
     return hasData;
   };
 
   const handleFileChange = (file) => {
     setIsLoading(true);
     setLoadError(null);
+    markFileOpened();
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const wb = XLSX.read(e.target.result, { type: "array" });
+        const wb = readWorkbook(e.target.result);
         setWorkbook(wb);
+        setFileInfo({ name: file.name, size: file.size });
 
         const bestSheet = findBestSheet(wb);
         if (!bestSheet) {
@@ -52,11 +57,20 @@ export const useExcelData = () => {
           return;
         }
 
+        // Se guarda el archivo original para recuperarlo tras recargar la página
+        await saveSession(EXCEL_SESSION_KEY, {
+          file,
+          name: file.name,
+          size: file.size,
+          selectedSheet: bestSheet,
+        });
+
         // Si ninguna hoja tiene datos, se selecciona igualmente la primera
         // para mostrar el dropdown y el aviso de hoja vacía.
         loadSheet(bestSheet, wb);
       } catch (error) {
         console.error("Error reading file:", error);
+        setFileInfo(null);
         setSelectedSheet("");
         setFileData([]);
         setColumnAnalysis([]);

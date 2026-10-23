@@ -12,7 +12,7 @@ import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faFilePdf, faArrowLeft, faChartBar, faChartPie, faChartLine,
+  faFilePdf, faArrowLeft, faChartBar, faChartPie, faChartLine, faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 
 ChartJS.register(
@@ -55,7 +55,7 @@ const matchRow = (row, idx, value) => {
 };
 
 function ChartPage() {
-  const { data, headers, selectedOptions, typeReport } = useDataContext();
+  const { data, headers, selectedOptions, typeReport, isRestoringReport } = useDataContext();
   const reportsRef = useRef();
   const navigate = useNavigate();
   const [chartType, setChartType] = useState("pie");
@@ -207,8 +207,14 @@ function ChartPage() {
           </button>
         </div>
 
+        {isRestoringReport && (
+          <div className="flex justify-center py-12 text-gray-400">
+            <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+          </div>
+        )}
+
         {/* Empty state */}
-        {!hasData && (
+        {!hasData && !isRestoringReport && (
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-12 text-center">
             <FontAwesomeIcon icon={faChartPie} className="text-4xl text-gray-300 dark:text-gray-600 mb-4" />
             <p className="text-gray-500 dark:text-gray-400 text-sm">

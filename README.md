@@ -20,13 +20,8 @@ Data Navigator is a robust web application built on the MERN (MongoDB, Express.j
 - **Dynamic Data Filtering**: Effortlessly filter data columns to focus on pertinent information.
 - **Customized Reporting**: Generate personalized reports tailored to specific needs, including top records and recurring values analysis.
 - **Intuitive User Interface**: User-friendly interface designed for smooth navigation and efficient task execution.
-- **Data Storage and Management**: Store and manage data securely in MongoDB, ensuring accessibility and scalability.
-
-## Future Additions
-
-In the future, we plan to introduce the following enhancements:
-
-- **Database Content Management Panel**: Implement a dedicated panel for managing database content directly within the application.
+- **Data Storage and Management**: Store sheets in MongoDB under your account, then search, open, rename or delete them from the Saved Files page. Saving with an existing name asks before replacing it.
+- **Work survives a reload**: The open file and the last report are kept in the browser (IndexedDB) and cleared when you sign out.
 
 ## Technologies Used
 
