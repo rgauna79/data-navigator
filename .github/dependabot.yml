@@ -14,10 +14,20 @@ updates:
    directory: "/backend"
    schedule:
      interval: weekly
+   # Un solo PR para versiones menores y parches; las mayores van por separado
+   groups:
+     minor-and-patch:
+       update-types: ["minor", "patch"]
  - package-ecosystem: "npm"
    directory: "/client-frontend"
    schedule:
      interval: weekly
-   # xlsx se instala desde el CDN de SheetJS; Dependabot no puede actualizarlo
+   groups:
+     minor-and-patch:
+       update-types: ["minor", "patch"]
    ignore:
+     # xlsx se instala desde el CDN de SheetJS; Dependabot no puede actualizarlo
      - dependency-name: "xlsx"
+     # eslint-plugin-react todavía no soporta ESLint 10
+     - dependency-name: "eslint"
+       update-types: ["version-update:semver-major"]
