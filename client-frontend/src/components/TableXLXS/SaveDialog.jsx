@@ -71,7 +71,7 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
               setName(e.target.value);
               setConfirmOverwrite(false);
             }}
-            className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           />
 
           {confirmOverwrite && (

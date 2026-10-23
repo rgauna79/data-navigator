@@ -33,7 +33,7 @@ function FileReaderPage() {
         {/* Error */}
         {loadError && (
           <div className="max-w-4xl mx-auto mb-6 flex items-center gap-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/40 text-red-700 dark:text-red-300 px-4 py-3 rounded-xl text-sm">
-            <FontAwesomeIcon icon={faTriangleExclamation} className="flex-shrink-0" />
+            <FontAwesomeIcon icon={faTriangleExclamation} className="shrink-0" />
             {loadError}
           </div>
         )}

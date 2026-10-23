@@ -61,7 +61,7 @@ export const updateUser = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updatedFields },
-      { new: true },
+      { returnDocument: "after" },
     ).select(userPublicFields);
 
     if (!updatedUser) {
@@ -85,7 +85,7 @@ export const softDeleteUser = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: { isDeleted: true, updatedAt } },
-      { new: true },
+      { returnDocument: "after" },
     ).select(userPublicFields);
 
     if (!updatedUser) {

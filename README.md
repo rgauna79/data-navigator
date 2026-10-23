@@ -58,6 +58,8 @@ Data Navigator is a robust web application built on the MERN (MongoDB, Express.j
 - Backend: `cd backend && npm test` (Node test runner + an in-memory MongoDB,
   downloaded automatically on the first run).
 - Frontend: `cd client-frontend && npm test` (Vitest), `npm run lint`.
+- Browser smoke tests: `cd client-frontend && npm run test:e2e` (Playwright, against the
+  production build; run `npx playwright install chromium` once first).
 
 Both run in GitHub Actions on every pull request (`.github/workflows/ci.yml`).
 

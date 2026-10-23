@@ -41,14 +41,18 @@ app.use("/api/users", UserRoutes);
 app.use("/api/data", DataRoutes);
 
 if (process.env.NODE_ENV === "production") {
-  // Ruta relativa a este archivo, no al directorio desde donde se lanza node
-  const distPath = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "../../client-frontend/dist",
-  );
+  // Ruta relativa a este archivo, no al directorio desde donde se lanza node.
+  // STATIC_DIR permite servir el frontend desde otra carpeta (y en los tests).
+  const distPath =
+    process.env.STATIC_DIR ||
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../client-frontend/dist");
   app.use(express.static(distPath));
 
-  app.get("*", (req, res) => {
+  // Las rutas del frontend (React Router) devuelven index.html.
+  // Express 5 exige nombrar el comodín: "/{*splat}" en lugar de "*".
+  // Las rutas /api desconocidas siguen dando 404 en lugar de la página.
+  app.get("/{*splat}", (req, res, next) => {
+    if (req.path.startsWith("/api/")) return next();
     res.sendFile(path.join(distPath, "index.html"));
   });
 }

@@ -58,7 +58,7 @@ function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, on
       }`}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
-        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400 text-xs font-bold flex-shrink-0">
+        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600 dark:text-green-400 text-xs font-bold shrink-0">
           XL
         </div>
         {mode === "rename" ? (
@@ -72,7 +72,7 @@ function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, on
               onKeyDown={(e) => {
                 if (e.key === "Escape") cancelRename();
               }}
-              className="flex-1 min-w-0 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 min-w-0 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             />
             <button type="submit" disabled={isBusy} className={iconButton} title="Save name" aria-label="Save name">
               <FontAwesomeIcon icon={isBusy ? faSpinner : faCheck} spin={isBusy} />
@@ -258,7 +258,7 @@ function DbSheetPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search saved files..."
                   aria-label="Search saved files"
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             )}

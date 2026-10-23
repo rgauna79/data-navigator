@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import DataModel from "./models/data.models.js";
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const URI = process.env.MONGO_URI;
 
