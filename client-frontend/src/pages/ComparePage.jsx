@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { getSavedFile, listSavedFiles } from "../api/data.js";
 import { analyzeColumns, formatJson, normalizeRows } from "../utils/excelUtils.js";
 import { loadSheetRows } from "../utils/sheetClient.js";
+import { tk, useI18n } from "../i18n/I18nContext.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCodeCompare,
@@ -21,30 +22,19 @@ import {
 
 // --- COMPONENT: COMPARISON CARD ---
 function CompareCard({ colA, colB, nameA, nameB }) {
+  const { t, fmtNumber, fmtDate } = useI18n();
   const typeMismatch = colA && colB && colA.type !== colB.type;
   const col = colA || colB;
   if (!col) return null;
   const type = col.type;
-
-  const fmt = (n) =>
-    n !== undefined && n !== null && !isNaN(n)
-      ? n.toLocaleString("en-US", { maximumFractionDigits: 2 })
-      : "—";
-  const fmtDate = (d) =>
-    d
-      ? new Date(d).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
-      : "—";
+  const fmt = (n) => fmtNumber(n, { maximumFractionDigits: 2 });
 
   // Función para calcular delta porcentual
   const getDelta = (valA, valB) => {
     if (valA === undefined || valB === undefined || valA === 0) return null;
     const diff = ((valB - valA) / valA) * 100;
     return {
-      val: diff.toFixed(1),
+      val: fmtNumber(diff, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
       isPos: diff > 0,
       isNeg: diff < 0,
     };
@@ -72,12 +62,12 @@ function CompareCard({ colA, colB, nameA, nameB }) {
             <FontAwesomeIcon icon={currentTheme.icon} className="text-xs" />
           </div>
           <span className="text-sm font-bold text-gray-900 dark:text-white truncate uppercase tracking-tight">
-            {col.name || "Unnamed Column"}
+            {col.name || t("Unnamed column")}
           </span>
         </div>
         {typeMismatch && (
           <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-md font-bold uppercase">
-            Type Mismatch
+            {t("Type Mismatch")}
           </span>
         )}
       </div>
@@ -85,12 +75,12 @@ function CompareCard({ colA, colB, nameA, nameB }) {
       <div className="grid grid-cols-2 bg-gray-50/50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700">
         <div className="px-4 py-1.5 border-r border-gray-100 dark:border-gray-700">
           <span className="text-[10px] font-black text-blue-500 truncate block uppercase">
-            {nameA || "Source A"}
+            {nameA || t("Source A")}
           </span>
         </div>
         <div className="px-4 py-1.5 text-right">
           <span className="text-[10px] font-black text-emerald-500 truncate block uppercase">
-            {nameB || "Source B"}
+            {nameB || t("Source B")}
           </span>
         </div>
       </div>
@@ -99,16 +89,16 @@ function CompareCard({ colA, colB, nameA, nameB }) {
         {type === "numeric" && (
           <div className="space-y-4">
             {[
-              { l: "Sum Total", f: "sum" },
-              { l: "Average", f: "avg" },
-              { l: "Median", f: "median" },
+              { l: tk("Sum Total"), f: "sum" },
+              { l: tk("Average"), f: "avg" },
+              { l: tk("Median"), f: "median" },
             ].map((m) => {
               const delta = getDelta(colA?.[m.f], colB?.[m.f]);
               return (
                 <div key={m.l} className="space-y-1">
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                      {m.l}
+                      {t(m.l)}
                     </span>
                     {delta && (
                       <span
@@ -150,21 +140,21 @@ function CompareCard({ colA, colB, nameA, nameB }) {
                 className={`px-2 space-y-3 ${i === 1 ? "text-right" : ""}`}
               >
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">
-                  Time Range
+                  {t("Time Range")}
                 </span>
                 {c?.min ? (
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-400">From:</p>
+                    <p className="text-[10px] text-gray-400">{t("From:")}</p>
                     <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
                       {fmtDate(c.min)}
                     </p>
-                    <p className="text-[10px] text-gray-400">To:</p>
+                    <p className="text-[10px] text-gray-400">{t("To:")}</p>
                     <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
                       {fmtDate(c.max)}
                     </p>
                   </div>
                 ) : (
-                  <span className="text-xs text-gray-300 italic">No data</span>
+                  <span className="text-xs text-gray-300 italic">{t("No data")}</span>
                 )}
               </div>
             ))}
@@ -177,14 +167,14 @@ function CompareCard({ colA, colB, nameA, nameB }) {
               <div key={i} className="flex flex-col justify-between">
                 <div className="space-y-2">
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-2">
-                    Top 5 Values
+                    {t("Top 5 Values")}
                   </span>
                   {/* ✅ Solucionado el issue del Top 2 (slice(0, 5)) */}
                   {c?.topValues?.slice(0, 5).map(([v, count]) => (
                     <div key={v}>
                       <div className="flex justify-between text-[10px] mb-1">
                         <span className="truncate text-gray-600 dark:text-gray-400 font-medium">
-                          {v || "(EMPTY)"}
+                          {v || t("(blank)")}
                         </span>
                         <span className="font-bold text-gray-900 dark:text-white">
                           {count}
@@ -203,7 +193,7 @@ function CompareCard({ colA, colB, nameA, nameB }) {
                 </div>
                 <div className="mt-4 pt-2 border-t border-gray-50 dark:border-gray-700 flex justify-between items-center text-[10px]">
                   <span className="text-gray-400 font-bold uppercase">
-                    Unique
+                    {t("Unique")}
                   </span>
                   <span className="font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-sm">
                     {c?.unique || 0}
@@ -220,6 +210,7 @@ function CompareCard({ colA, colB, nameA, nameB }) {
 
 // --- MAIN PAGE ---
 function ComparePage() {
+  const { t, tn } = useI18n();
   const { sheetNames, selectedSheet, fileData } = useDataContext();
   const { isLoggedIn } = useAuth();
   const [sheetA, setSheetA] = useState(null);
@@ -235,8 +226,8 @@ function ComparePage() {
     if (!isLoggedIn) return;
     listSavedFiles()
       .then((res) => setSavedSheets(res.data))
-      .catch(() => setError("Could not load your saved files."));
-  }, [isLoggedIn]);
+      .catch(() => setError(t("Could not load your saved files.")));
+  }, [isLoggedIn, t]);
 
   // source: "loaded" (hoja del archivo abierto en el lector) o "saved" (base de datos)
   const loadSheet = async (name, source, setter, side) => {
@@ -258,7 +249,7 @@ function ComparePage() {
         setter({ name, source, data: normalizeRows(formatJson(res.data.fileData || [])) });
       }
     } catch {
-      setError(`Could not load "${name}".`);
+      setError(t('Could not load "{name}".', { name }));
       setter(null);
     } finally {
       setLoadingSide(null);
@@ -311,18 +302,17 @@ function ComparePage() {
           </div>
           <div>
             <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-              Data Auditor
+              {t("Data Auditor")}
             </h1>
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400 text-balance">
-              Compare and detect discrepancies between different data sources
-              instantly.
+              {t("Compare and detect discrepancies between different data sources instantly.")}
             </p>
           </div>
         </div>
 
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <SheetPicker
-            label="Primary Source (A)"
+            label={t("Primary Source (A)")}
             sheetNames={sheetNames}
             savedSheets={savedSheets}
             canUseSaved={isLoggedIn}
@@ -331,7 +321,7 @@ function ComparePage() {
             onChange={(n, s) => loadSheet(n, s, setSheetA, "A")}
           />
           <SheetPicker
-            label="Comparison Target (B)"
+            label={t("Comparison Target (B)")}
             sheetNames={sheetNames}
             savedSheets={savedSheets}
             canUseSaved={isLoggedIn}
@@ -358,7 +348,7 @@ function ComparePage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter specific columns..."
+                placeholder={t("Filter specific columns...")}
                 className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-12 pr-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-hidden transition-all shadow-xs"
               />
             </div>
@@ -371,7 +361,7 @@ function ComparePage() {
               }`}
             >
               <FontAwesomeIcon icon={faFilter} />
-              {onlyDiffs ? "Showing Differences" : "Show All Columns"}
+              {onlyDiffs ? t("Showing only differences") : t("Show only differences")}
             </button>
           </div>
         )}
@@ -380,11 +370,11 @@ function ComparePage() {
           <div className="space-y-6">
             <div className="flex items-center gap-3 px-2">
               <span className="text-xs font-black text-gray-400 uppercase tracking-widest">
-                Analysis Matrix
+                {t("Analysis Matrix")}
               </span>
               <div className="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
               <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase shadow-xs">
-                {displayCols.length} Columns
+                {tn("{count} Column", "{count} Columns", displayCols.length)}
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -405,11 +395,10 @@ function ComparePage() {
               <FontAwesomeIcon icon={faCodeCompare} className="text-3xl" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-              Ready to audit?
+              {t("Ready to audit?")}
             </h2>
             <p className="text-gray-400 text-sm max-w-xs mx-auto">
-              Select two spreadsheets from your local files or database to begin
-              the comparative analysis.
+              {t("Select two spreadsheets from your local files or database to begin the comparative analysis.")}
             </p>
           </div>
         )}
@@ -419,11 +408,12 @@ function ComparePage() {
 }
 
 function SheetPicker({ label, sheetNames, savedSheets, canUseSaved, isLoading, value, onChange }) {
+  const { t } = useI18n();
   const [source, setSource] = useState("loaded");
   const options = source === "loaded" ? sheetNames : savedSheets.map((s) => s.sheetName);
   const sources = [
-    { id: "loaded", icon: faFileExcel, label: "Excel", color: "text-green-500" },
-    ...(canUseSaved ? [{ id: "saved", icon: faDatabase, label: "Database", color: "text-purple-500" }] : []),
+    { id: "loaded", icon: faFileExcel, label: t("Excel"), color: "text-green-500" },
+    ...(canUseSaved ? [{ id: "saved", icon: faDatabase, label: t("Database"), color: "text-purple-500" }] : []),
   ];
 
   return (
@@ -452,7 +442,7 @@ function SheetPicker({ label, sheetNames, savedSheets, canUseSaved, isLoading, v
         ))}
       </div>
       <select
-        aria-label={`${label} sheet`}
+        aria-label={t("{name} sheet", { name: label })}
         value={value?.source === source ? value.name : ""}
         onChange={(e) => onChange(e.target.value, source)}
         disabled={isLoading}
@@ -460,8 +450,8 @@ function SheetPicker({ label, sheetNames, savedSheets, canUseSaved, isLoading, v
       >
         <option value="">
           {options.length === 0
-            ? source === "loaded" ? "Open a file in the Reader first" : "No saved files"
-            : "Select sheet..."}
+            ? source === "loaded" ? t("Open a file in the Reader first") : t("No saved files")
+            : t("Select sheet...")}
         </option>
         {options.map((n) => (
           <option key={n} value={n}>
@@ -471,7 +461,7 @@ function SheetPicker({ label, sheetNames, savedSheets, canUseSaved, isLoading, v
       </select>
       {isLoading && (
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-          <FontAwesomeIcon icon={faSpinner} spin /> Loading sheet...
+          <FontAwesomeIcon icon={faSpinner} spin /> {t("Loading sheet...")}
         </p>
       )}
     </div>

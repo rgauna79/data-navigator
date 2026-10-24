@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useDataContext } from "../context/DataContext";
 import { deleteReport, getReport, listReports } from "../api/reports.js";
 import { describeFilter } from "../utils/reportUtils.js";
+import { tk, useI18n } from "../i18n/I18nContext.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSpinner,
@@ -19,35 +20,33 @@ import {
 
 const TYPE_META = {
   statistics: {
-    label: "Statistics",
+    label: tk("Statistics"),
     icon: faChartBar,
     color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
   },
   mostRepeated: {
-    label: "Most Repeated",
+    label: tk("Most repeated"),
     icon: faChartPie,
     color: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
   },
   group: {
-    label: "Group & summarize",
+    label: tk("Group & summarize"),
     icon: faLayerGroup,
     color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
   },
 };
 // Informes de agrupación de la versión anterior
-TYPE_META.groupBy = { ...TYPE_META.group, label: "Pivot Table" };
-
-const fmtDate = (d) =>
-  new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+TYPE_META.groupBy = { ...TYPE_META.group, label: tk("Pivot table") };
 
 
 function ReportCard({ report, isOpening, onDelete, onView }) {
+  const { t, fmtDate, locale } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const meta = TYPE_META[report.type] || TYPE_META.statistics;
   const options = Object.entries(report.selectedOptions || {});
-  const columnName = (idx) => report.snapshot?.headers?.[idx] ?? `Column ${Number(idx) + 1}`;
+  const columnName = (idx) => report.snapshot?.headers?.[idx] ?? t("Column {n}", { n: Number(idx) + 1 });
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -63,7 +62,7 @@ function ReportCard({ report, isOpening, onDelete, onView }) {
             className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 ${meta.color}`}
           >
             <FontAwesomeIcon icon={meta.icon} className="text-xs" />
-            {meta.label}
+            {t(meta.label)}
           </span>
           <div className="min-w-0">
             <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{report.name}</p>
@@ -75,19 +74,19 @@ function ReportCard({ report, isOpening, onDelete, onView }) {
         </div>
         {confirmDelete ? (
           <div className="flex items-center gap-2 text-sm shrink-0">
-            <span className="text-gray-600 dark:text-gray-300">Delete this report?</span>
+            <span className="text-gray-600 dark:text-gray-300">{t("Delete this report?")}</span>
             <button
               disabled={deleting}
               onClick={handleDelete}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-bold"
             >
-              {deleting && <FontAwesomeIcon icon={faSpinner} spin />} Delete
+              {deleting && <FontAwesomeIcon icon={faSpinner} spin />} {t("Delete")}
             </button>
             <button
               onClick={() => setConfirmDelete(false)}
               className="px-3 py-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-bold"
             >
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
         ) : (
@@ -96,13 +95,13 @@ function ReportCard({ report, isOpening, onDelete, onView }) {
               onClick={() => onView(report)}
               disabled={isOpening}
               className="flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white mr-1"
-              title="Open report"
+              title={t("Open report")}
             >
-              <FontAwesomeIcon icon={isOpening ? faSpinner : faEye} spin={isOpening} className="text-xs" /> Open
+              <FontAwesomeIcon icon={isOpening ? faSpinner : faEye} spin={isOpening} className="text-xs" /> {t("Open")}
             </button>
             <button
               onClick={() => setExpanded((v) => !v)}
-              aria-label={expanded ? "Hide details" : "Show details"}
+              aria-label={expanded ? t("Hide details") : t("Show details")}
               className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <FontAwesomeIcon icon={expanded ? faChevronUp : faChevronDown} className="text-xs" />
@@ -123,7 +122,7 @@ function ReportCard({ report, isOpening, onDelete, onView }) {
           {options.length > 0 ? (
             <div>
               <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5">
-                Filters & config
+                {t("Filters & config")}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {options.map(([k, v]) => (
@@ -133,13 +132,13 @@ function ReportCard({ report, isOpening, onDelete, onView }) {
                   >
                     {/* Las opciones se guardan por índice de columna */}
                     <strong className="opacity-70 mr-1">{k === "mostRepeated" ? "Column" : columnName(k)}:</strong>
-                    {k === "mostRepeated" ? columnName(v) : describeFilter(v)}
+                    {k === "mostRepeated" ? columnName(v) : describeFilter(v, locale)}
                   </span>
                 ))}
               </div>
             </div>
           ) : (
-            <p className="text-xs text-gray-500 dark:text-gray-400">No filters.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t("No filters.")}</p>
           )}
         </div>
       )}
@@ -149,6 +148,7 @@ function ReportCard({ report, isOpening, onDelete, onView }) {
 
 function SavedReportsPage() {
   const { setReport } = useDataContext();
+  const { t, tServer, fmtNumber } = useI18n();
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -162,11 +162,11 @@ function SavedReportsPage() {
       const res = await listReports();
       setReports(res.data);
     } catch (err) {
-      setError(err.response?.data?.message || "Could not load your reports.");
+      setError(tServer(err.response?.data?.message, "Could not load your reports."));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [tServer]);
 
   useEffect(() => {
     loadReports();
@@ -178,7 +178,7 @@ function SavedReportsPage() {
     try {
       const { data: full } = await getReport(report._id);
       if (!full.snapshot?.data) {
-        toast.error("This report was saved without its data. Generate it again from the Reader.");
+        toast.error(t("This report was saved without its data. Generate it again from the Reader."));
         return;
       }
       setReport({
@@ -192,7 +192,7 @@ function SavedReportsPage() {
       });
       navigate("/charts");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Could not open the report.");
+      toast.error(tServer(err.response?.data?.message, "Could not open the report."));
     } finally {
       setOpeningId(null);
     }
@@ -202,9 +202,9 @@ function SavedReportsPage() {
     try {
       await deleteReport(report._id);
       setReports((prev) => prev.filter((r) => r._id !== report._id));
-      toast.success("Report deleted");
+      toast.success(t("Report deleted"));
     } catch (err) {
-      toast.error(err.response?.data?.message || "Could not delete the report.");
+      toast.error(tServer(err.response?.data?.message, "Could not delete the report."));
     }
   };
 
@@ -216,10 +216,10 @@ function SavedReportsPage() {
             <FontAwesomeIcon icon={faClockRotateLeft} className="text-xl" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">My Reports</h1>
+            <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t("My Reports")}</h1>
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Your saved reports
-              {reports.length > 0 && ` · ${reports.length} total`}
+              {t("Your saved reports")}
+              {reports.length > 0 && ` · ${t("{count} total", { count: fmtNumber(reports.length) })}`}
             </p>
           </div>
         </div>
@@ -241,13 +241,13 @@ function SavedReportsPage() {
             <div className="w-16 h-16 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
               <FontAwesomeIcon icon={faChartBar} className="text-2xl" />
             </div>
-            <p className="text-gray-900 dark:text-white font-bold text-lg mb-1">No saved reports</p>
+            <p className="text-gray-900 dark:text-white font-bold text-lg mb-1">{t("No saved reports")}</p>
             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
-              Generate a report from the{" "}
+              {t("Generate a report from the")}{" "}
               <Link to="/filereader" className="text-blue-600 dark:text-blue-400 font-bold hover:underline">
-                Reader
+                {t("Reader")}
               </Link>{" "}
-              and click &quot;Save report&quot;.
+              {t('and click "Save report".')}
             </p>
           </div>
         )}

@@ -8,10 +8,12 @@ import {
   faEyeSlash,
 } from "@fortawesome/free-solid-svg-icons";
 import toast from "react-hot-toast"; // ✅ Importamos toast
+import { useI18n } from "../i18n/I18nContext.jsx";
 
 function LoginPage() {
   const navigate = useNavigate();
   const { login, errors: loginErrors, isLoggedIn } = useAuth();
+  const { t, tServer } = useI18n();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -27,7 +29,7 @@ function LoginPage() {
     try {
       await login(formData);
     } catch {
-      toast.error("Invalid email or password"); // ✅ Toast de error
+      toast.error(t("Invalid email or password"));
     } finally {
       setIsLoading(false);
     }
@@ -41,15 +43,15 @@ function LoginPage() {
     <div className="flex-1 flex justify-center items-center bg-gray-50 dark:bg-gray-900  px-4 py-8">
       <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 sm:p-10 rounded-4xl shadow-xs">
         <h1 className="text-3xl font-black mb-2 text-gray-900 dark:text-white tracking-tight">
-          Welcome back
+          {t("Welcome back")}
         </h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-8">
-          Sign in to access your data and reports.
+          {t("Sign in to access your data and reports.")}
         </p>
 
         {loginErrors && (
           <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-500/40 text-red-700 dark:text-red-300 px-4 py-3 rounded-xl text-sm font-bold mb-6">
-            {loginErrors}
+            {tServer(loginErrors)}
           </div>
         )}
 
@@ -59,7 +61,7 @@ function LoginPage() {
               htmlFor="email"
               className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
             >
-              Email Address
+              {t("Email Address")}
             </label>
             <input
               type="email"
@@ -78,7 +80,7 @@ function LoginPage() {
               htmlFor="password"
               className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
             >
-              Password
+              {t("Password")}
             </label>
             <div className="relative">
               <input
@@ -111,21 +113,21 @@ function LoginPage() {
           >
             {isLoading ? (
               <>
-                <FontAwesomeIcon icon={faSpinner} spin /> Signing in...
+                <FontAwesomeIcon icon={faSpinner} spin /> {t("Signing in...")}
               </>
             ) : (
-              "Sign in"
+              t("Sign in")
             )}
           </button>
         </form>
 
         <p className="mt-8 text-center text-gray-500 dark:text-gray-400 text-sm font-medium">
-          Don&apos;t have an account?{" "}
+          {t("Don't have an account?")}{" "}
           <Link
             to="/register"
             className="text-blue-600 dark:text-blue-400 hover:underline font-bold"
           >
-            Create one
+            {t("Create one")}
           </Link>
         </p>
       </div>

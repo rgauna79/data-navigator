@@ -2,10 +2,12 @@ import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner, faXmark, faFloppyDisk, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import { saveData } from "../../api/data.js";
+import { useI18n } from "../../i18n/I18nContext.jsx";
 
 // Diálogo para guardar la hoja con un nombre. Si ya existe un archivo con
 // ese nombre, el servidor responde 409 y se pide confirmación para sobrescribirlo.
 function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
+  const { t, tServer } = useI18n();
   const [name, setName] = useState(defaultName || "");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -14,7 +16,7 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
   const save = async (overwrite) => {
     const sheetName = name.trim();
     if (!sheetName) {
-      setError("Please enter a name.");
+      setError(t("Please enter a name."));
       return;
     }
     setIsSaving(true);
@@ -26,7 +28,7 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
       if (err.response?.status === 409) {
         setConfirmOverwrite(true);
       } else {
-        setError(err.response?.data?.message || "Error saving. Please try again.");
+        setError(tServer(err.response?.data?.message, "Error saving. Please try again."));
       }
     } finally {
       setIsSaving(false);
@@ -49,9 +51,9 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
           if (err.response?.status !== 409) throw err;
         }
       }
-      setError("Could not find a free name. Please choose another name.");
+      setError(t("Could not find a free name. Please choose another name."));
     } catch (err) {
-      setError(err.response?.data?.message || "Error saving. Please try again.");
+      setError(tServer(err.response?.data?.message, "Error saving. Please try again."));
     } finally {
       setIsSaving(false);
     }
@@ -71,11 +73,11 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
           <h2 id="save-dialog-title" className="text-lg font-black text-gray-900 dark:text-white">
-            Save sheet
+            {t("Save sheet")}
           </h2>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("Close")}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <FontAwesomeIcon icon={faXmark} />
@@ -84,7 +86,7 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
 
         <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
           <label htmlFor="saveName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Name
+            {t("Name")}
           </label>
           <input
             id="saveName"
@@ -102,8 +104,9 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
             <div className="flex gap-2 text-sm bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-300 px-3 py-2 rounded-lg">
               <FontAwesomeIcon icon={faTriangleExclamation} className="mt-0.5" />
               <span>
-                A saved file named <strong>{name.trim()}</strong> already exists. Replace it, save a
-                copy with a new name, or choose another name.
+                {t('A saved file named "{name}" already exists. Replace it, save a copy with a new name, or choose another name.', {
+                  name: name.trim(),
+                })}
               </span>
             </div>
           )}
@@ -119,7 +122,7 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
               onClick={onClose}
               className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              Cancel
+              {t("Cancel")}
             </button>
             {confirmOverwrite ? (
               <>
@@ -129,7 +132,7 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
                   onClick={saveAsCopy}
                   className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold rounded-xl transition-colors"
                 >
-                  Save as copy
+                  {t("Save as copy")}
                 </button>
                 <button
                   type="button"
@@ -138,7 +141,7 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
                   className="flex items-center gap-2 px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-bold rounded-xl transition-colors"
                 >
                   {isSaving && <FontAwesomeIcon icon={faSpinner} spin />}
-                  Replace
+                  {t("Replace")}
                 </button>
               </>
             ) : (
@@ -148,7 +151,7 @@ function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold rounded-xl transition-colors"
               >
                 <FontAwesomeIcon icon={isSaving ? faSpinner : faFloppyDisk} spin={isSaving} />
-                Save
+                {t("Save")}
               </button>
             )}
           </div>

@@ -11,6 +11,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { flexRender } from "@tanstack/react-table";
 import { minMax, numericValues, toNumber } from "../../utils/excelUtils.js";
+import { useI18n } from "../../i18n/I18nContext.jsx";
 
 // Calcula min/max por columna numérica
 const getColumnRanges = (data, numericCols, columnTypes) => {
@@ -34,6 +35,7 @@ const toolbarButton = (active) =>
 
 // Filtro de una columna según su tipo (ver DataTable: meta.type)
 function ColumnFilter({ column }) {
+  const { t } = useI18n();
   const type = column.columnDef.meta?.type;
   const value = column.getFilterValue();
   const label = column.columnDef.header;
@@ -44,16 +46,16 @@ function ColumnFilter({ column }) {
       <div className="flex gap-1">
         <input
           inputMode="decimal"
-          placeholder="Min"
-          aria-label={`${label} minimum`}
+          placeholder={t("Min")}
+          aria-label={t("{name} minimum", { name: label })}
           value={min}
           onChange={(e) => column.setFilterValue([e.target.value, max])}
           className={filterInput}
         />
         <input
           inputMode="decimal"
-          placeholder="Max"
-          aria-label={`${label} maximum`}
+          placeholder={t("Max")}
+          aria-label={t("{name} maximum", { name: label })}
           value={max}
           onChange={(e) => column.setFilterValue([min, e.target.value])}
           className={filterInput}
@@ -68,14 +70,14 @@ function ColumnFilter({ column }) {
       <div className="flex flex-col gap-1">
         <input
           type="date"
-          aria-label={`${label} from`}
+          aria-label={t("{name} from", { name: label })}
           value={from}
           onChange={(e) => column.setFilterValue({ from: e.target.value, to })}
           className={filterInput}
         />
         <input
           type="date"
-          aria-label={`${label} to`}
+          aria-label={t("{name} to", { name: label })}
           value={to}
           onChange={(e) => column.setFilterValue({ from, to: e.target.value })}
           className={filterInput}
@@ -86,8 +88,8 @@ function ColumnFilter({ column }) {
 
   return (
     <input
-      placeholder="Contains..."
-      aria-label={`Filter ${label}`}
+      placeholder={t("Contains...")}
+      aria-label={t("Filter {name}", { name: label })}
       value={value ?? ""}
       onChange={(e) => column.setFilterValue(e.target.value)}
       className={filterInput}
@@ -98,6 +100,7 @@ function ColumnFilter({ column }) {
 // Celda que se edita con doble clic (limpieza de datos). Enter o salir del
 // campo guarda el cambio; Escape lo descarta.
 function EditableCell({ cell, table, alignRight = false }) {
+  const { t } = useI18n();
   const initialValue = cell.getValue() ?? "";
   const [value, setValue] = useState(initialValue);
   const [isEditing, setIsEditing] = useState(false);
@@ -118,7 +121,7 @@ function EditableCell({ cell, table, alignRight = false }) {
     return (
       <input
         autoFocus
-        aria-label={`Edit ${cell.column.columnDef.header}`}
+        aria-label={t("Edit {name}", { name: cell.column.columnDef.header })}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={commit}
@@ -137,7 +140,7 @@ function EditableCell({ cell, table, alignRight = false }) {
       className={`group cursor-text min-h-[24px] flex items-center justify-between gap-2 px-1 -mx-1 rounded-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 ${
         alignRight ? "flex-row-reverse" : ""
       }`}
-      title="Double click to edit"
+      title={t("Double click to edit")}
     >
       <span className="truncate">{initialValue}</span>
       <FontAwesomeIcon icon={faPen} className="text-[10px] opacity-0 group-hover:opacity-100 text-blue-500 transition-opacity" />
@@ -147,6 +150,7 @@ function EditableCell({ cell, table, alignRight = false }) {
 
 // Menú para mostrar u ocultar columnas
 function ColumnsMenu({ table }) {
+  const { t, fmtNumber } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const hidden = table.getAllLeafColumns().filter((c) => !c.getIsVisible()).length;
@@ -167,8 +171,10 @@ function ColumnsMenu({ table }) {
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className={toolbarButton(hidden > 0)}>
-        <FontAwesomeIcon icon={faEye} className="text-xs" /> Columns
-        {hidden > 0 && <span className="text-xs rounded-full px-1.5 bg-white/25">{hidden} hidden</span>}
+        <FontAwesomeIcon icon={faEye} className="text-xs" /> {t("Columns")}
+        {hidden > 0 && (
+          <span className="text-xs rounded-full px-1.5 bg-white/25">{t("{count} hidden", { count: fmtNumber(hidden) })}</span>
+        )}
         <FontAwesomeIcon icon={faChevronDown} className="text-[10px] opacity-60" />
       </button>
       {open && (
@@ -181,7 +187,7 @@ function ColumnsMenu({ table }) {
                 onChange={table.getToggleAllColumnsVisibilityHandler()}
                 className="rounded-sm border-gray-300 text-blue-600"
               />
-              <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">Show all</span>
+              <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">{t("Show all")}</span>
             </label>
           </div>
           <div className="max-h-60 overflow-y-auto p-2 space-y-1">
@@ -226,6 +232,7 @@ function CommonTable({
   showSaveButton = false, globalFilter, setGlobalFilter,
   editable = false, canUndo = false, onUndo,
 }) {
+  const { t, tn, fmtNumber } = useI18n();
   const [showModal, setShowModal] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [heatmap, setHeatmap] = useState(false);
@@ -236,7 +243,7 @@ function CommonTable({
 
   const handleSaved = (name) => {
     setShowSaveDialog(false);
-    toast.success(`"${name}" saved successfully!`);
+    toast.success(t('"{name}" saved successfully!', { name }));
   };
 
   // La exportación respeta las columnas visibles
@@ -276,24 +283,24 @@ function CommonTable({
                 type="text"
                 value={globalFilter ?? ""}
                 onChange={(e) => setGlobalFilter(e.target.value)}
-                placeholder="Search all columns..."
+                placeholder={t("Search all columns...")}
                 className="w-full pl-9 pr-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors shadow-xs"
               />
             </div>
             {numericCols.size > 0 && (
               <button
                 onClick={() => setHeatmap((v) => !v)}
-                title="Toggle color heatmap for numeric columns"
+                title={t("Toggle color heatmap for numeric columns")}
                 aria-pressed={heatmap}
                 className={toolbarButton(heatmap)}
               >
                 <FontAwesomeIcon icon={faPalette} className="text-xs" />
-                Heatmap
+                {t("Heatmap")}
               </button>
             )}
             <button onClick={() => setShowFilters((v) => !v)} aria-pressed={showFilters} className={toolbarButton(showFilters)}>
               <FontAwesomeIcon icon={faFilter} className="text-xs" />
-              Filters
+              {t("Filters")}
               {activeColumnFilters > 0 && (
                 <span className={`text-xs rounded-full px-1.5 ${showFilters ? "bg-white/25" : "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"}`}>
                   {activeColumnFilters}
@@ -305,7 +312,7 @@ function CommonTable({
                 onClick={() => table.resetColumnFilters()}
                 className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline px-1"
               >
-                Clear filters
+                {t("Clear filters")}
               </button>
             )}
             <ColumnsMenu table={table} />
@@ -326,28 +333,28 @@ function CommonTable({
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95"
               onClick={() => setShowModal(true)}
             >
-              <FontAwesomeIcon icon={faChartBar} /> Generate Report
+              <FontAwesomeIcon icon={faChartBar} /> {t("Generate Report")}
             </button>
             {showSaveButton && (
               <button
                 className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95"
                 onClick={() => setShowSaveDialog(true)}
               >
-                <FontAwesomeIcon icon={faFloppyDisk} /> Save Data
+                <FontAwesomeIcon icon={faFloppyDisk} /> {t("Save Data")}
               </button>
             )}
             {canUndo && (
               <button
                 onClick={onUndo}
                 className="flex items-center gap-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95"
-                title="Undo last edit"
+                title={t("Undo last edit")}
               >
-                <FontAwesomeIcon icon={faRotateLeft} /> Undo edit
+                <FontAwesomeIcon icon={faRotateLeft} /> {t("Undo edit")}
               </button>
             )}
             {editable && (
               <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline">
-                Double click a cell to edit it
+                {t("Double click a cell to edit it")}
               </span>
             )}
             {handleCloseTable && (
@@ -355,7 +362,7 @@ function CommonTable({
                 className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm px-4 py-2 rounded-xl transition-all ml-auto"
                 onClick={handleCloseTable}
               >
-                <FontAwesomeIcon icon={faXmark} /> Close
+                <FontAwesomeIcon icon={faXmark} /> {t("Close")}
               </button>
             )}
           </div>
@@ -363,12 +370,12 @@ function CommonTable({
           {/* Heatmap legend */}
           {heatmap && numericCols.size > 0 && (
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-              <span>Low</span>
+              <span>{t("Low")}</span>
               {["bg-green-100","bg-blue-100","bg-yellow-100","bg-orange-100","bg-red-100"].map((c) => (
                 <span key={c} className={`w-5 h-3 rounded-xs ${c} border border-gray-200`} />
               ))}
-              <span>High</span>
-              <span className="ml-2 text-gray-400">· numeric columns only</span>
+              <span>{t("High")}</span>
+              <span className="ml-2 text-gray-400">· {t("numeric columns only")}</span>
             </div>
           )}
 
@@ -410,7 +417,7 @@ function CommonTable({
                 {table.getRowModel().rows.length === 0 && (
                   <tr>
                     <td colSpan={visibleIdx.length || 1} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                      No rows match the current search or filters.
+                      {t("No rows match the current search or filters.")}
                     </td>
                   </tr>
                 )}
@@ -444,7 +451,7 @@ function CommonTable({
           {/* Pagination */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs">
             <div className="flex items-center gap-3">
-              <span className="font-medium">Rows per page:</span>
+              <span className="font-medium">{t("Rows per page:")}</span>
               <select
                 value={pageSize}
                 onChange={(e) => table.setPageSize(Number(e.target.value))}
@@ -454,16 +461,16 @@ function CommonTable({
               </select>
             </div>
             <span className="text-xs font-medium">
-              Page <strong className="text-gray-900 dark:text-white">{pageIndex + 1}</strong> of{" "}
-              <strong className="text-gray-900 dark:text-white">{pageCount || 1}</strong>
-              {" "}· {table.getFilteredRowModel().rows.length.toLocaleString()} rows
+              {t("Page")} <strong className="text-gray-900 dark:text-white">{fmtNumber(pageIndex + 1)}</strong> {t("of")}{" "}
+              <strong className="text-gray-900 dark:text-white">{fmtNumber(pageCount || 1)}</strong>
+              {" "}· {tn("{count} row", "{count} rows", table.getFilteredRowModel().rows.length)}
             </span>
             <div className="flex items-center gap-1">
               {[
-                { icon: faAnglesLeft,   label: "First page",    action: () => table.setPageIndex(0),           disabled: !canPreviousPage },
-                { icon: faChevronLeft,  label: "Previous page", action: () => table.previousPage(),             disabled: !canPreviousPage },
-                { icon: faChevronRight, label: "Next page",     action: () => table.nextPage(),                 disabled: !canNextPage },
-                { icon: faAnglesRight,  label: "Last page",     action: () => table.setPageIndex(pageCount-1), disabled: !canNextPage },
+                { icon: faAnglesLeft,   label: t("First page"),    action: () => table.setPageIndex(0),           disabled: !canPreviousPage },
+                { icon: faChevronLeft,  label: t("Previous page"), action: () => table.previousPage(),             disabled: !canPreviousPage },
+                { icon: faChevronRight, label: t("Next page"),     action: () => table.nextPage(),                 disabled: !canNextPage },
+                { icon: faAnglesRight,  label: t("Last page"),     action: () => table.setPageIndex(pageCount-1), disabled: !canNextPage },
               ].map(({ icon, label, action, disabled }) => (
                 <button key={label} onClick={action} disabled={disabled} aria-label={label}
                   className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -476,7 +483,7 @@ function CommonTable({
       ) : (
         <div className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-8 text-center">
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            No data to display.
+            {t("No data to display.")}
           </p>
         </div>
       )}

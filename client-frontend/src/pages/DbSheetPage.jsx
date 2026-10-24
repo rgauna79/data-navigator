@@ -8,22 +8,21 @@ import {
   renameSavedFile,
   deleteSavedFile,
 } from "../api/data.js";
+import { useI18n } from "../i18n/I18nContext.jsx";
+import { useOpenInReader } from "../hooks/useOpenInReader.js";
+import { fileFromRows } from "../utils/fileFromRows.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faSpinner, faEye, faXmark, faDatabase, faPen, faTrash, faCheck, faSearch,
+  faSpinner, faEye, faXmark, faDatabase, faPen, faTrash, faCheck, faSearch, faFileExcel,
 } from "@fortawesome/free-solid-svg-icons";
 
-const errorMessage = (err, fallback) => err.response?.data?.message || fallback;
-
-const fmtDate = (d) =>
-  new Date(d).toLocaleString("en-US", {
-    month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
-  });
+const DATE_TIME = { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" };
 
 const iconButton =
   "w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-white transition-colors disabled:opacity-40";
 
-function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, onDelete }) {
+function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, onDelete, onOpenInReader }) {
+  const { t, tn, locale } = useI18n();
   const [mode, setMode] = useState("view"); // view | rename | delete
   const [name, setName] = useState(file.sheetName);
   const [isBusy, setIsBusy] = useState(false);
@@ -66,7 +65,7 @@ function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, on
           <form onSubmit={submitRename} className="flex items-center gap-2 flex-1">
             <input
               autoFocus
-              aria-label="New name"
+              aria-label={t("New name")}
               value={name}
               maxLength={200}
               onChange={(e) => setName(e.target.value)}
@@ -75,14 +74,14 @@ function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, on
               }}
               className="flex-1 min-w-0 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             />
-            <button type="submit" disabled={isBusy} className={iconButton} title="Save name" aria-label="Save name">
+            <button type="submit" disabled={isBusy} className={iconButton} title={t("Save name")} aria-label={t("Save name")}>
               <FontAwesomeIcon icon={isBusy ? faSpinner : faCheck} spin={isBusy} />
             </button>
             <button
               type="button"
               className={iconButton}
-              title="Cancel"
-              aria-label="Cancel rename"
+              title={t("Cancel")}
+              aria-label={t("Cancel rename")}
               onClick={cancelRename}
             >
               <FontAwesomeIcon icon={faXmark} />
@@ -92,8 +91,10 @@ function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, on
           <div className="min-w-0">
             <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{file.sheetName}</p>
             <p className="text-xs text-gray-400 dark:text-gray-500">
-              {file.rowCount.toLocaleString()} row{file.rowCount === 1 ? "" : "s"} · {file.columnCount} column{file.columnCount === 1 ? "" : "s"}
-              {file.updatedAt && <> · Updated {fmtDate(file.updatedAt)}</>}
+              {tn("{count} row", "{count} rows", file.rowCount)} · {tn("{count} column", "{count} columns", file.columnCount)}
+              {file.updatedAt && (
+                <> · {t("Updated {date}", { date: new Date(file.updatedAt).toLocaleString(locale, DATE_TIME) })}</>
+              )}
             </p>
           </div>
         )}
@@ -101,19 +102,19 @@ function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, on
 
       {mode === "delete" ? (
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600 dark:text-gray-300">Delete this file?</span>
+          <span className="text-gray-600 dark:text-gray-300">{t("Delete this file?")}</span>
           <button
             disabled={isBusy}
             onClick={confirmDelete}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white"
           >
-            {isBusy && <FontAwesomeIcon icon={faSpinner} spin />} Delete
+            {isBusy && <FontAwesomeIcon icon={faSpinner} spin />} {t("Delete")}
           </button>
           <button
             onClick={() => setMode("view")}
             className="px-3 py-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
-            Cancel
+            {t("Cancel")}
           </button>
         </div>
       ) : (
@@ -133,12 +134,22 @@ function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, on
                 spin={isOpening}
                 className="text-xs"
               />
-              {isActive ? "Close" : "View"}
+              {isActive ? t("Close") : t("View")}
             </button>
-            <button className={iconButton} title="Rename" aria-label={`Rename ${file.sheetName}`} onClick={() => setMode("rename")}>
+            <button
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors mr-1 disabled:opacity-50"
+              title={t("Open in the Reader to analyze, clean and create reports")}
+              aria-label={t("Open {name} in the Reader", { name: file.sheetName })}
+              disabled={isOpening}
+              onClick={() => onOpenInReader(file)}
+            >
+              <FontAwesomeIcon icon={faFileExcel} className="text-xs text-green-600" />
+              <span className="hidden sm:inline">{t("Analyze")}</span>
+            </button>
+            <button className={iconButton} title={t("Rename")} aria-label={t("Rename {name}", { name: file.sheetName })} onClick={() => setMode("rename")}>
               <FontAwesomeIcon icon={faPen} className="text-xs" />
             </button>
-            <button className={iconButton} title="Delete" aria-label={`Delete ${file.sheetName}`} onClick={() => setMode("delete")}>
+            <button className={iconButton} title={t("Delete")} aria-label={t("Delete {name}", { name: file.sheetName })} onClick={() => setMode("delete")}>
               <FontAwesomeIcon icon={faTrash} className="text-xs" />
             </button>
           </div>
@@ -149,6 +160,12 @@ function SavedFileRow({ file, isActive, isOpening, onView, onClose, onRename, on
 }
 
 function DbSheetPage() {
+  const { t, tn, tServer } = useI18n();
+  const openInReader = useOpenInReader();
+  const errorMessage = useCallback(
+    (err, fallback) => tServer(err.response?.data?.message, fallback),
+    [tServer]
+  );
   const [files, setFiles] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -167,7 +184,7 @@ function DbSheetPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [errorMessage]);
 
   useEffect(() => {
     loadFiles();
@@ -195,11 +212,24 @@ function DbSheetPage() {
         prev.map((f) => (f._id === file._id ? { ...f, sheetName: res.data.sheetName, updatedAt: res.data.updatedAt } : f))
       );
       setActiveSheet((prev) => (prev?.id === file._id ? { ...prev, sheetName: res.data.sheetName } : prev));
-      toast.success(`Renamed to "${res.data.sheetName}"`);
+      toast.success(t('Renamed to "{name}"', { name: res.data.sheetName }));
       return true;
     } catch (err) {
       setError(errorMessage(err, "Could not rename the file."));
       return false;
+    }
+  };
+
+  // Abre el archivo guardado en el lector (informes, edición, comparación...)
+  const handleOpenInReader = async (file) => {
+    setOpeningId(file._id);
+    setError("");
+    try {
+      const res = await getSavedFile(file._id);
+      await openInReader(fileFromRows(res.data.sheetName, res.data.fileData));
+    } catch (err) {
+      setError(errorMessage(err, "Could not open the file."));
+      setOpeningId(null);
     }
   };
 
@@ -209,7 +239,7 @@ function DbSheetPage() {
       await deleteSavedFile(file._id);
       setFiles((prev) => prev.filter((f) => f._id !== file._id));
       setActiveSheet((prev) => (prev?.id === file._id ? null : prev));
-      toast.success("File deleted successfully");
+      toast.success(t("File deleted successfully"));
     } catch (err) {
       setError(errorMessage(err, "Could not delete the file."));
     }
@@ -228,9 +258,11 @@ function DbSheetPage() {
             <FontAwesomeIcon icon={faDatabase} />
           </div>
           <div>
-            <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Saved Files</h1>
+            <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{t("Saved Files")}</h1>
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              {files ? `${files.length} file${files.length === 1 ? "" : "s"} stored in your account` : "Files stored in your account"}
+              {files
+                ? tn("{count} file stored in your account", "{count} files stored in your account", files.length)
+                : t("Files stored in your account")}
             </p>
           </div>
         </div>
@@ -246,7 +278,7 @@ function DbSheetPage() {
         {isLoading && (
           <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 py-8 justify-center">
             <FontAwesomeIcon icon={faSpinner} spin />
-            <span className="text-sm">Loading saved files...</span>
+            <span className="text-sm">{t("Loading saved files...")}</span>
           </div>
         )}
 
@@ -259,8 +291,8 @@ function DbSheetPage() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search saved files..."
-                  aria-label="Search saved files"
+                  placeholder={t("Search saved files...")}
+                  aria-label={t("Search saved files")}
                   className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -269,15 +301,15 @@ function DbSheetPage() {
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-700 shadow-xs">
               {files.length === 0 ? (
                 <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm">
-                  No saved files yet.{" "}
+                  {t("No saved files yet.")}{" "}
                   <Link to="/filereader" className="text-blue-500 hover:text-blue-400 font-medium">
-                    Open the File Reader
+                    {t("Open the File Reader")}
                   </Link>{" "}
-                  to upload and save a sheet.
+                  {t("to upload and save a sheet.")}
                 </div>
               ) : visibleFiles.length === 0 ? (
                 <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
-                  No files match &quot;{search}&quot;.
+                  {t('No files match "{search}".', { search })}
                 </div>
               ) : (
                 visibleFiles.map((file) => (
@@ -290,6 +322,7 @@ function DbSheetPage() {
                     onClose={() => setActiveSheet(null)}
                     onRename={handleRename}
                     onDelete={handleDelete}
+                    onOpenInReader={handleOpenInReader}
                   />
                 ))
               )}
@@ -301,7 +334,7 @@ function DbSheetPage() {
         {activeSheet && (
           <div className="mt-8 pt-8 border-t-2 border-dashed border-gray-200 dark:border-gray-700">
             <h2 className="text-lg font-black text-gray-900 dark:text-white mb-4">
-              Viewing: <span className="text-purple-600 dark:text-purple-400">{activeSheet.sheetName}</span>
+              {t("Viewing:")} <span className="text-purple-600 dark:text-purple-400">{activeSheet.sheetName}</span>
             </h2>
             <DataTable
               key={activeSheet.id}

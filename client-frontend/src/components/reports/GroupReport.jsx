@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Bar, Line, Pie } from "react-chartjs-2";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChartBar, faChartLine, faChartPie, faFileCsv } from "@fortawesome/free-solid-svg-icons";
-import { METRICS, PERIODS, downloadCsv } from "../../utils/reportUtils.js";
+import { BLANK_LABEL, METRICS, PERIODS, downloadCsv, formatPeriodLabel } from "../../utils/reportUtils.js";
+import { useI18n } from "../../i18n/I18nContext.jsx";
 
 const PALETTE = [
   "59,130,246", "16,185,129", "245,158,11", "239,68,68", "139,92,246",
@@ -10,17 +11,13 @@ const PALETTE = [
 ];
 const OTHER_COLOR = "156,163,175";
 
-const formatValue = (value, metric) => {
-  if (value === null || value === undefined) return "—";
-  return metric === "count"
-    ? value.toLocaleString("en-US")
-    : value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-
 // Resultado del informe "Group & summarize": gráfico, tabla y exportación a CSV.
 // result: salida de groupRows; config: configuración elegida en el Modal.
 function GroupReport({ result, config, headers, includedOptions, rowCount }) {
   const { groups, total, skipped } = result;
+  const { t, tn, locale, fmtNumber, fmtDecimal } = useI18n();
+  const formatValue = (value) =>
+    value === null || value === undefined ? "—" : metric === "count" ? fmtNumber(value) : fmtDecimal(value);
   const { metric, groupType, period, groupIdx, valueIdx } = config;
   const isDate = groupType === "date";
   const additive = metric === "count" || metric === "sum";
@@ -28,27 +25,37 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
   const canPie = !isDate && additive && groups.every((g) => (g.value ?? 0) >= 0);
   const [chartType, setChartType] = useState(isDate ? "line" : "bar");
 
-  const groupName = headers?.[groupIdx] ?? `Column ${groupIdx + 1}`;
-  const valueName = valueIdx != null ? headers?.[valueIdx] ?? `Column ${valueIdx + 1}` : null;
-  const metricLabel = metric === "count" ? "Count of rows" : `${METRICS[metric]} of ${valueName}`;
-  const title = `${metricLabel} by ${groupName}${isDate ? ` (per ${PERIODS[period].toLowerCase()})` : ""}`;
+  const groupName = headers?.[groupIdx] ?? t("Column {n}", { n: groupIdx + 1 });
+  const valueName = valueIdx != null ? headers?.[valueIdx] ?? t("Column {n}", { n: valueIdx + 1 }) : null;
+  const metricLabel =
+    metric === "count" ? t("Count of rows") : t("{metric} of {column}", { metric: t(METRICS[metric]), column: valueName });
+  const byLabel = t("{metric} by {group}", { metric: metricLabel, group: groupName });
+  const title = isDate ? t("{title} (per {period})", { title: byLabel, period: t(PERIODS[period]).toLowerCase() }) : byLabel;
   const showShare = additive && total > 0;
   // Con "count" la columna de filas repetiría el mismo número que el valor
   const showRows = metric !== "count";
-  const share = (value) => (showShare && value != null ? `${((value / total) * 100).toFixed(1)}%` : "");
+  const share = (value) =>
+    showShare && value != null ? `${fmtNumber((value / total) * 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "";
+
+  // Etiqueta de cada grupo en el idioma de la interfaz
+  const labelOf = (g) => {
+    if (g.isOther) return tn("Other ({count} group)", "Other ({count} groups)", g.groupCount);
+    if (isDate) return formatPeriodLabel(g.key, period, locale, t);
+    return g.key === BLANK_LABEL ? t("(blank)") : g.label;
+  };
 
   const tabs = [
-    { id: "bar", label: "Bar", icon: faChartBar },
-    { id: "line", label: "Line", icon: faChartLine },
-    ...(canPie ? [{ id: "pie", label: "Pie", icon: faChartPie }] : []),
+    { id: "bar", label: t("Bar"), icon: faChartBar },
+    { id: "line", label: t("Line"), icon: faChartLine },
+    ...(canPie ? [{ id: "pie", label: t("Pie"), icon: faChartPie }] : []),
   ];
-  const activeChart = tabs.some((t) => t.id === chartType) ? chartType : tabs[0].id;
+  const activeChart = tabs.some((tab) => tab.id === chartType) ? chartType : tabs[0].id;
 
   const colorFor = (g, i, alpha) =>
     `rgba(${g.isOther ? OTHER_COLOR : isDate ? PALETTE[0] : PALETTE[i % PALETTE.length]},${alpha})`;
 
   const chartData = {
-    labels: groups.map((g) => g.label),
+    labels: groups.map(labelOf),
     datasets: [
       {
         label: metricLabel,
@@ -78,7 +85,7 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
           label: (ctx) => {
             const g = groups[ctx.dataIndex];
             const extra = share(g.value);
-            return ` ${formatValue(g.value, metric)}${extra ? ` (${extra})` : ""}`;
+            return ` ${formatValue(g.value)}${extra ? ` (${extra})` : ""}`;
           },
         },
       },
@@ -96,16 +103,16 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
 
   const handleDownload = () => {
     const rows = [
-      [groupName, metricLabel, "Rows", ...(showShare ? ["% of total"] : [])],
+      [groupName, metricLabel, t("Rows"), ...(showShare ? [t("% of total")] : [])],
       ...groups.map((g) => [
-        g.label,
+        labelOf(g),
         g.value ?? "",
         g.rows,
         ...(showShare ? [g.value != null ? ((g.value / total) * 100).toFixed(1) : ""] : []),
       ]),
-      ["Total", total ?? "", groups.reduce((n, g) => n + g.rows, 0), ...(showShare ? ["100.0"] : [])],
+      [t("Total"), total ?? "", groups.reduce((n, g) => n + g.rows, 0), ...(showShare ? ["100.0"] : [])],
     ];
-    const safeName = title.replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_").toLowerCase();
+    const safeName = title.normalize("NFD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "_").toLowerCase();
     downloadCsv(`${safeName || "report"}.csv`, rows);
   };
 
@@ -132,9 +139,9 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
       {/* Resumen */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { label: "Groups", value: groups.filter((g) => g.rows > 0).length.toLocaleString("en-US") },
-          { label: "Rows", value: rowCount.toLocaleString("en-US") },
-          { label: metric === "count" ? "Total rows" : `${METRICS[metric]} (all)`, value: formatValue(total, metric) },
+          { label: t("Groups"), value: fmtNumber(groups.filter((g) => g.rows > 0).length) },
+          { label: t("Rows"), value: fmtNumber(rowCount) },
+          { label: metric === "count" ? t("Total rows") : t("{metric} (all)", { metric: t(METRICS[metric]) }), value: formatValue(total) },
         ].map(({ label, value }) => (
           <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-xl px-4 py-3">
             <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
@@ -145,12 +152,17 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
 
       {skipped > 0 && (
         <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2">
-          {skipped.toLocaleString("en-US")} row{skipped === 1 ? "" : "s"} without a valid date in {groupName} were left out.
+          {tn(
+            "{count} row without a valid date in {column} was left out.",
+            "{count} rows without a valid date in {column} were left out.",
+            skipped,
+            { column: groupName }
+          )}
         </p>
       )}
 
       {groups.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">No rows match the selected filters.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{t("No rows match the selected filters.")}</p>
       ) : (
         <>
           {/* Gráfico */}
@@ -183,30 +195,30 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
                 <tr>
                   <th className="px-4 py-2.5 text-left font-medium">{groupName}</th>
                   <th className="px-4 py-2.5 text-right font-medium">{metricLabel}</th>
-                  {showRows && <th className="px-4 py-2.5 text-right font-medium">Rows</th>}
-                  {showShare && <th className="px-4 py-2.5 text-right font-medium">% of total</th>}
+                  {showRows && <th className="px-4 py-2.5 text-right font-medium">{t("Rows")}</th>}
+                  {showShare && <th className="px-4 py-2.5 text-right font-medium">{t("% of total")}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-gray-700 dark:text-gray-300">
                 {groups.map((g) => (
                   <tr key={g.key} className={g.isOther ? "italic text-gray-500 dark:text-gray-400" : ""}>
-                    <td className="px-4 py-2">{g.label}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{formatValue(g.value, metric)}</td>
-                    {showRows && <td className="px-4 py-2 text-right tabular-nums">{g.rows.toLocaleString("en-US")}</td>}
+                    <td className="px-4 py-2">{labelOf(g)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{formatValue(g.value)}</td>
+                    {showRows && <td className="px-4 py-2 text-right tabular-nums">{fmtNumber(g.rows)}</td>}
                     {showShare && <td className="px-4 py-2 text-right tabular-nums">{share(g.value)}</td>}
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-gray-50 dark:bg-gray-700/40 font-semibold text-gray-900 dark:text-white">
                 <tr>
-                  <td className="px-4 py-2">Total</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{formatValue(total, metric)}</td>
+                  <td className="px-4 py-2">{t("Total")}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{formatValue(total)}</td>
                   {showRows && (
                     <td className="px-4 py-2 text-right tabular-nums">
-                      {groups.reduce((n, g) => n + g.rows, 0).toLocaleString("en-US")}
+                      {fmtNumber(groups.reduce((n, g) => n + g.rows, 0))}
                     </td>
                   )}
-                  {showShare && <td className="px-4 py-2 text-right tabular-nums">100.0%</td>}
+                  {showShare && <td className="px-4 py-2 text-right tabular-nums">{fmtNumber(100, { minimumFractionDigits: 1 })}%</td>}
                 </tr>
               </tfoot>
             </table>
@@ -217,7 +229,7 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
               onClick={handleDownload}
               className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
-              <FontAwesomeIcon icon={faFileCsv} /> Download CSV
+              <FontAwesomeIcon icon={faFileCsv} /> {t("Download CSV")}
             </button>
           </div>
         </>

@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { AuthProvider } from "./context/AuthContext";
 import { DataProvider } from "./context/DataContext";
+import { I18nProvider } from "./i18n/I18nContext.jsx";
 import { RegisterPage } from "./pages/RegisterPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
@@ -31,6 +32,7 @@ const PageLoader = () => (
 function App() {
   return (
     <BrowserRouter>
+      <I18nProvider>
       <AuthProvider>
         {/* La barra de navegación muestra el archivo abierto: va dentro de DataProvider */}
         <DataProvider>
@@ -76,6 +78,7 @@ function App() {
           </div>
         </DataProvider>
       </AuthProvider>
+      </I18nProvider>
     </BrowserRouter>
   );
 }

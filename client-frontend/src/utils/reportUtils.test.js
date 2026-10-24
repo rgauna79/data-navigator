@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { aggregate, applyFilters, describeFilter, exportRows, groupRows, periodOf, toCsv } from "./reportUtils.js";
+import {
+  aggregate, applyFilters, describeFilter, exportRows, formatPeriodLabel, groupRows, histogram, periodOf, toCsv,
+} from "./reportUtils.js";
 
 // Cliente, Categoría, Monto, Fecha
 const rows = [
@@ -170,5 +172,40 @@ describe("filtros numéricos y formato español", () => {
     expect(describeFilter({ min: "10", max: "" })).toBe("≥ 10");
     expect(describeFilter({ min: "", max: "20" })).toBe("≤ 20");
     expect(describeFilter("North")).toBe("North");
+  });
+});
+
+describe("histogram", () => {
+  test("reparte todos los valores en intervalos iguales", () => {
+    const values = Array.from({ length: 100 }, (_, i) => i);
+    const bins = histogram(values);
+    expect(bins).toHaveLength(8); // Sturges: ceil(log2(100) + 1)
+    expect(bins.reduce((n, b) => n + b.count, 0)).toBe(100);
+    expect(bins[0].from).toBe(0);
+    expect(bins.at(-1).to).toBe(99);
+  });
+
+  test("casos límite", () => {
+    expect(histogram([])).toEqual([]);
+    expect(histogram([5, 5, 5])).toEqual([{ from: 5, to: 5, count: 3 }]);
+    expect(histogram([1, 2, 3], 2)).toHaveLength(2);
+  });
+});
+
+describe("formatPeriodLabel", () => {
+  test("en inglés y en español", () => {
+    expect(formatPeriodLabel("2024-03", "month", "en-US")).toBe("Mar 2024");
+    expect(formatPeriodLabel("2024-03", "month", "es-ES")).toBe("mar 2024");
+    expect(formatPeriodLabel("2024-Q2", "quarter", "en-US")).toBe("Q2 2024");
+    expect(formatPeriodLabel("2024-W05", "week", "en-US")).toBe("Week 5, 2024");
+    expect(formatPeriodLabel("2024", "year", "es-ES")).toBe("2024");
+    expect(formatPeriodLabel("2024-01-15", "day", "en-US")).toBe("Jan 15, 2024");
+  });
+
+  test("coincide con la etiqueta de periodOf en inglés", () => {
+    for (const period of ["day", "week", "month", "quarter", "year"]) {
+      const { key, label } = periodOf(new Date(2024, 6, 9), period);
+      expect(formatPeriodLabel(key, period, "en-US")).toBe(label);
+    }
   });
 });

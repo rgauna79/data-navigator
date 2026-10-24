@@ -29,6 +29,9 @@ export const ExcelProvider = ({ children }) => {
   const [editsBySheet, setEditsBySheet] = useState({});
   const [loadError, setLoadError] = useState(null);
   const [isRestoringFile, setIsRestoringFile] = useState(true);
+  // Lectura de un archivo u hoja en curso (compartido: la puede iniciar
+  // cualquier página, p. ej. abrir un archivo guardado desde el inicio)
+  const [isLoadingFile, setIsLoadingFile] = useState(false);
   // Se marca cuando el usuario abre un archivo, para no pisarlo con la restauración
   const fileOpened = useRef(false);
 
@@ -162,6 +165,7 @@ export const ExcelProvider = ({ children }) => {
       setColumnOverride, resetColumnOverrides,
       editCell, undoEdit, editCount: sheetEdits.length,
       loadError, setLoadError,
+      isLoadingFile, setIsLoadingFile,
       isRestoringFile,
       markFileOpened,
       resetExcel,

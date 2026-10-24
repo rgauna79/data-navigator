@@ -34,7 +34,7 @@ export default [
   },
   {
     // Los contextos exportan su Provider junto con su hook
-    files: ["src/context/**"],
+    files: ["src/context/**", "src/i18n/**"],
     rules: { "react-refresh/only-export-components": "off" },
   },
   {
