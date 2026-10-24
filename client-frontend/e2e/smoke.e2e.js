@@ -57,7 +57,7 @@ test("lee el Excel, resume columnas y filtra la tabla", async ({ page }) => {
 test("informe de estadísticas con filtro de fechas", async ({ page }) => {
   await page.getByRole("button", { name: "Generate Report" }).click();
   await page.getByText("Statistics", { exact: true }).click();
-  await page.locator("label", { hasText: "Category" }).locator("input").check();
+  await page.getByRole("checkbox", { name: "Category" }).check();
   await page.locator("select").filter({ hasText: "Select a value" }).selectOption("A");
   // Marcar una columna de fecha monta los DatePicker
   await page.locator("label", { hasText: /^Date$/ }).locator("input").check();

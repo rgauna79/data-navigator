@@ -1,13 +1,14 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faXmark, faChartBar, faChartPie, faLayerGroup, faListOl } from "@fortawesome/free-solid-svg-icons";
+import { faXmark, faChartBar, faChartPie, faLayerGroup, faListOl, faTableCells } from "@fortawesome/free-solid-svg-icons";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useDataContext } from "../../context/DataContext.jsx";
 import { minMax, parseDate, resolveColumnTypes, toNumber } from "../../utils/excelUtils.js";
 import { METRICS, PERIODS } from "../../utils/reportUtils.js";
 import { tk, useI18n } from "../../i18n/I18nContext.jsx";
+import DatePresetSelect from "../DatePresetSelect.jsx";
 
 const SELECT_CLASS =
   "w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500";
@@ -17,7 +18,8 @@ const TOP_N_OPTIONS = [5, 10, 20, 0]; // 0 = todos
 const REPORT_TYPES = [
   { value: "statistics", label: tk("Statistics"), desc: tk("Overview"), icon: faChartBar },
   { value: "mostRepeated", label: tk("Most repeated"), desc: tk("Top values"), icon: faChartPie },
-  { value: "group", label: tk("Group & summarize"), desc: tk("Pivot table"), icon: faLayerGroup },
+  { value: "group", label: tk("Group & summarize"), desc: tk("By category or date"), icon: faLayerGroup },
+  { value: "pivot", label: tk("Pivot table"), desc: tk("Rows × columns"), icon: faTableCells },
 ];
 
 // columns: [{ Header, accessor }] donde accessor es el índice de la columna.
@@ -43,6 +45,15 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
     valueIdx: "",
     topN: 10,
   });
+  // Configuración de la tabla dinámica (filas × columnas)
+  const [pivot, setPivot] = useState({
+    rowIdx: "",
+    rowPeriod: "month",
+    colIdx: "",
+    colPeriod: "month",
+    metric: "count",
+    valueIdx: "",
+  });
 
   const columnTypes = useMemo(
     () => typesProp || resolveColumnTypes([columns.map((c) => c.Header), ...data]),
@@ -61,11 +72,20 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
 
   const updateGroup = (field, value) => setGroup((prev) => ({ ...prev, [field]: value }));
   const groupIsDate = group.groupIdx !== "" && dateColumns.has(Number(group.groupIdx));
+  const updatePivot = (field, value) => setPivot((prev) => ({ ...prev, [field]: value }));
+  const isDateIdx = (idx) => idx !== "" && dateColumns.has(Number(idx));
+
+  // Fechas ya interpretadas de cada columna de fecha
+  const datesByColumn = useMemo(
+    () =>
+      Object.fromEntries(
+        [...dateColumns].map((idx) => [idx, data.map((row) => parseDate(row[idx], columnTypes[idx]?.dateOrder))])
+      ),
+    [dateColumns, data, columnTypes]
+  );
 
   const getMinMaxDates = (idx) => {
-    const order = columnTypes[idx]?.dateOrder;
-    const times = data
-      .map((row) => parseDate(row[idx], order))
+    const times = datesByColumn[idx]
       .filter(Boolean)
       .map((d) => d.getTime());
     const { min, max } = minMax(times);
@@ -123,6 +143,19 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
     setLocalSelectedOptions((prev) => ({ ...prev, [idx]: range }));
   };
 
+  // Período rápido ("YYYY-MM-DD") → rango de fechas del filtro; null = todas las fechas
+  const handlePreset = (idx, range) => {
+    const toDate = (s) => {
+      const [y, m, d] = s.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    };
+    setError("");
+    setLocalSelectedOptions((prev) => ({
+      ...prev,
+      [idx]: range ? { from: toDate(range.from), to: toDate(range.to) } : getMinMaxDates(idx),
+    }));
+  };
+
   const handleConfirm = () => {
     if (localTypeReport === "mostRepeated") {
       if (localSelectedOptions.mostRepeated === undefined || localSelectedOptions.mostRepeated === "") {
@@ -136,6 +169,20 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
           return;
         }
         if (group.metric !== "count" && group.valueIdx === "") {
+          showError(t("Please select the numeric column to summarize."));
+          return;
+        }
+      }
+      if (localTypeReport === "pivot") {
+        if (pivot.rowIdx === "" || pivot.colIdx === "") {
+          showError(t("Please select the columns for the rows and the columns of the table."));
+          return;
+        }
+        if (pivot.rowIdx === pivot.colIdx) {
+          showError(t("Rows and columns must use different columns."));
+          return;
+        }
+        if (pivot.metric !== "count" && pivot.valueIdx === "") {
           showError(t("Please select the numeric column to summarize."));
           return;
         }
@@ -188,6 +235,17 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
             valueIdx: group.metric === "count" ? null : Number(group.valueIdx),
             topN: Number(group.topN),
           }
+        : localTypeReport === "pivot"
+        ? {
+            rowIdx: Number(pivot.rowIdx),
+            rowType: isDateIdx(pivot.rowIdx) ? "date" : "category",
+            rowPeriod: pivot.rowPeriod,
+            colIdx: Number(pivot.colIdx),
+            colType: isDateIdx(pivot.colIdx) ? "date" : "category",
+            colPeriod: pivot.colPeriod,
+            metric: pivot.metric,
+            valueIdx: pivot.metric === "count" ? null : Number(pivot.valueIdx),
+          }
         : null;
 
     setReport({
@@ -205,11 +263,12 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
 
   return (
     <div className="fixed inset-0 z-[110] bg-black/50 backdrop-blur-xs flex justify-center items-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-labelledby="report-modal-title"
+        className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="text-lg font-black text-gray-900 dark:text-white">{t("Generate Report")}</h2>
+          <h2 id="report-modal-title" className="text-lg font-black text-gray-900 dark:text-white">{t("Generate Report")}</h2>
           <button
             onClick={handleClose}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -222,7 +281,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
           {/* Report type selector */}
           <div>
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t("Report type")}</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {REPORT_TYPES.map(({ value, label, desc, icon }) => (
                 <label
                   key={value}
@@ -343,8 +402,94 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
             </div>
           )}
 
-          {/* Filtros por columna: obligatorios en Statistics, opcionales en Group */}
-          {(localTypeReport === "statistics" || localTypeReport === "group") && (
+          {/* Tabla dinámica: qué va en filas, en columnas y qué se calcula */}
+          {localTypeReport === "pivot" && (
+            <div className="space-y-3">
+              {[
+                { field: "rowIdx", period: "rowPeriod", label: t("Rows") },
+                { field: "colIdx", period: "colPeriod", label: t("Columns") },
+              ].map(({ field, period, label }) => (
+                <div key={field} className="grid grid-cols-2 gap-2">
+                  <div className={isDateIdx(pivot[field]) ? "" : "col-span-2"}>
+                    <label htmlFor={`pivot-${field}`} className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                      {label}
+                    </label>
+                    <select
+                      id={`pivot-${field}`}
+                      value={pivot[field]}
+                      onChange={(e) => updatePivot(field, e.target.value)}
+                      className={SELECT_CLASS}
+                    >
+                      <option value="">{t("Select a column")}</option>
+                      {columns.map((column) => (
+                        <option key={column.accessor} value={column.accessor}>
+                          {column.Header}{dateColumns.has(column.accessor) ? ` (${t("date")})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {isDateIdx(pivot[field]) && (
+                    <div>
+                      <label htmlFor={`pivot-${period}`} className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        {t("Per")}
+                      </label>
+                      <select
+                        id={`pivot-${period}`}
+                        value={pivot[period]}
+                        onChange={(e) => updatePivot(period, e.target.value)}
+                        className={SELECT_CLASS}
+                      >
+                        {Object.entries(PERIODS).map(([value, text]) => (
+                          <option key={value} value={value}>{t(text)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-2">
+                <div className={pivot.metric === "count" ? "col-span-2" : ""}>
+                  <label htmlFor="pivotMetric" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                    {t("Calculate")}
+                  </label>
+                  <select
+                    id="pivotMetric"
+                    value={pivot.metric}
+                    onChange={(e) => updatePivot("metric", e.target.value)}
+                    className={SELECT_CLASS}
+                  >
+                    {Object.entries(METRICS).map(([value, label]) => (
+                      <option key={value} value={value}>{t(label)}</option>
+                    ))}
+                  </select>
+                </div>
+                {pivot.metric !== "count" && (
+                  <div>
+                    <label htmlFor="pivotValue" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                      {t("Of column")}
+                    </label>
+                    <select
+                      id="pivotValue"
+                      value={pivot.valueIdx}
+                      onChange={(e) => updatePivot("valueIdx", e.target.value)}
+                      className={SELECT_CLASS}
+                    >
+                      <option value="">{t("Select a column")}</option>
+                      {numericColumns.map((idx) => (
+                        <option key={idx} value={idx}>{columns[idx].Header}</option>
+                      ))}
+                    </select>
+                    {numericColumns.length === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">{t("This sheet has no numeric columns.")}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Filtros por columna: opcionales en Statistics, Group y Pivot */}
+          {(localTypeReport === "statistics" || localTypeReport === "group" || localTypeReport === "pivot") && (
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t("Filter rows")} <span className="font-normal text-gray-400">{t("(optional)")}</span>
@@ -375,7 +520,15 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                         <div className="ml-6">
                           {dateColumns.has(idx) ? (
                             <div className="flex flex-col gap-1">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">{t("Date range")}</span>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{t("Date range")}</span>
+                                <DatePresetSelect
+                                  dates={datesByColumn[idx]}
+                                  onSelect={(range) => handlePreset(idx, range)}
+                                  label={t("Quick period for {name}", { name: column.Header })}
+                                  className="text-xs bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 text-gray-700 dark:text-gray-200"
+                                />
+                              </div>
                               <div className="flex gap-2">
                                 <DatePicker
                                   selected={range.from || null}

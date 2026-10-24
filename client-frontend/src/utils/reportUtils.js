@@ -83,7 +83,7 @@ const isoWeek = (date) => {
 };
 
 // Inicio del período que contiene la fecha
-const periodStart = (d, period) => {
+export const periodStart = (d, period) => {
   switch (period) {
     case "day":
       return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -100,7 +100,7 @@ const periodStart = (d, period) => {
   }
 };
 
-const nextPeriod = (d, period) => {
+export const nextPeriod = (d, period) => {
   switch (period) {
     case "day":
       return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
@@ -233,6 +233,30 @@ export const OTHER_LABEL = "Other";
  *   total: métrica aplicada a todas las filas agrupadas
  *   skipped: filas sin fecha válida (solo agrupación por fecha)
  */
+/**
+ * Grupo al que pertenece una fila: { key, label, start? } o null si la fecha
+ * no es válida. spec: { groupIdx, groupType ("date" | otro), dateOrder, period }
+ */
+export const groupKeyOf = (row, { groupIdx, groupType, dateOrder = "mdy", period = "month" }) => {
+  if (groupType === "date") {
+    const d = parseDate(row[groupIdx], dateOrder);
+    if (!d) return null;
+    return { ...periodOf(d, period), start: periodStart(d, period) };
+  }
+  const raw = row[groupIdx];
+  const key = raw === "" || raw == null ? BLANK_LABEL : String(raw);
+  return { key, label: key };
+};
+
+/**
+ * Filas de un grupo del informe (para ver el detalle de un resultado).
+ * keys: clave o claves de grupo (el grupo "Other" reúne varias, ver otherKeys).
+ */
+export const rowsInGroup = (rows, spec, keys) => {
+  const wanted = new Set(Array.isArray(keys) ? keys : [keys]);
+  return rows.filter((row) => wanted.has(groupKeyOf(row, spec)?.key));
+};
+
 export const groupRows = ({
   rows,
   groupIdx,
@@ -247,23 +271,14 @@ export const groupRows = ({
   const buckets = new Map();
   let skipped = 0;
 
+  const spec = { groupIdx, groupType, dateOrder, period };
   for (const row of rows) {
-    let key;
-    let label;
-    let start;
-    if (groupType === "date") {
-      const d = parseDate(row[groupIdx], dateOrder);
-      if (!d) {
-        skipped++;
-        continue;
-      }
-      ({ key, label } = periodOf(d, period));
-      start = periodStart(d, period);
-    } else {
-      const raw = row[groupIdx];
-      key = raw === "" || raw == null ? BLANK_LABEL : String(raw);
-      label = key;
+    const group = groupKeyOf(row, spec);
+    if (!group) {
+      skipped++;
+      continue;
     }
+    const { key, label, start } = group;
     if (!buckets.has(key)) buckets.set(key, { key, label, start, rows: 0, values: [] });
     const bucket = buckets.get(key);
     bucket.rows++;
@@ -324,8 +339,9 @@ export const groupRows = ({
         decimal
       ),
       isOther: true,
-      // Número de grupos agrupados en "Other"
+      // Número de grupos agrupados en "Other" y sus claves
       groupCount: rest.length,
+      otherKeys: rest.map((b) => b.key),
     });
   }
   return { groups, total, skipped };

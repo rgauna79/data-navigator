@@ -16,6 +16,7 @@ import {
   faChevronUp,
   faEye,
   faLayerGroup,
+  faTableCells,
 } from "@fortawesome/free-solid-svg-icons";
 
 const TYPE_META = {
@@ -34,9 +35,14 @@ const TYPE_META = {
     icon: faLayerGroup,
     color: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
   },
+  pivot: {
+    label: tk("Pivot table"),
+    icon: faTableCells,
+    color: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+  },
 };
 // Informes de agrupación de la versión anterior
-TYPE_META.groupBy = { ...TYPE_META.group, label: tk("Pivot table") };
+TYPE_META.groupBy = TYPE_META.group;
 
 
 function ReportCard({ report, isOpening, onDelete, onView }) {

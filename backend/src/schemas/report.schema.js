@@ -6,7 +6,7 @@ export const saveReportSchema = z.object({
     .trim()
     .min(1, { message: "Report name is required" })
     .max(200, { message: "Report name is too long" }),
-  type: z.enum(["statistics", "mostRepeated", "group"], { error: "Invalid report type" }),
+  type: z.enum(["statistics", "mostRepeated", "group", "pivot"], { error: "Invalid report type" }),
   sheetName: z.string().max(200).optional().default(""),
   selectedOptions: z.record(z.string(), z.any()).optional().default({}),
   snapshot: z.object(

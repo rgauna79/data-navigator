@@ -23,9 +23,10 @@ export const ExcelProvider = ({ children }) => {
   // Correcciones manuales del tipo de columna, por hoja:
   // { [nombre de hoja]: { [índice]: { type?, dateOrder? } } }
   const [overridesBySheet, setOverridesBySheet] = useState({});
-  // Celdas editadas a mano (limpieza de datos), por hoja y en orden para
-  // poder deshacerlas: { [nombre de hoja]: [{ row, col, value }] }
-  // row es el índice en la hoja (0 = encabezados).
+  // Ediciones (limpieza de datos), por hoja y en orden para poder deshacerlas:
+  // { [nombre de hoja]: [paso] }. Cada paso es una celda { row, col, value }
+  // o un grupo { changes: [{ row, col, value }], deleteRows: [row] } que se
+  // deshace de una vez. row es el índice en la hoja (0 = encabezados).
   const [editsBySheet, setEditsBySheet] = useState({});
   const [loadError, setLoadError] = useState(null);
   const [isRestoringFile, setIsRestoringFile] = useState(true);
@@ -80,19 +81,30 @@ export const ExcelProvider = ({ children }) => {
   }, []);
 
   // Filas de la hoja actual con las ediciones aplicadas.
-  // Solo se copian las filas editadas.
+  // Solo se copian las filas editadas. Las filas eliminadas quedan vacías
+  // ([]) para que los índices de las demás no cambien; dataRows las omite.
   const sheetEdits = useMemo(() => editsBySheet[selectedSheet] || [], [editsBySheet, selectedSheet]);
   const fileData = useMemo(() => {
     if (sheetEdits.length === 0) return sheetRows;
     const rows = [...sheetRows];
     const copied = new Set();
-    sheetEdits.forEach(({ row, col, value }) => {
-      if (!rows[row]) return;
+    const setCell = ({ row, col, value }) => {
+      if (!rows[row]?.length) return;
       if (!copied.has(row)) {
         rows[row] = [...rows[row]];
         copied.add(row);
       }
       rows[row][col] = value;
+    };
+    sheetEdits.forEach((step) => {
+      if (step.changes || step.deleteRows) {
+        step.changes?.forEach(setCell);
+        step.deleteRows?.forEach((row) => {
+          if (row > 0 && rows[row]) rows[row] = [];
+        });
+      } else {
+        setCell(step);
+      }
     });
     return rows;
   }, [sheetRows, sheetEdits]);
@@ -103,6 +115,18 @@ export const ExcelProvider = ({ children }) => {
       setEditsBySheet((prev) => ({
         ...prev,
         [selectedSheet]: [...(prev[selectedSheet] || []), { row, col, value }],
+      }));
+    },
+    [selectedSheet]
+  );
+
+  // Aplica varios cambios (y eliminación de filas) como un solo paso
+  const applyChanges = useCallback(
+    (changes = [], deleteRows = []) => {
+      if (changes.length === 0 && deleteRows.length === 0) return;
+      setEditsBySheet((prev) => ({
+        ...prev,
+        [selectedSheet]: [...(prev[selectedSheet] || []), { changes, deleteRows }],
       }));
     },
     [selectedSheet]
@@ -163,7 +187,7 @@ export const ExcelProvider = ({ children }) => {
       fileData, setFileData,
       columnTypes, columnAnalysis, columnOverrides,
       setColumnOverride, resetColumnOverrides,
-      editCell, undoEdit, editCount: sheetEdits.length,
+      editCell, applyChanges, undoEdit, editCount: sheetEdits.length,
       loadError, setLoadError,
       isLoadingFile, setIsLoadingFile,
       isRestoringFile,

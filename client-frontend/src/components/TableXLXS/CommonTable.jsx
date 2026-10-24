@@ -3,14 +3,16 @@ import toast from "react-hot-toast";
 import Modal from "../reports/Modal.jsx";
 import SaveDialog from "./SaveDialog.jsx";
 import ExportMenu from "./ExportMenu.jsx";
+import CleanupDialog from "./CleanupDialog.jsx";
+import DatePresetSelect from "../DatePresetSelect.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faFloppyDisk, faXmark, faChartBar, faSearch,
   faChevronUp, faChevronDown, faChevronLeft, faChevronRight,
-  faAnglesLeft, faAnglesRight, faPalette, faFilter, faEye, faPen, faRotateLeft,
+  faAnglesLeft, faAnglesRight, faPalette, faFilter, faEye, faPen, faRotateLeft, faBroom, faCalendarDays,
 } from "@fortawesome/free-solid-svg-icons";
 import { flexRender } from "@tanstack/react-table";
-import { minMax, numericValues, toNumber } from "../../utils/excelUtils.js";
+import { minMax, numericValues, parseDate, toNumber } from "../../utils/excelUtils.js";
 import { useI18n } from "../../i18n/I18nContext.jsx";
 
 // Calcula min/max por columna numérica
@@ -33,8 +35,15 @@ const toolbarButton = (active) =>
       : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-400"
   }`;
 
+// "YYYY-MM-DD" (filtro de fechas) como fecha local
+const inputToDate = (s) => {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+
 // Filtro de una columna según su tipo (ver DataTable: meta.type)
-function ColumnFilter({ column }) {
+// dates: fechas de la columna, para el selector de período rápido
+function ColumnFilter({ column, dates }) {
   const { t } = useI18n();
   const type = column.columnDef.meta?.type;
   const value = column.getFilterValue();
@@ -80,6 +89,12 @@ function ColumnFilter({ column }) {
           aria-label={t("{name} to", { name: label })}
           value={to}
           onChange={(e) => column.setFilterValue({ from, to: e.target.value })}
+          className={filterInput}
+        />
+        <DatePresetSelect
+          dates={dates}
+          onSelect={(range) => column.setFilterValue(range ?? undefined)}
+          label={t("Quick period for {name}", { name: label })}
           className={filterInput}
         />
       </div>
@@ -232,7 +247,8 @@ function CommonTable({
   showSaveButton = false, globalFilter, setGlobalFilter,
   editable = false, canUndo = false, onUndo,
 }) {
-  const { t, tn, fmtNumber } = useI18n();
+  const { t, tn, fmtNumber, fmtDate } = useI18n();
+  const [showCleanup, setShowCleanup] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [heatmap, setHeatmap] = useState(false);
@@ -240,6 +256,18 @@ function CommonTable({
   const activeColumnFilters = table.getState().columnFilters.length;
 
   const colRanges = useMemo(() => getColumnRanges(data, numericCols, columnTypes), [data, numericCols, columnTypes]);
+
+  // Fechas de cada columna de fecha, para filtrar por mes, trimestre o año
+  const datesByColumn = useMemo(() => {
+    const result = {};
+    columnTypes.forEach((type, i) => {
+      if (type?.type === "date") result[i] = data.map((row) => parseDate(row[i], type.dateOrder));
+    });
+    return result;
+  }, [data, columnTypes]);
+  const mainDateIdx = Object.keys(datesByColumn)[0];
+  const mainDateColumn = mainDateIdx !== undefined ? table.getColumn(mainDateIdx) : null;
+  const periodFilter = mainDateColumn?.getFilterValue();
 
   const handleSaved = (name) => {
     setShowSaveDialog(false);
@@ -265,6 +293,14 @@ function CommonTable({
         <>
           {showModal && (
             <Modal handleClose={() => setShowModal(false)} columns={columns} columnTypes={columnTypes} data={data} sheetName={sheetName} />
+          )}
+          {showCleanup && (
+            <CleanupDialog
+              rows={fileData}
+              headers={headers}
+              columnTypes={columnTypes}
+              onClose={() => setShowCleanup(false)}
+            />
           )}
           {showSaveDialog && (
             <SaveDialog
@@ -307,6 +343,29 @@ function CommonTable({
                 </span>
               )}
             </button>
+            {mainDateColumn && (
+              <div className="flex items-center gap-2 text-sm">
+                <FontAwesomeIcon icon={faCalendarDays} className="text-gray-400 text-xs" />
+                <DatePresetSelect
+                  dates={datesByColumn[mainDateIdx]}
+                  onSelect={(range) => mainDateColumn.setFilterValue(range ?? undefined)}
+                  label={t("Quick period for {name}", { name: headers[mainDateIdx] })}
+                  className="text-sm font-bold px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                />
+                {(periodFilter?.from || periodFilter?.to) && (
+                  <span className="flex items-center gap-1 text-xs font-bold rounded-full pl-2.5 pr-1 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
+                    {headers[mainDateIdx]}: {periodFilter.from ? fmtDate(inputToDate(periodFilter.from)) : "…"} → {periodFilter.to ? fmtDate(inputToDate(periodFilter.to)) : "…"}
+                    <button
+                      onClick={() => mainDateColumn.setFilterValue(undefined)}
+                      aria-label={t("Remove period filter")}
+                      className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-blue-200 dark:hover:bg-blue-800"
+                    >
+                      <FontAwesomeIcon icon={faXmark} className="text-[10px]" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
             {activeColumnFilters > 0 && (
               <button
                 onClick={() => table.resetColumnFilters()}
@@ -341,6 +400,14 @@ function CommonTable({
                 onClick={() => setShowSaveDialog(true)}
               >
                 <FontAwesomeIcon icon={faFloppyDisk} /> {t("Save Data")}
+              </button>
+            )}
+            {editable && (
+              <button
+                onClick={() => setShowCleanup(true)}
+                className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-400 text-gray-700 dark:text-gray-200 font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95"
+              >
+                <FontAwesomeIcon icon={faBroom} className="text-blue-500" /> {t("Clean data")}
               </button>
             )}
             {canUndo && (
@@ -407,7 +474,7 @@ function CommonTable({
                   <tr>
                     {table.getHeaderGroups()[0].headers.map((header) => (
                       <th key={header.id} className="px-2 py-2 align-top border-b border-gray-200 dark:border-gray-700">
-                        <ColumnFilter column={header.column} />
+                        <ColumnFilter column={header.column} dates={datesByColumn[header.id]} />
                       </th>
                     ))}
                   </tr>

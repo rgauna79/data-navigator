@@ -73,6 +73,12 @@ test("valida el informe y exige sesión", async () => {
   const agent = await signup("ursula");
   assert.equal((await agent.post("/api/reports").send({ ...report, name: "" })).status, 400);
   assert.equal((await agent.post("/api/reports").send({ ...report, type: "other" })).status, 400);
+  const pivot = { rowIdx: 0, rowType: "category", colIdx: 1, colType: "category", metric: "count", valueIdx: null };
+  const saved = await agent.post("/api/reports").send({ ...report, type: "pivot", snapshot: { ...report.snapshot, config: pivot } });
+  assert.equal(saved.status, 201);
+  const opened = await agent.get(`/api/reports/${saved.body.report._id}`);
+  assert.equal(opened.body.type, "pivot");
+  assert.deepEqual(opened.body.snapshot.config, pivot);
   const { snapshot, ...noData } = report;
   assert.equal((await agent.post("/api/reports").send(noData)).status, 400);
   assert.equal((await agent.get("/api/reports/not-an-id")).status, 404);

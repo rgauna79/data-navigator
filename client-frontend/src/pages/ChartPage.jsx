@@ -1,32 +1,28 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useDataContext } from "../context/DataContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { saveReport } from "../api/reports.js";
 import { Pie, Bar, Line } from "react-chartjs-2";
-import {
-  Chart as ChartJS, ArcElement, Tooltip, Legend,
-  CategoryScale, LinearScale, BarElement, PointElement,
-  LineElement, Title, Filler,
-} from "chart.js";
-// Colores de los gráficos según el modo claro/oscuro
-import "../utils/chartTheme.js";
+// Elementos de Chart.js y colores según el modo claro/oscuro
+import "../utils/chartSetup.js";
 import { analyzeColumns, parseDate } from "../utils/excelUtils.js";
-import { applyFilters, describeFilter, formatPeriodLabel, groupRows } from "../utils/reportUtils.js";
+import {
+  applyFilters, describeFilter, formatPeriodLabel, groupKeyOf, groupRows, rowsInGroup,
+} from "../utils/reportUtils.js";
+import { pivotRows } from "../utils/pivot.js";
 import { tk, useI18n } from "../i18n/I18nContext.jsx";
 import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
 import GroupReport from "../components/reports/GroupReport.jsx";
+import PivotReport from "../components/reports/PivotReport.jsx";
+import DrillDownModal from "../components/reports/DrillDownModal.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faFilePdf, faArrowLeft, faChartBar, faChartPie, faChartLine, faSpinner, faFloppyDisk, faFileExcel,
 } from "@fortawesome/free-solid-svg-icons";
 
-ChartJS.register(
-  ArcElement, Tooltip, Legend, CategoryScale, LinearScale,
-  BarElement, PointElement, LineElement, Title, Filler
-);
 
 const COLORS = [
   { bg: "rgba(59,130,246,0.7)",  border: "rgba(59,130,246,1)"  },
@@ -51,6 +47,7 @@ const REPORT_TITLES = {
   statistics: tk("Statistics report"),
   mostRepeated: tk("Most repeated values"),
   group: tk("Group & summarize"),
+  pivot: tk("Pivot table"),
 };
 
 // Pide el nombre del informe antes de guardarlo
@@ -125,6 +122,10 @@ function ChartPage() {
   const navigate = useNavigate();
   const [chartType, setChartType] = useState("pie");
   const [showSaveModal, setShowSaveModal] = useState(false);
+  // Filas detrás de un resultado: { title, subtitle, rows }
+  const [drill, setDrill] = useState(null);
+  // Un informe nuevo (por ejemplo, generado desde el detalle) cierra el detalle
+  useEffect(() => setDrill(null), [data, config, typeReport, selectedOptions]);
 
   const columnName = (idx) => headers?.[idx] ?? t("Column {n}", { n: Number(idx) + 1 });
 
@@ -139,9 +140,9 @@ function ChartPage() {
     [headers, data, columnTypes]
   );
 
-  // "statistics" y "group" usan selectedOptions como filtros por columna
+  // "statistics", "group" y "pivot" usan selectedOptions como filtros por columna
   const filteredData = useMemo(() => {
-    if (typeReport !== "statistics" && typeReport !== "group") return data;
+    if (typeReport === "mostRepeated") return data;
     return applyFilters(data, selectedOptions, analysis);
   }, [data, selectedOptions, typeReport, analysis]);
 
@@ -154,6 +155,58 @@ function ChartPage() {
       decimal: config.valueIdx != null ? analysis[config.valueIdx]?.decimal : undefined,
     });
   }, [typeReport, config, filteredData, analysis]);
+
+  // Especificación de agrupación de un eje de la tabla dinámica
+  const pivotSpec = (idx, type, period) => ({
+    groupIdx: idx,
+    groupType: type,
+    dateOrder: analysis[idx]?.dateOrder,
+    period,
+  });
+
+  const pivotResult = useMemo(() => {
+    if (typeReport !== "pivot" || !config) return null;
+    return pivotRows({
+      rows: filteredData,
+      rowSpec: pivotSpec(config.rowIdx, config.rowType, config.rowPeriod),
+      colSpec: pivotSpec(config.colIdx, config.colType, config.colPeriod),
+      metric: config.metric,
+      valueIdx: config.valueIdx,
+      decimal: config.valueIdx != null ? analysis[config.valueIdx]?.decimal : undefined,
+    });
+    // pivotSpec solo depende de analysis
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeReport, config, filteredData, analysis]);
+
+  // --- Ver las filas detrás de un resultado ---
+  const drillGroup = (group, label) => {
+    const spec = { ...config, dateOrder: analysis[config.groupIdx]?.dateOrder };
+    setDrill({
+      title: label,
+      subtitle: columnName(config.groupIdx),
+      rows: rowsInGroup(filteredData, spec, group.isOther ? group.otherKeys : group.key),
+    });
+  };
+  const drillValue = (value) =>
+    setDrill({
+      title: String(value),
+      subtitle: columnName(mostRepeatedIdx),
+      rows: data.filter((row) => String(row[mostRepeatedIdx]) === String(value)),
+    });
+  const drillPivot = ({ rowKey, colKeys, label }) => {
+    const rowSpec = pivotSpec(config.rowIdx, config.rowType, config.rowPeriod);
+    const colSpec = pivotSpec(config.colIdx, config.colType, config.colPeriod);
+    const cols = colKeys && new Set(colKeys);
+    setDrill({
+      title: label,
+      subtitle: t(REPORT_TITLES.pivot),
+      rows: filteredData.filter(
+        (row) =>
+          (rowKey == null || groupKeyOf(row, rowSpec)?.key === rowKey) &&
+          (!cols || cols.has(groupKeyOf(row, colSpec)?.key))
+      ),
+    });
+  };
 
   const includedOptions = Object.entries(selectedOptions)
     .filter(([, v]) => v !== "" && v != null)
@@ -229,7 +282,7 @@ function ChartPage() {
     }
     if (typeReport === "mostRepeated") {
       return sorted.length > 0
-        ? <MostRepeatedReport column={columnName(mostRepeatedIdx)} mostRepeatedOptions={sorted} totalValidRows={validRows} />
+        ? <MostRepeatedReport column={columnName(mostRepeatedIdx)} mostRepeatedOptions={sorted} totalValidRows={validRows} onDrill={drillValue} />
         : <p className="text-gray-500 text-sm">{t("No data to display.")}</p>;
     }
     if (typeReport === "group" && groupResult) {
@@ -240,7 +293,13 @@ function ChartPage() {
           headers={headers}
           includedOptions={includedOptions}
           rowCount={filteredData.length}
+          onDrill={drillGroup}
         />
+      );
+    }
+    if (typeReport === "pivot" && pivotResult) {
+      return (
+        <PivotReport pivot={pivotResult} config={config} headers={headers} includedOptions={includedOptions} onDrill={drillPivot} />
       );
     }
   };
@@ -294,7 +353,18 @@ function ChartPage() {
 
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      {drill && (
+        <DrillDownModal
+          title={drill.title}
+          subtitle={drill.subtitle}
+          headers={headers}
+          rows={drill.rows}
+          columnTypes={columnTypes}
+          onClose={() => setDrill(null)}
+        />
+      )}
+      {/* La tabla dinámica necesita más ancho */}
+      <div className={`${typeReport === "pivot" ? "max-w-6xl" : "max-w-3xl"} mx-auto px-4 py-8`}>
 
         {showSaveModal && (
           <SaveReportModal

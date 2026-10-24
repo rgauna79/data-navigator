@@ -11,7 +11,7 @@ const ReportSchema = new mongoose.Schema(
     // de agrupación usan "group"
     type: {
       type: String,
-      enum: ["statistics", "mostRepeated", "group", "groupBy"],
+      enum: ["statistics", "mostRepeated", "group", "pivot", "groupBy"],
       required: true,
     },
     sheetName: {

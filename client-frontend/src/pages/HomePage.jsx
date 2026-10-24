@@ -13,6 +13,7 @@ import {
   faSpinner,
   faChartPie,
   faLayerGroup,
+  faTableCells,
   faTableList,
   faClockRotateLeft,
   faWandMagicSparkles,
@@ -30,9 +31,12 @@ const REPORT_LABELS = {
   statistics: tk("Statistics"),
   mostRepeated: tk("Most repeated"),
   group: tk("Group & summarize"),
-  groupBy: tk("Pivot table"),
+  groupBy: tk("Group & summarize"),
+  pivot: tk("Pivot table"),
 };
-const REPORT_ICONS = { statistics: faChartBar, mostRepeated: faChartPie, group: faLayerGroup, groupBy: faLayerGroup };
+const REPORT_ICONS = {
+  statistics: faChartBar, mostRepeated: faChartPie, group: faLayerGroup, groupBy: faLayerGroup, pivot: faTableCells,
+};
 
 const FeatureCard = ({ to, icon, color, title, description, cta }) => (
   <Link
