@@ -31,3 +31,8 @@ updates:
      # eslint-plugin-react todavía no soporta ESLint 10
      - dependency-name: "eslint"
        update-types: ["version-update:semver-major"]
+     - dependency-name: "@eslint/js"
+       update-types: ["version-update:semver-major"]
+     # TanStack Table 9 reescribe la API: requiere una migración propia
+     - dependency-name: "@tanstack/react-table"
+       update-types: ["version-update:semver-major"]
