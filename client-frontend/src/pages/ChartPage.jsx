@@ -13,7 +13,7 @@ import {
 // Colores de los gráficos según el modo claro/oscuro
 import "../utils/chartTheme.js";
 import { analyzeColumns, parseDate } from "../utils/excelUtils.js";
-import { applyFilters, groupRows } from "../utils/reportUtils.js";
+import { applyFilters, describeFilter, groupRows } from "../utils/reportUtils.js";
 import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
 import GroupReport from "../components/reports/GroupReport.jsx";
@@ -33,6 +33,11 @@ const COLORS = [
   { bg: "rgba(245,158,11,0.7)",  border: "rgba(245,158,11,1)"  },
   { bg: "rgba(239,68,68,0.7)",   border: "rgba(239,68,68,1)"   },
   { bg: "rgba(139,92,246,0.7)",  border: "rgba(139,92,246,1)"  },
+  { bg: "rgba(236,72,153,0.7)",  border: "rgba(236,72,153,1)"  },
+  { bg: "rgba(20,184,166,0.7)",  border: "rgba(20,184,166,1)"  },
+  { bg: "rgba(234,88,12,0.7)",   border: "rgba(234,88,12,1)"   },
+  { bg: "rgba(99,102,241,0.7)",  border: "rgba(99,102,241,1)"  },
+  { bg: "rgba(132,204,22,0.7)",  border: "rgba(132,204,22,1)"  },
 ];
 
 const CHART_TABS = [
@@ -40,8 +45,6 @@ const CHART_TABS = [
   { id: "bar",  label: "Bar",  icon: faChartBar  },
   { id: "line", label: "Trend",icon: faChartLine },
 ];
-
-const fmtDate = (d) => new Date(d).toLocaleDateString("en-US");
 
 const REPORT_TITLES = {
   statistics: "Statistics report",
@@ -122,13 +125,6 @@ function ChartPage() {
 
   const columnName = (idx) => headers?.[idx] ?? `Column ${Number(idx) + 1}`;
 
-  const formatOptionValue = (value) => {
-    if (value && typeof value === "object" && "from" in value) {
-      return `${fmtDate(value.from)} → ${fmtDate(value.to)}`;
-    }
-    return value;
-  };
-
   // Análisis de columnas de los datos del informe (no del archivo abierto en el lector)
   const analysis = useMemo(
     () => {
@@ -152,12 +148,13 @@ function ChartPage() {
       ...config,
       rows: filteredData,
       dateOrder: analysis[config.groupIdx]?.dateOrder,
+      decimal: config.valueIdx != null ? analysis[config.valueIdx]?.decimal : undefined,
     });
   }, [typeReport, config, filteredData, analysis]);
 
   const includedOptions = Object.entries(selectedOptions)
     .filter(([, v]) => v !== "" && v != null)
-    .map(([idx, v]) => `${columnName(idx)}: ${formatOptionValue(v)}`);
+    .map(([idx, v]) => `${columnName(idx)}: ${describeFilter(v)}`);
 
   const handlePrint = async () => {
     try {
@@ -225,7 +222,7 @@ function ChartPage() {
   const generateReportData = () => {
     if (!typeReport) return null;
     if (typeReport === "statistics") {
-      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} headers={headers} numericColumns={analysis.filter((c) => c.type === "numeric").map((c) => c.index)} />;
+      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} headers={headers} numericColumns={analysis.filter((c) => c.type === "numeric").map((c) => c.index)} decimalOf={(idx) => analysis[idx]?.decimal} />;
     }
     if (typeReport === "mostRepeated") {
       return sorted.length > 0
@@ -359,7 +356,8 @@ function ChartPage() {
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
                 {/* Chart type tabs */}
                 <div className="flex items-center gap-1 mb-5 bg-gray-100 dark:bg-gray-700 rounded-xl p-1 w-fit">
-                  {CHART_TABS.filter(t => t.id !== "line" || trendData).map(({ id, label, icon }) => (
+                  {/* La línea temporal no depende de la columna analizada: se muestra en Statistics */}
+                  {CHART_TABS.filter((t) => t.id !== "line").map(({ id, label, icon }) => (
                     <button
                       key={id}
                       onClick={() => setChartType(id)}
@@ -378,13 +376,6 @@ function ChartPage() {
                 <div className="h-72">
                   {chartType === "pie"  && <Pie  data={pieData}   options={baseOpts} />}
                   {chartType === "bar"  && <Bar  data={barData}   options={{ ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: false } } }} />}
-                  {chartType === "line" && trendData && (
-                    <Line data={trendData} options={{
-                      ...baseOpts,
-                      plugins: { ...baseOpts.plugins, legend: { display: false } },
-                      scales: { y: { beginAtZero: true } },
-                    }} />
-                  )}
                 </div>
               </div>
             )}

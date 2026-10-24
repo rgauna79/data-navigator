@@ -27,7 +27,9 @@ function CompareCard({ colA, colB, nameA, nameB }) {
   const type = col.type;
 
   const fmt = (n) =>
-    n !== undefined && n !== null && !isNaN(n) ? n.toLocaleString() : "—";
+    n !== undefined && n !== null && !isNaN(n)
+      ? n.toLocaleString("en-US", { maximumFractionDigits: 2 })
+      : "—";
   const fmtDate = (d) =>
     d
       ? new Date(d).toLocaleDateString("en-US", {

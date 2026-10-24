@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useDataContext } from "../context/DataContext";
 import { deleteReport, getReport, listReports } from "../api/reports.js";
+import { describeFilter } from "../utils/reportUtils.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSpinner,
@@ -39,12 +40,6 @@ TYPE_META.groupBy = { ...TYPE_META.group, label: "Pivot Table" };
 const fmtDate = (d) =>
   new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-const formatOption = (value) => {
-  if (value && typeof value === "object" && "from" in value) {
-    return `${fmtDate(value.from)} → ${fmtDate(value.to)}`;
-  }
-  return String(value);
-};
 
 function ReportCard({ report, isOpening, onDelete, onView }) {
   const [expanded, setExpanded] = useState(false);
@@ -138,7 +133,7 @@ function ReportCard({ report, isOpening, onDelete, onView }) {
                   >
                     {/* Las opciones se guardan por índice de columna */}
                     <strong className="opacity-70 mr-1">{k === "mostRepeated" ? "Column" : columnName(k)}:</strong>
-                    {k === "mostRepeated" ? columnName(v) : formatOption(v)}
+                    {k === "mostRepeated" ? columnName(v) : describeFilter(v)}
                   </span>
                 ))}
               </div>

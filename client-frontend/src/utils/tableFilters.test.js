@@ -26,6 +26,11 @@ describe("numberRangeFilter", () => {
     expect(numberRangeFilter(rowOf("500"), "c", ["100", "500"])).toBe(true);
     expect(numberRangeFilter(rowOf("n/a"), "c", ["0", ""])).toBe(false);
   });
+  test("usa el separador decimal de la columna (meta.decimal)", () => {
+    // En una columna en español "1.200" es mil doscientos, también en el filtro
+    expect(numberRangeFilter(rowOf("1.200", { decimal: "," }), "c", ["1.000", ""])).toBe(true);
+    expect(numberRangeFilter(rowOf("1.200", { decimal: "." }), "c", ["1000", ""])).toBe(false);
+  });
   test("autoRemove sin límites", () => {
     expect(numberRangeFilter.autoRemove(["", ""])).toBe(true);
     expect(numberRangeFilter.autoRemove(["", "5"])).toBe(false);

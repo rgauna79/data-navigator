@@ -5,9 +5,12 @@ const fmt = (n) =>
     ? "—"
     : n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const fmtCount = (n) => n.toLocaleString("en-US");
+
 // numericColumns: índices de las columnas numéricas (según el tipo de cada
 // columna, incluidas las correcciones del usuario); si no se pasa, se detecta
-function StatisticsReport({ filteredData, totalRows, includedOptions, headers, numericColumns }) {
+// decimalOf(índice): separador decimal de la columna ("." o ",")
+function StatisticsReport({ filteredData, totalRows, includedOptions, headers, numericColumns, decimalOf = () => undefined }) {
   const nCols = headers?.length || filteredData[0]?.length || 0;
   const numericCols =
     numericColumns ??
@@ -16,12 +19,17 @@ function StatisticsReport({ filteredData, totalRows, includedOptions, headers, n
   const columnName = (idx) => headers?.[idx] || `Column ${idx + 1}`;
 
   const stats = (columnIndex) => {
-    const values = numericValues(filteredData.map((row) => row[columnIndex]));
+    const cells = filteredData.map((row) => row[columnIndex]);
+    const values = numericValues(cells, decimalOf(columnIndex));
     if (values.length === 0) return null;
+    const blank = cells.filter((v) => v === "" || v == null).length;
     const sum = values.reduce((a, b) => a + b, 0);
     const { min, max } = minMax(values);
     const { median, stdDev } = spread(values);
-    return { sum, avg: sum / values.length, median, min, max, range: max - min, stdDev, count: values.length };
+    return {
+      sum, avg: sum / values.length, median, min, max, range: max - min, stdDev,
+      count: values.length, blank, invalid: cells.length - blank - values.length,
+    };
   };
 
   return (
@@ -90,15 +98,24 @@ function StatisticsReport({ filteredData, totalRows, includedOptions, headers, n
                           { label: "Min", val: s.min },
                           { label: "Max", val: s.max },
                           { label: "Range", val: s.range },
-                          { label: "Std dev (σ)", val: s.stdDev },
-                        ].map(({ label, val }) => (
-                          <div key={label}>
+                          { label: "Std dev", val: s.stdDev, title: "Sample standard deviation (Excel STDEV.S)" },
+                        ].map(({ label, val, title }) => (
+                          <div key={label} title={title}>
                             <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{label}</p>
                             <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{fmt(val)}</p>
                           </div>
                         ))}
                       </div>
                     </div>
+                  )}
+                  {s && (
+                    <p className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 text-[11px] text-gray-500 dark:text-gray-400">
+                      {fmtCount(s.count)} values
+                      {s.blank > 0 && ` · ${fmtCount(s.blank)} blank`}
+                      {s.invalid > 0 && (
+                        <span className="text-amber-600 dark:text-amber-400"> · {fmtCount(s.invalid)} not numbers (ignored)</span>
+                      )}
+                    </p>
                   )}
                 </div>
               );

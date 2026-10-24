@@ -9,26 +9,49 @@ const endOfDay = (d) => {
   return e;
 };
 
-// Compara una fila con el filtro de una columna (valor exacto o rango de fechas).
-// dateOrder: "mdy" o "dmy" según el formato de fechas de esa columna.
-export const matchRow = (row, idx, value, dateOrder) => {
+// Compara una fila con el filtro de una columna: valor exacto, rango de
+// fechas { from, to } o rango numérico { min, max } (cualquiera opcional).
+// column: { dateOrder, decimal } de esa columna (ver analyzeColumns).
+export const matchRow = (row, idx, value, column = {}) => {
   if (value === "" || value == null) return true;
   if (typeof value === "object" && "from" in value) {
-    const d = parseDate(row[idx], dateOrder);
+    const d = parseDate(row[idx], column.dateOrder);
     if (!d) return false;
     return d >= new Date(value.from) && d <= endOfDay(value.to);
+  }
+  if (typeof value === "object" && ("min" in value || "max" in value)) {
+    const n = toNumber(row[idx], column.decimal);
+    if (isNaN(n)) return false;
+    const min = toNumber(String(value.min ?? ""), column.decimal);
+    const max = toNumber(String(value.max ?? ""), column.decimal);
+    return (isNaN(min) || n >= min) && (isNaN(max) || n <= max);
   }
   return String(row[idx]) === String(value);
 };
 
-// filters: { [índice de columna]: valor | { from, to } }
-// analysis: resultado de analyzeColumns, para conocer el orden de fechas
+// filters: { [índice de columna]: valor | { from, to } | { min, max } }
+// analysis: resultado de analyzeColumns (orden de fechas y separador decimal)
 export const applyFilters = (rows, filters = {}, analysis = []) => {
   const entries = Object.entries(filters);
   if (entries.length === 0) return rows;
   return rows.filter((row) =>
-    entries.every(([idx, value]) => matchRow(row, Number(idx), value, analysis[idx]?.dateOrder))
+    entries.every(([idx, value]) => matchRow(row, Number(idx), value, analysis[idx]))
   );
+};
+
+const fmtFilterDate = (d) => new Date(d).toLocaleDateString("en-US");
+
+// Texto legible de un filtro de informe (ver matchRow)
+export const describeFilter = (value) => {
+  if (value && typeof value === "object" && "from" in value) {
+    return `${fmtFilterDate(value.from)} → ${fmtFilterDate(value.to)}`;
+  }
+  if (value && typeof value === "object") {
+    const { min = "", max = "" } = value;
+    if (min !== "" && max !== "") return `${min} – ${max}`;
+    return min !== "" ? `≥ ${min}` : `≤ ${max}`;
+  }
+  return String(value);
 };
 
 export const METRICS = {
@@ -117,9 +140,10 @@ export const periodOf = (date, period = "month") => {
 
 // Aplica la métrica a los valores de un grupo. count cuenta filas; el resto
 // usa solo los valores numéricos y devuelve null si no hay ninguno.
-export const aggregate = (rowCount, values, metric) => {
+// decimal: separador decimal de la columna de valores.
+export const aggregate = (rowCount, values, metric, decimal) => {
   if (metric === "count") return rowCount;
-  const nums = values.map(toNumber).filter((n) => !isNaN(n));
+  const nums = values.map((v) => toNumber(v, decimal)).filter((n) => !isNaN(n));
   if (nums.length === 0) return null;
   switch (metric) {
     case "sum":
@@ -151,6 +175,7 @@ export const OTHER_LABEL = "Other";
  * @param period      day | week | month | quarter | year (solo fechas)
  * @param metric      count | sum | avg | min | max
  * @param valueIdx    columna numérica para la métrica (no se usa con count)
+ * @param decimal     separador decimal de esa columna ("." o ",")
  * @param topN        máximo de grupos de categorías; el resto se junta en "Other"
  * @returns { groups: [{ key, label, value, rows }], total, skipped }
  *   total: métrica aplicada a todas las filas agrupadas
@@ -164,6 +189,7 @@ export const groupRows = ({
   period = "month",
   metric = "count",
   valueIdx,
+  decimal,
   topN = 10,
 }) => {
   const buckets = new Map();
@@ -193,13 +219,14 @@ export const groupRows = ({
   }
 
   const all = [...buckets.values()];
-  for (const b of all) b.value = aggregate(b.rows, b.values, metric);
+  for (const b of all) b.value = aggregate(b.rows, b.values, metric, decimal);
   const toGroup = ({ key, label, rows: count, value }) => ({ key, label, rows: count, value });
 
   const total = aggregate(
     all.reduce((n, b) => n + b.rows, 0),
     all.flatMap((b) => b.values),
-    metric
+    metric,
+    decimal
   );
 
   if (groupType === "date") {
@@ -241,7 +268,8 @@ export const groupRows = ({
       value: aggregate(
         rest.reduce((n, b) => n + b.rows, 0),
         rest.flatMap((b) => b.values),
-        metric
+        metric,
+        decimal
       ),
       isOther: true,
     });
@@ -252,13 +280,14 @@ export const groupRows = ({
 // Prepara filas para exportar: encabezados + datos. Con numericCols, las
 // columnas numéricas se convierten a número (para que Excel pueda sumarlas);
 // los valores que no se pueden convertir se dejan como texto.
-export const exportRows = (headers, rows, numericCols = new Set()) => [
+// decimalOf(i): separador decimal de la columna i.
+export const exportRows = (headers, rows, numericCols = new Set(), decimalOf = () => undefined) => [
   headers,
   ...rows.map((row) =>
     headers.map((_, i) => {
       const cell = row[i] ?? "";
       if (!numericCols.has(i)) return cell;
-      const n = toNumber(cell);
+      const n = toNumber(cell, decimalOf(i));
       return isNaN(n) ? cell : n;
     })
   ),

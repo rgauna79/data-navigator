@@ -39,7 +39,7 @@ const NUMBER_RE = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
 // - Solo ",": es de miles si separa grupos de 3 dígitos ("1,234"), si no es
 //   decimal ("2000,25", "3,5").
 // - Solo ".": es decimal, salvo varios grupos de 3 dígitos ("1.234.567").
-const normalizeSeparators = (s) => {
+const autoSeparators = (s) => {
   const lastComma = s.lastIndexOf(",");
   const lastDot = s.lastIndexOf(".");
   if (lastComma !== -1 && lastDot !== -1) {
@@ -55,21 +55,67 @@ const normalizeSeparators = (s) => {
   return s;
 };
 
+// Con el separador decimal de la columna conocido ("." o ","), el otro
+// signo solo puede separar miles: en una columna en español "1.200" es 1200.
+// Si el valor no encaja con ese formato se interpreta por sí solo.
+const normalizeSeparators = (s, decimal) => {
+  if (decimal === ",") {
+    if (!s.includes(".")) return s.replace(",", ".");
+    if (/^[-+]?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) return s.replace(/\./g, "").replace(",", ".");
+  } else if (decimal === ".") {
+    if (!s.includes(",")) return s;
+    if (/^[-+]?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) return s.replace(/,/g, "");
+  }
+  return autoSeparators(s);
+};
+
+/**
+ * Separador decimal de una columna: "," (formato español, "1.234,50") o "."
+ * (formato inglés, "1,234.50"). Los valores con ambos signos o con un
+ * número de decimales distinto de 3 lo dejan claro; "1.200" o "2,000" son
+ * ambiguos y solo deciden si no hay otra pista: varios números con puntos
+ * cada 3 cifras y ninguna otra señal son, casi siempre, miles en español.
+ */
+export const inferDecimalSeparator = (values) => {
+  let comma = 0, dot = 0, maybeComma = 0, maybeDot = 0;
+  for (const v of values) {
+    if (typeof v !== "string") continue;
+    const s = v.replace(/[^\d.,]/g, "");
+    const lastComma = s.lastIndexOf(",");
+    const lastDot = s.lastIndexOf(".");
+    if (lastComma !== -1 && lastDot !== -1) {
+      if (lastComma > lastDot) comma++;
+      else dot++;
+    } else if (lastComma !== -1) {
+      if (/^\d{1,3}(,\d{3})+$/.test(s)) maybeDot++;
+      else comma++;
+    } else if (lastDot !== -1) {
+      if (/^\d{1,3}(\.\d{3})+$/.test(s)) maybeComma++;
+      else dot++;
+    }
+  }
+  if (comma || dot) return comma > dot ? "," : ".";
+  return maybeComma > maybeDot ? "," : ".";
+};
+
 // Convierte a número el texto que se ve en la hoja: quita símbolos de moneda,
 // espacios y "%", y entiende separadores en formato inglés o español.
-// Los negativos contables "(1,200)" se convierten a -1200.
+// Los negativos contables "(1,200)" o "$(1,200)" se convierten a -1200.
+// decimal: separador decimal de la columna ("." o ","; ver
+// inferDecimalSeparator). Sin él, cada valor se interpreta por sí solo.
 // Devuelve NaN si el valor no es numérico.
-export const toNumber = (value) => {
+export const toNumber = (value, decimal) => {
   if (typeof value === "number") return value;
   if (typeof value !== "string") return NaN;
-  let s = value.trim();
+  // Quita moneda y espacios (también el espacio duro); "−" es el signo menos tipográfico
+  let s = value.replace(/[$€£¥\s\u00a0]/g, "").replace(/\u2212/g, "-");
   if (s === "") return NaN;
   let negative = false;
   if (/^\(.*\)$/.test(s)) {
     negative = true;
     s = s.slice(1, -1);
   }
-  s = normalizeSeparators(s.replace(/[$€£¥\s]/g, "").replace(/%$/, ""));
+  s = normalizeSeparators(s.replace(/%$/, ""), decimal);
   if (s.startsWith("-") && negative) return NaN;
   if (!NUMBER_RE.test(s)) return NaN;
   const n = parseFloat(s);
@@ -77,9 +123,23 @@ export const toNumber = (value) => {
 };
 
 const MONTH_RE = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i;
+
+// Meses en español que no coinciden con la abreviatura inglesa
+const ES_MONTHS = {
+  enero: "jan", ene: "jan", febrero: "feb", marzo: "mar", abril: "apr", abr: "apr",
+  mayo: "may", junio: "jun", julio: "jul", agosto: "aug", ago: "aug",
+  septiembre: "sep", setiembre: "sep", set: "sep", octubre: "oct",
+  noviembre: "nov", diciembre: "dec", dic: "dec",
+};
+const ES_MONTH_RE = new RegExp(`\\b(${Object.keys(ES_MONTHS).join("|")})\\.?(?=[\\s/-]|$)`, "gi");
+
+// "15 de enero de 2024" o "15-ene-2024" -> "15 jan 2024"
+const englishMonths = (s) =>
+  s.replace(/\s+de\s+/gi, " ").replace(ES_MONTH_RE, (m) => ES_MONTHS[m.replace(".", "").toLowerCase()]);
 const ISO_DATE_RE = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T](.+))?$/;
 const SHORT_DATE_RE = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})(?:[ T,]+(.+))?$/;
-const TIME_RE = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*(am|pm)?$/i;
+// La zona horaria ("Z", "+02:00") se ignora: se usa la hora tal como se ve
+const TIME_RE = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*(am|pm)?(?:z|[+-]\d{2}:?\d{2})?$/i;
 
 // Años de 2 dígitos como Excel: 00-29 -> 2000s, 30-99 -> 1900s
 const fullYear = (y) => (y.length === 2 ? (Number(y) < 30 ? 2000 : 1900) + Number(y) : Number(y));
@@ -143,8 +203,9 @@ export const parseDate = (value, order = "mdy") => {
     );
   }
 
-  if (!MONTH_RE.test(s)) return null;
-  const d = new Date(s);
+  const text = englishMonths(s);
+  if (!MONTH_RE.test(text)) return null;
+  const d = new Date(text.replace(/-/g, " "));
   return isNaN(d.getTime()) ? null : d;
 };
 
@@ -183,8 +244,9 @@ export const minMax = (values) => {
   return values.length ? { min, max } : { min: undefined, max: undefined };
 };
 
-export const numericValues = (values) =>
-  values.map(toNumber).filter((n) => !isNaN(n));
+// decimal: separador decimal de la columna (ver toNumber)
+export const numericValues = (values, decimal) =>
+  values.map((v) => toNumber(v, decimal)).filter((n) => !isNaN(n));
 
 // Filas de datos (sin encabezado ni filas vacías)
 export const dataRows = (fileData) =>
@@ -209,15 +271,15 @@ export const sampleValues = (values, max = DETECTION_SAMPLE) => {
 
 export const detectColumnType = (values) => {
   const sample = sampleValues(values);
-  if (isNumericColumn(sample)) return { type: "numeric" };
+  if (isNumericColumn(sample)) return { type: "numeric", decimal: inferDecimalSeparator(sample) };
   if (isDateColumn(sample)) return { type: "date", dateOrder: inferDateOrder(sample) };
   return { type: "text" };
 };
 
 /**
  * Tipo final de cada columna: lo detectado, corregido por el usuario.
- * overrides: { [índice]: { type?, dateOrder? } }
- * Devuelve [{ type, dateOrder?, detected, overridden }] por columna.
+ * overrides: { [índice]: { type?, dateOrder?, decimal? } }
+ * Devuelve [{ type, dateOrder?, decimal?, detected, overridden }] por columna.
  */
 export const resolveColumnTypes = (fileData, overrides = {}) => {
   if (!fileData || fileData.length === 0) return [];
@@ -227,9 +289,16 @@ export const resolveColumnTypes = (fileData, overrides = {}) => {
     const detected = detectColumnType(values);
     const override = overrides[i] || {};
     const type = override.type || detected.type;
-    const resolved = { type, detected: detected.type, overridden: Boolean(override.type || override.dateOrder) };
+    const resolved = {
+      type,
+      detected: detected.type,
+      overridden: Boolean(override.type || override.dateOrder || override.decimal),
+    };
     if (type === "date") {
       resolved.dateOrder = override.dateOrder || detected.dateOrder || inferDateOrder(sampleValues(values));
+    }
+    if (type === "numeric") {
+      resolved.decimal = override.decimal || detected.decimal || inferDecimalSeparator(sampleValues(values));
     }
     return resolved;
   });
@@ -242,11 +311,13 @@ const median = (nums) => {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
-// Mediana y desviación estándar (poblacional) de una lista de números
+// Mediana y desviación estándar de una muestra (n - 1, como DESVEST / STDEV.S
+// de Excel). Con un solo valor la desviación no está definida.
 export const spread = (nums) => {
   if (nums.length === 0) return { median: undefined, stdDev: undefined };
+  if (nums.length === 1) return { median: nums[0], stdDev: undefined };
   const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
-  const variance = nums.reduce((acc, n) => acc + (n - mean) ** 2, 0) / nums.length;
+  const variance = nums.reduce((acc, n) => acc + (n - mean) ** 2, 0) / (nums.length - 1);
   return { median: median(nums), stdDev: Math.sqrt(variance) };
 };
 
@@ -262,7 +333,7 @@ export const analyzeColumns = (fileData, columnTypes = resolveColumnTypes(fileDa
     const values = rows.map((row) => row[colIndex]);
     const nonEmpty = values.filter((v) => !isEmpty(v));
     const uniqueValues = new Set(nonEmpty);
-    const { type, dateOrder, detected, overridden } = columnTypes[colIndex] || detectColumnType(values);
+    const { type, dateOrder, decimal, detected, overridden } = columnTypes[colIndex] || detectColumnType(values);
     const base = {
       index: colIndex,
       name: header,
@@ -275,11 +346,12 @@ export const analyzeColumns = (fileData, columnTypes = resolveColumnTypes(fileDa
     };
 
     if (type === "numeric") {
-      const nums = numericValues(nonEmpty);
+      const nums = numericValues(nonEmpty, decimal);
       const sum = nums.reduce((a, b) => a + b, 0);
       return {
         ...base,
         type: "numeric",
+        decimal,
         ...minMax(nums),
         avg: nums.length ? sum / nums.length : undefined,
         sum,

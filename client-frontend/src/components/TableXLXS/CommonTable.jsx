@@ -13,10 +13,10 @@ import { flexRender } from "@tanstack/react-table";
 import { minMax, numericValues, toNumber } from "../../utils/excelUtils.js";
 
 // Calcula min/max por columna numérica
-const getColumnRanges = (data, numericCols) => {
+const getColumnRanges = (data, numericCols, columnTypes) => {
   const ranges = {};
   numericCols.forEach((col) => {
-    const vals = numericValues(data.map((r) => r[col]));
+    const vals = numericValues(data.map((r) => r[col]), columnTypes[col]?.decimal);
     if (vals.length > 0) ranges[col] = minMax(vals);
   });
   return ranges;
@@ -97,7 +97,7 @@ function ColumnFilter({ column }) {
 
 // Celda que se edita con doble clic (limpieza de datos). Enter o salir del
 // campo guarda el cambio; Escape lo descarta.
-function EditableCell({ cell, table }) {
+function EditableCell({ cell, table, alignRight = false }) {
   const initialValue = cell.getValue() ?? "";
   const [value, setValue] = useState(initialValue);
   const [isEditing, setIsEditing] = useState(false);
@@ -134,7 +134,9 @@ function EditableCell({ cell, table }) {
   return (
     <div
       onDoubleClick={startEditing}
-      className="group cursor-text min-h-[24px] flex items-center justify-between gap-2 px-1 -mx-1 rounded-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"
+      className={`group cursor-text min-h-[24px] flex items-center justify-between gap-2 px-1 -mx-1 rounded-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 ${
+        alignRight ? "flex-row-reverse" : ""
+      }`}
       title="Double click to edit"
     >
       <span className="truncate">{initialValue}</span>
@@ -207,9 +209,9 @@ function ColumnsMenu({ table }) {
 }
 
 // Genera clase de color condicional para una celda numérica
-const getHeatClass = (value, range) => {
+const getHeatClass = (value, range, decimal) => {
   if (!range || range.max === range.min) return "";
-  const n = toNumber(value);
+  const n = toNumber(value, decimal);
   if (isNaN(n)) return "";
   const pct = (n - range.min) / (range.max - range.min);
   if (pct >= 0.8) return "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-medium";
@@ -230,7 +232,7 @@ function CommonTable({
   const [showFilters, setShowFilters] = useState(false);
   const activeColumnFilters = table.getState().columnFilters.length;
 
-  const colRanges = useMemo(() => getColumnRanges(data, numericCols), [data, numericCols]);
+  const colRanges = useMemo(() => getColumnRanges(data, numericCols, columnTypes), [data, numericCols, columnTypes]);
 
   const handleSaved = (name) => {
     setShowSaveDialog(false);
@@ -312,6 +314,7 @@ function CommonTable({
               // Filas filtradas y ordenadas, sin paginar, solo con las columnas visibles
               getRows={() => table.getPrePaginationRowModel().rows.map((r) => visibleIdx.map((i) => r.original[i]))}
               numericCols={exportNumeric}
+              decimalOf={(pos) => columnTypes[visibleIdx[pos]]?.decimal}
               sheetName={sheetName}
               isFiltered={Boolean(globalFilter) || activeColumnFilters > 0}
             />
@@ -383,7 +386,8 @@ function CommonTable({
                           header.column.getCanSort() ? "cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700/60" : ""
                         } ${numericCols.has(header.id) && heatmap ? "bg-blue-50/50 dark:bg-blue-900/10" : ""}`}
                       >
-                        <span className="flex items-center gap-1.5">
+                        {/* Los números se alinean a la derecha para compararlos de un vistazo */}
+                        <span className={`flex items-center gap-1.5 ${numericCols.has(header.id) ? "justify-end" : ""}`}>
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {header.column.getIsSorted() === "asc" && <FontAwesomeIcon icon={faChevronUp} className="text-blue-500 text-xs" />}
                           {header.column.getIsSorted() === "desc" && <FontAwesomeIcon icon={faChevronDown} className="text-blue-500 text-xs" />}
@@ -416,17 +420,17 @@ function CommonTable({
                       const isNumeric = numericCols.has(cell.column.id);
                       const val = cell.getValue();
                       const heatClass = heatmap && isNumeric && val !== "" && val !== null
-                        ? getHeatClass(val, colRanges[cell.column.id])
+                        ? getHeatClass(val, colRanges[cell.column.id], columnTypes[cell.column.id]?.decimal)
                         : "";
                       return (
                         <td
                           key={cell.id}
                           className={`px-4 py-2 whitespace-nowrap font-medium transition-colors ${
                             heatClass || "text-gray-700 dark:text-gray-300"
-                          }`}
+                          } ${isNumeric ? "text-right tabular-nums" : ""}`}
                         >
                           {editable
-                            ? <EditableCell cell={cell} table={table} />
+                            ? <EditableCell cell={cell} table={table} alignRight={isNumeric} />
                             : flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       );
