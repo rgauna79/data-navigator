@@ -13,7 +13,8 @@ export const useExcelContext = () => {
 export const EXCEL_SESSION_KEY = "excel";
 
 export const ExcelProvider = ({ children }) => {
-  const [workbook, setWorkbook] = useState(null);
+  // Nombres de las hojas del archivo abierto (el workbook vive en el Web Worker)
+  const [sheetNames, setSheetNames] = useState([]);
   // Nombre y tamaño del archivo abierto
   const [fileInfo, setFileInfo] = useState(null);
   const [selectedSheet, setSelectedSheet] = useState("");
@@ -26,25 +27,23 @@ export const ExcelProvider = ({ children }) => {
   // Se marca cuando el usuario abre un archivo, para no pisarlo con la restauración
   const fileOpened = useRef(false);
 
-  // La carga de hojas (loadSheet) vive en hooks/useExcelData.js para que la
-  // librería xlsx no forme parte del bundle principal.
+  // La carga de hojas (loadSheet) vive en hooks/useExcelData.js; la lectura
+  // del archivo ocurre en un Web Worker (utils/sheetClient.js).
 
-  // Recupera el último archivo abierto. xlsx se importa dinámicamente para
-  // que solo se descargue si hay algo que restaurar.
+  // Recupera el último archivo abierto. El cliente del Worker se importa
+  // dinámicamente para que solo se descargue si hay algo que restaurar.
   useEffect(() => {
     (async () => {
       try {
         const saved = await loadSession(EXCEL_SESSION_KEY);
         if (!saved || fileOpened.current) return;
-        const { readWorkbook, parseSheet } = await import("../utils/sheetParser.js");
-        const wb = readWorkbook(await saved.file.arrayBuffer(), saved.name);
+        const { openSheetFile } = await import("../utils/sheetClient.js");
+        const opened = await openSheetFile(await saved.file.arrayBuffer(), saved.name, saved.selectedSheet);
         if (fileOpened.current) return;
-        const sheet = wb.Sheets[saved.selectedSheet] ? saved.selectedSheet : wb.SheetNames[0];
-        const formatted = parseSheet(wb, sheet);
-        setWorkbook(wb);
+        setSheetNames(opened.sheetNames);
         setFileInfo({ name: saved.name, size: saved.size });
-        setSelectedSheet(sheet);
-        setFileData(formatted);
+        setSelectedSheet(opened.sheetName || "");
+        setFileData(opened.rows);
         setOverridesBySheet(saved.overrides || {});
       } catch (error) {
         // Un archivo guardado ilegible no debe romper la app
@@ -61,7 +60,7 @@ export const ExcelProvider = ({ children }) => {
   }, []);
 
   const resetExcel = useCallback(() => {
-    setWorkbook(null);
+    setSheetNames([]);
     setFileInfo(null);
     setSelectedSheet("");
     setFileData([]);
@@ -111,7 +110,7 @@ export const ExcelProvider = ({ children }) => {
 
   return (
     <ExcelContext.Provider value={{
-      workbook, setWorkbook,
+      sheetNames, setSheetNames,
       fileInfo, setFileInfo,
       selectedSheet, setSelectedSheet,
       fileData, setFileData,

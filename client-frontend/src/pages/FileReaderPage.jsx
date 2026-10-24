@@ -10,7 +10,7 @@ import { faFileExcel, faSpinner, faTriangleExclamation } from "@fortawesome/free
 
 function FileReaderPage() {
   const {
-    workbook, selectedSheet, fileData, columnAnalysis, columnTypes, setColumnOverride,
+    sheetNames, selectedSheet, fileData, columnAnalysis, columnTypes, setColumnOverride,
     loadError, isRestoringFile,
   } = useDataContext();
   const { isLoggedIn } = useAuth();
@@ -51,7 +51,7 @@ function FileReaderPage() {
         {/* Upload + sheet selector */}
         <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-5 mb-6">
           <FileInput />
-          {workbook && workbook.SheetNames.length > 0 && (
+          {sheetNames.length > 0 && (
             <div className="mt-4">
               <SheetSelector />
             </div>
@@ -70,6 +70,7 @@ function FileReaderPage() {
           <div className="w-full">
             <DataTable
               rows={fileData}
+              normalized
               columnTypes={columnTypes}
               sheetName={selectedSheet}
               showSaveButton={isLoggedIn}

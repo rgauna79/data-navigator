@@ -9,6 +9,7 @@ import {
   minMax,
   parseDate,
   resolveColumnTypes,
+  sampleValues,
   toNumber,
 } from "./excelUtils.js";
 import { parseSheet } from "./sheetParser.js";
@@ -193,5 +194,24 @@ describe("resolveColumnTypes con correcciones manuales", () => {
       resolveColumnTypes([["Code"], ["10"], ["n/a"], ["20"]], { 0: { type: "numeric" } })
     );
     expect(analysis[0]).toMatchObject({ type: "numeric", sum: 30, invalid: 1 });
+  });
+});
+
+describe("sampleValues", () => {
+  test("devuelve todos los valores no vacíos si caben en la muestra", () => {
+    expect(sampleValues(["a", "", "b", null], 10)).toEqual(["a", "b"]);
+  });
+
+  test("reparte la muestra por toda la columna, no solo el principio", () => {
+    const values = Array.from({ length: 10000 }, (_, i) => String(i));
+    const sample = sampleValues(values, 100);
+    expect(sample).toHaveLength(100);
+    expect(sample[0]).toBe("0");
+    expect(Number(sample[99])).toBeGreaterThan(9800);
+  });
+
+  test("una columna grande se detecta por muestra", () => {
+    const sheet = [["N"], ...Array.from({ length: 50000 }, (_, i) => [String(i)])];
+    expect(resolveColumnTypes(sheet)[0].type).toBe("numeric");
   });
 });

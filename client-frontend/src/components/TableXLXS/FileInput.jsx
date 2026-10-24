@@ -9,7 +9,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useExcelData } from "../../hooks/useExcelData.js";
 import { useExcelContext } from "../../context/ExcelContext.jsx";
-import { SUPPORTED_EXTENSIONS, isSupportedFile } from "../../utils/sheetParser.js";
+import { SUPPORTED_EXTENSIONS, isSupportedFile } from "../../utils/fileTypes.js";
 
 function FileInput() {
   const { handleFileChange, isLoading } = useExcelData();

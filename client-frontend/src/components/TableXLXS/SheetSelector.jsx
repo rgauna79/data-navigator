@@ -2,10 +2,10 @@ import { useDataContext } from "../../context/DataContext";
 import { useExcelData } from "../../hooks/useExcelData.js";
 
 function SheetSelector() {
-  const { workbook, selectedSheet } = useDataContext();
+  const { sheetNames, selectedSheet } = useDataContext();
   const { loadSheet } = useExcelData();
 
-  if (!workbook || workbook.SheetNames.length === 0) return null;
+  if (sheetNames.length === 0) return null;
 
   const handleSheetChange = (e) => {
     loadSheet(e.target.value);
@@ -23,7 +23,7 @@ function SheetSelector() {
         onChange={handleSheetChange}
         value={selectedSheet}
       >
-        {workbook.SheetNames.map((sheetName) => (
+        {sheetNames.map((sheetName) => (
           <option key={sheetName} value={sheetName}>
             {sheetName}
           </option>
