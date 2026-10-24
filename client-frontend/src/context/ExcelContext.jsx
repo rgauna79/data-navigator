@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { analyzeColumns, hasUsableData } from "../utils/excelUtils.js";
-import { clearSession, loadSession } from "../utils/sessionStore.js";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { analyzeColumns, hasUsableData, resolveColumnTypes } from "../utils/excelUtils.js";
+import { clearSession, loadSession, updateSession } from "../utils/sessionStore.js";
 
 const ExcelContext = createContext();
 
@@ -18,7 +18,9 @@ export const ExcelProvider = ({ children }) => {
   const [fileInfo, setFileInfo] = useState(null);
   const [selectedSheet, setSelectedSheet] = useState("");
   const [fileData, setFileData] = useState([]);
-  const [columnAnalysis, setColumnAnalysis] = useState([]);
+  // Correcciones manuales del tipo de columna, por hoja:
+  // { [nombre de hoja]: { [índice]: { type?, dateOrder? } } }
+  const [overridesBySheet, setOverridesBySheet] = useState({});
   const [loadError, setLoadError] = useState(null);
   const [isRestoringFile, setIsRestoringFile] = useState(true);
   // Se marca cuando el usuario abre un archivo, para no pisarlo con la restauración
@@ -43,7 +45,7 @@ export const ExcelProvider = ({ children }) => {
         setFileInfo({ name: saved.name, size: saved.size });
         setSelectedSheet(sheet);
         setFileData(formatted);
-        setColumnAnalysis(hasUsableData(formatted) ? analyzeColumns(formatted) : []);
+        setOverridesBySheet(saved.overrides || {});
       } catch (error) {
         // Un archivo guardado ilegible no debe romper la app
         console.error("Could not restore the last file:", error);
@@ -63,10 +65,49 @@ export const ExcelProvider = ({ children }) => {
     setFileInfo(null);
     setSelectedSheet("");
     setFileData([]);
-    setColumnAnalysis([]);
+    setOverridesBySheet({});
     setLoadError(null);
     clearSession(EXCEL_SESSION_KEY);
   }, []);
+
+  // Tipo final de cada columna (detectado + correcciones) y su resumen.
+  // Es la única fuente de verdad para la tabla, los filtros y los informes.
+  const columnOverrides = useMemo(
+    () => overridesBySheet[selectedSheet] || {},
+    [overridesBySheet, selectedSheet]
+  );
+  const columnTypes = useMemo(
+    () => resolveColumnTypes(fileData, columnOverrides),
+    [fileData, columnOverrides]
+  );
+  const columnAnalysis = useMemo(
+    () => (hasUsableData(fileData) ? analyzeColumns(fileData, columnTypes) : []),
+    [fileData, columnTypes]
+  );
+
+  // Cambia el tipo u orden de fechas de una columna de la hoja actual.
+  // change: { type?, dateOrder? }; un valor vacío vuelve a la detección automática.
+  const setColumnOverride = useCallback(
+    (index, change) => {
+      setOverridesBySheet((prev) => {
+        const sheetOverrides = { ...(prev[selectedSheet] || {}) };
+        const merged = { ...sheetOverrides[index], ...change };
+        Object.keys(merged).forEach((k) => !merged[k] && delete merged[k]);
+        if (Object.keys(merged).length) sheetOverrides[index] = merged;
+        else delete sheetOverrides[index];
+        return { ...prev, [selectedSheet]: sheetOverrides };
+      });
+    },
+    [selectedSheet]
+  );
+
+  // Guarda las correcciones junto al archivo para recuperarlas tras recargar
+  useEffect(() => {
+    updateSession(EXCEL_SESSION_KEY, { overrides: overridesBySheet });
+  }, [overridesBySheet]);
+
+  // Al abrir otro archivo se descartan las correcciones del anterior
+  const resetColumnOverrides = useCallback(() => setOverridesBySheet({}), []);
 
   return (
     <ExcelContext.Provider value={{
@@ -74,7 +115,8 @@ export const ExcelProvider = ({ children }) => {
       fileInfo, setFileInfo,
       selectedSheet, setSelectedSheet,
       fileData, setFileData,
-      columnAnalysis, setColumnAnalysis,
+      columnTypes, columnAnalysis, columnOverrides,
+      setColumnOverride, resetColumnOverrides,
       loadError, setLoadError,
       isRestoringFile,
       markFileOpened,

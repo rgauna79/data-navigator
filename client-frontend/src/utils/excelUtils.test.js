@@ -8,6 +8,7 @@ import {
   isNumericColumn,
   minMax,
   parseDate,
+  resolveColumnTypes,
   toNumber,
 } from "./excelUtils.js";
 import { parseSheet } from "./sheetParser.js";
@@ -151,5 +152,46 @@ describe("parseSheet + analyzeColumns", () => {
     expect(analysis.find((c) => c.name === "ID").type).toBe("numeric");
     expect(analysis.find((c) => c.name === "Date").type).toBe("date");
     expect(analysis.find((c) => c.name === "Name").type).toBe("categorical");
+  });
+});
+
+describe("resolveColumnTypes con correcciones manuales", () => {
+  // Fechas ambiguas (día <= 12): la detección supone mes/día
+  const sheet = [
+    ["Zip", "Fecha", "Monto"],
+    ["01234", "03/02/2024", "10"],
+    ["02345", "05/01/2024", "20"],
+  ];
+
+  test("sin correcciones usa lo detectado", () => {
+    expect(resolveColumnTypes(sheet)).toEqual([
+      { type: "numeric", detected: "numeric", overridden: false },
+      { type: "date", dateOrder: "mdy", detected: "date", overridden: false },
+      { type: "numeric", detected: "numeric", overridden: false },
+    ]);
+  });
+
+  test("el usuario puede forzar el tipo y el orden de las fechas", () => {
+    const types = resolveColumnTypes(sheet, { 0: { type: "text" }, 1: { dateOrder: "dmy" } });
+    expect(types[0]).toMatchObject({ type: "text", detected: "numeric", overridden: true });
+    expect(types[1]).toMatchObject({ type: "date", dateOrder: "dmy", overridden: true });
+  });
+
+  test("analyzeColumns respeta las correcciones", () => {
+    const analysis = analyzeColumns(sheet, resolveColumnTypes(sheet, { 0: { type: "text" }, 1: { dateOrder: "dmy" } }));
+    expect(analysis[0].type).toBe("categorical");
+    expect(analysis[0].topValues.map(([v]) => v)).toEqual(["01234", "02345"]);
+    // 03/02/2024 en día/mes es 3 de febrero; 05/01/2024 es 5 de enero
+    expect(analysis[1].min.getMonth()).toBe(0);
+    expect(analysis[1].max.getMonth()).toBe(1);
+    expect(analysis[1].max.getDate()).toBe(3);
+  });
+
+  test("forzar número en una columna de texto cuenta los valores no numéricos", () => {
+    const analysis = analyzeColumns(
+      [["Code"], ["10"], ["n/a"], ["20"]],
+      resolveColumnTypes([["Code"], ["10"], ["n/a"], ["20"]], { 0: { type: "numeric" } })
+    );
+    expect(analysis[0]).toMatchObject({ type: "numeric", sum: 30, invalid: 1 });
   });
 });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EXCEL_SESSION_KEY, useExcelContext } from "../context/ExcelContext";
-import { analyzeColumns, hasUsableData } from "../utils/excelUtils.js";
+import { hasUsableData } from "../utils/excelUtils.js";
 import { parseSheet, findBestSheet, readWorkbook } from "../utils/sheetParser.js";
 import { saveSession, updateSession } from "../utils/sessionStore.js";
 
@@ -12,9 +12,9 @@ export const useExcelData = () => {
     setFileInfo,
     setSelectedSheet,
     setFileData,
-    setColumnAnalysis,
     setLoadError,
     markFileOpened,
+    resetColumnOverrides,
   } = useExcelContext();
 
   // Carga una hoja concreta del workbook y actualiza el contexto.
@@ -30,7 +30,6 @@ export const useExcelData = () => {
     const hasData = hasUsableData(formatted);
     setSelectedSheet(sheetName);
     setFileData(formatted);
-    setColumnAnalysis(hasData ? analyzeColumns(formatted) : []);
     // Una hoja sin datos no es un error: FileReaderPage muestra un aviso propio
     setLoadError(null);
     updateSession(EXCEL_SESSION_KEY, { selectedSheet: sheetName });
@@ -47,12 +46,12 @@ export const useExcelData = () => {
         const wb = readWorkbook(e.target.result, file.name);
         setWorkbook(wb);
         setFileInfo({ name: file.name, size: file.size });
+        resetColumnOverrides();
 
         const bestSheet = findBestSheet(wb);
         if (!bestSheet) {
           setSelectedSheet("");
           setFileData([]);
-          setColumnAnalysis([]);
           setLoadError("This file does not contain any sheets.");
           return;
         }
@@ -73,7 +72,6 @@ export const useExcelData = () => {
         setFileInfo(null);
         setSelectedSheet("");
         setFileData([]);
-        setColumnAnalysis([]);
         setLoadError("Could not read the file. Make sure it is a valid spreadsheet or CSV file.");
       } finally {
         setIsLoading(false);

@@ -5,7 +5,7 @@ import { faXmark, faChartBar, faChartPie, faLayerGroup } from "@fortawesome/free
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useDataContext } from "../../context/DataContext.jsx";
-import { columnDateParser, isDateColumn, isNumericColumn, minMax } from "../../utils/excelUtils.js";
+import { minMax, parseDate, resolveColumnTypes } from "../../utils/excelUtils.js";
 import { METRICS, PERIODS } from "../../utils/reportUtils.js";
 
 const SELECT_CLASS =
@@ -14,8 +14,9 @@ const SELECT_CLASS =
 const TOP_N_OPTIONS = [5, 10, 20, 0]; // 0 = todos
 
 // columns: [{ Header, accessor }] donde accessor es el índice de la columna.
+// columnTypes: tipo de cada columna (con las correcciones del usuario).
 // Todas las selecciones se guardan por índice para soportar encabezados repetidos.
-function Modal({ handleClose, columns, data }) {
+function Modal({ handleClose, columns, columnTypes: typesProp, data }) {
   const { setReport } = useDataContext();
   const navigate = useNavigate();
 
@@ -32,32 +33,28 @@ function Modal({ handleClose, columns, data }) {
     topN: 10,
   });
 
+  const columnTypes = useMemo(
+    () => typesProp || resolveColumnTypes([columns.map((c) => c.Header), ...data]),
+    [typesProp, columns, data]
+  );
+
   const dateColumns = useMemo(
-    () =>
-      new Set(
-        columns
-          .map((c) => c.accessor)
-          .filter((idx) => isDateColumn(data.map((row) => row[idx])))
-      ),
-    [columns, data]
+    () => new Set(columns.map((c) => c.accessor).filter((idx) => columnTypes[idx]?.type === "date")),
+    [columns, columnTypes]
   );
 
   const numericColumns = useMemo(
-    () =>
-      columns
-        .map((c) => c.accessor)
-        .filter((idx) => isNumericColumn(data.map((row) => row[idx]))),
-    [columns, data]
+    () => columns.map((c) => c.accessor).filter((idx) => columnTypes[idx]?.type === "numeric"),
+    [columns, columnTypes]
   );
 
   const updateGroup = (field, value) => setGroup((prev) => ({ ...prev, [field]: value }));
   const groupIsDate = group.groupIdx !== "" && dateColumns.has(Number(group.groupIdx));
 
   const getMinMaxDates = (idx) => {
-    const values = data.map((row) => row[idx]);
-    const parse = columnDateParser(values);
-    const times = values
-      .map(parse)
+    const order = columnTypes[idx]?.dateOrder;
+    const times = data
+      .map((row) => parseDate(row[idx], order))
       .filter(Boolean)
       .map((d) => d.getTime());
     const { min, max } = minMax(times);
@@ -169,6 +166,7 @@ function Modal({ handleClose, columns, data }) {
       config,
       data,
       headers: columns.map((c) => c.Header),
+      columnTypes,
     });
     handleClose();
     navigate("/charts");

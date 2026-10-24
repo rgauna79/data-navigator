@@ -17,6 +17,7 @@ Data Navigator is a robust web application built on the MERN (MongoDB, Express.j
 ## Features
 
 - **Excel and CSV Files**: Read `.xlsx`, `.xls`, `.xlsm`, `.ods`, `.csv` and `.tsv` files. CSV files in UTF-8 or Windows-1252 are supported, and numbers and dates in English (`1,234.50`, `01/15/2024`) or Spanish (`1.234,50`, `15/01/2024`) format are recognised.
+- **Column types you can correct**: Each column is detected as number, date or text; if the detection is wrong (e.g. postal codes read as numbers, or `03/02/2024` read as month/day), change the type or the day/month order from the column summary. Tables, filters and reports use the corrected types.
 - **Dynamic Data Filtering**: Search, sort and paginate any sheet, filter each column by its type (text contains, number range, date range), then export the current view (all pages, with filters and sort applied) to CSV or Excel.
 - **Customized Reporting**: Statistics with filters, most repeated values, and **Group & summarize** reports (count, sum, average, min or max of a column, grouped by category or by day/week/month/quarter/year, with optional filters, top N, charts and CSV export).
 - **Intuitive User Interface**: User-friendly interface designed for smooth navigation and efficient task execution.

@@ -22,6 +22,8 @@ export const ReportProvider = ({ children }) => {
   const [headers, setHeaders] = useState([]);
   // Configuración del informe "group": agrupación, métrica, etc.
   const [config, setConfig] = useState(null);
+  // Tipo de cada columna al generar el informe (con correcciones del usuario)
+  const [columnTypes, setColumnTypes] = useState(null);
   const [isRestoringReport, setIsRestoringReport] = useState(true);
   const restored = useRef(false);
 
@@ -35,6 +37,7 @@ export const ReportProvider = ({ children }) => {
         setData(saved.data);
         setHeaders(saved.headers);
         setConfig(saved.config ?? null);
+        setColumnTypes(saved.columnTypes ?? null);
       }
       restored.current = true;
       setIsRestoringReport(false);
@@ -49,6 +52,7 @@ export const ReportProvider = ({ children }) => {
     setData(report.data);
     setHeaders(report.headers);
     setConfig(report.config ?? null);
+    setColumnTypes(report.columnTypes ?? null);
     saveSession(SESSION_KEY, report);
   }, []);
 
@@ -58,6 +62,7 @@ export const ReportProvider = ({ children }) => {
     setData([]);
     setHeaders([]);
     setConfig(null);
+    setColumnTypes(null);
     clearSession(SESSION_KEY);
   }, []);
 
@@ -69,6 +74,8 @@ export const ReportProvider = ({ children }) => {
         data,
         headers,
         config,
+        // Nombre distinto al columnTypes de ExcelContext: useDataContext une ambos
+        reportColumnTypes: columnTypes,
         isRestoringReport,
         setReport,
         resetReport,
