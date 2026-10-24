@@ -41,7 +41,10 @@ const CHART_TABS = [
 const fmtDate = (d) => new Date(d).toLocaleDateString("en-US");
 
 function ChartPage() {
-  const { data, headers, selectedOptions, typeReport, config, isRestoringReport } = useDataContext();
+  const {
+    data, headers, selectedOptions, typeReport, config,
+    reportColumnTypes: columnTypes, isRestoringReport,
+  } = useDataContext();
   const reportsRef = useRef();
   const navigate = useNavigate();
   const [chartType, setChartType] = useState("pie");
@@ -57,8 +60,13 @@ function ChartPage() {
 
   // Análisis de columnas de los datos del informe (no del archivo abierto en el lector)
   const analysis = useMemo(
-    () => (headers?.length ? analyzeColumns([headers, ...data]) : []),
-    [headers, data]
+    () => {
+      if (!headers?.length) return [];
+      const fileData = [headers, ...data];
+      // Informes guardados antes de existir columnTypes: se detectan de nuevo
+      return columnTypes ? analyzeColumns(fileData, columnTypes) : analyzeColumns(fileData);
+    },
+    [headers, data, columnTypes]
   );
 
   // "statistics" y "group" usan selectedOptions como filtros por columna
@@ -123,7 +131,7 @@ function ChartPage() {
   const generateReportData = () => {
     if (!typeReport) return null;
     if (typeReport === "statistics") {
-      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} headers={headers} />;
+      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} headers={headers} numericColumns={analysis.filter((c) => c.type === "numeric").map((c) => c.index)} />;
     }
     if (typeReport === "mostRepeated") {
       return sorted.length > 0

@@ -11,6 +11,11 @@ import { ReportProvider, useReportContext } from "./ReportContext.jsx";
 export const useDataContext = () => {
   const excel = useExcelContext();
   const report = useReportContext();
+  if (import.meta.env.DEV) {
+    // Una clave repetida haría que el valor de ReportContext tape al de ExcelContext
+    const clash = Object.keys(report).find((key) => key in excel);
+    if (clash) console.error(`useDataContext: "${clash}" exists in both ExcelContext and ReportContext`);
+  }
   return { ...excel, ...report };
 };
 

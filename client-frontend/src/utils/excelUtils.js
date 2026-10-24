@@ -192,8 +192,41 @@ export const dataRows = (fileData) =>
     .slice(1)
     .filter((row) => Object.values(row).some((cell) => !isEmpty(cell)));
 
+// Tipo de una columna a partir de sus valores:
+// { type: "numeric" | "date" | "text", dateOrder?: "mdy" | "dmy" }
+export const detectColumnType = (values) => {
+  if (isNumericColumn(values)) return { type: "numeric" };
+  if (isDateColumn(values)) {
+    return { type: "date", dateOrder: inferDateOrder(values.filter((v) => !isEmpty(v))) };
+  }
+  return { type: "text" };
+};
+
+/**
+ * Tipo final de cada columna: lo detectado, corregido por el usuario.
+ * overrides: { [índice]: { type?, dateOrder? } }
+ * Devuelve [{ type, dateOrder?, detected, overridden }] por columna.
+ */
+export const resolveColumnTypes = (fileData, overrides = {}) => {
+  if (!fileData || fileData.length === 0) return [];
+  const rows = dataRows(fileData);
+  return getHeaders(fileData).map((_, i) => {
+    const values = rows.map((row) => row[i]);
+    const detected = detectColumnType(values);
+    const override = overrides[i] || {};
+    const type = override.type || detected.type;
+    const resolved = { type, detected: detected.type, overridden: Boolean(override.type || override.dateOrder) };
+    if (type === "date") {
+      resolved.dateOrder =
+        override.dateOrder || detected.dateOrder || inferDateOrder(values.filter((v) => !isEmpty(v)));
+    }
+    return resolved;
+  });
+};
+
 // Analiza todas las columnas del sheet y genera un resumen automático
-export const analyzeColumns = (fileData) => {
+// columnTypes: resultado de resolveColumnTypes (se calcula si no se pasa)
+export const analyzeColumns = (fileData, columnTypes = resolveColumnTypes(fileData)) => {
   if (!fileData || fileData.length < 2) return [];
 
   const headers = getHeaders(fileData);
@@ -203,33 +236,44 @@ export const analyzeColumns = (fileData) => {
     const values = rows.map((row) => row[colIndex]);
     const nonEmpty = values.filter((v) => !isEmpty(v));
     const uniqueValues = new Set(nonEmpty);
+    const { type, dateOrder, detected, overridden } = columnTypes[colIndex] || detectColumnType(values);
     const base = {
       index: colIndex,
       name: header,
       count: nonEmpty.length,
       unique: uniqueValues.size,
+      detected: detected ?? type,
+      overridden: Boolean(overridden),
     };
 
-    if (isNumericColumn(values)) {
+    if (type === "numeric") {
       const nums = numericValues(nonEmpty);
       const sum = nums.reduce((a, b) => a + b, 0);
       return {
         ...base,
         type: "numeric",
         ...minMax(nums),
-        avg: sum / nums.length,
+        avg: nums.length ? sum / nums.length : undefined,
         sum,
+        // Valores que no se pudieron leer como número
+        invalid: nonEmpty.length - nums.length,
       };
     }
 
-    if (isDateColumn(values)) {
-      const dateOrder = inferDateOrder(nonEmpty);
+    if (type === "date") {
       const times = nonEmpty
         .map((v) => parseDate(v, dateOrder))
         .filter(Boolean)
         .map((d) => d.getTime());
       const { min, max } = minMax(times);
-      return { ...base, type: "date", dateOrder, min: new Date(min), max: new Date(max) };
+      return {
+        ...base,
+        type: "date",
+        dateOrder,
+        min: times.length ? new Date(min) : undefined,
+        max: times.length ? new Date(max) : undefined,
+        invalid: nonEmpty.length - times.length,
+      };
     }
 
     // Categórica: top 5 valores más frecuentes

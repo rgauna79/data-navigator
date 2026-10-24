@@ -101,7 +101,7 @@ const getHeatClass = (value, range) => {
 };
 
 function CommonTable({
-  data, table, headers, numericCols, sheetName, fileData, handleCloseTable,
+  data, table, headers, numericCols, columnTypes, sheetName, fileData, handleCloseTable,
   showSaveButton = false, globalFilter, setGlobalFilter,
 }) {
   const [showModal, setShowModal] = useState(false);
@@ -200,7 +200,9 @@ function CommonTable({
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
-            {showModal && <Modal handleClose={() => setShowModal(false)} columns={columns} data={data} />}
+            {showModal && (
+              <Modal handleClose={() => setShowModal(false)} columns={columns} columnTypes={columnTypes} data={data} />
+            )}
             {showSaveDialog && (
               <SaveDialog
                 defaultName={sheetName}

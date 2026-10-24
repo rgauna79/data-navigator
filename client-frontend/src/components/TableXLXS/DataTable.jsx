@@ -11,10 +11,8 @@ import {
   dataRows,
   formatJson,
   getHeaders,
-  inferDateOrder,
-  isDateColumn,
-  isNumericColumn,
   normalizeRows,
+  resolveColumnTypes,
   toNumber,
 } from "../../utils/excelUtils.js";
 import { dateRangeFilter, numberRangeFilter, textFilter } from "../../utils/tableFilters.js";
@@ -31,7 +29,9 @@ const numericSort = (a, b, columnId) => {
 };
 
 // rows: matriz de la hoja (primera fila = encabezados)
-function DataTable({ rows, sheetName, showSaveButton = false, handleCloseTable }) {
+// columnTypes: tipos ya resueltos (con correcciones del usuario); si no se
+// pasan, se detectan automáticamente
+function DataTable({ rows, columnTypes: typesProp, sheetName, showSaveButton = false, handleCloseTable }) {
   const [globalFilter, setGlobalFilter] = useState("");
 
   const fileData = useMemo(() => normalizeRows(formatJson(rows || [])), [rows]);
@@ -39,29 +39,16 @@ function DataTable({ rows, sheetName, showSaveButton = false, handleCloseTable }
 
   const data = useMemo(() => dataRows(fileData), [fileData]);
 
-  // Índices de columnas numéricas (como string, igual que el id de columna)
-  const numericCols = useMemo(
-    () =>
-      new Set(
-        headers
-          .map((_, i) => i)
-          .filter((i) => isNumericColumn(data.map((row) => row[i])))
-          .map(String)
-      ),
-    [headers, data]
+  // Tipo de cada columna (numeric | date | text) para ordenar, filtrar y el mapa de calor
+  const columnMeta = useMemo(
+    () => typesProp || resolveColumnTypes(fileData),
+    [typesProp, fileData]
   );
 
-  // Tipo de cada columna para elegir su filtro: numeric | date | text
-  const columnMeta = useMemo(
-    () =>
-      headers.map((_, i) => {
-        if (numericCols.has(String(i))) return { type: "numeric" };
-        const values = data.map((row) => row[i]);
-        return isDateColumn(values)
-          ? { type: "date", dateOrder: inferDateOrder(values) }
-          : { type: "text" };
-      }),
-    [headers, data, numericCols]
+  // Índices de columnas numéricas (como string, igual que el id de columna)
+  const numericCols = useMemo(
+    () => new Set(columnMeta.map((t, i) => (t.type === "numeric" ? String(i) : null)).filter(Boolean)),
+    [columnMeta]
   );
 
   // ✅ TanStack v8: column defs usan `header` y `accessorFn`
@@ -72,7 +59,7 @@ function DataTable({ rows, sheetName, showSaveButton = false, handleCloseTable }
         header,
         accessorFn: (row) => row[i],
         sortingFn: numericCols.has(String(i)) ? numericSort : "alphanumeric",
-        filterFn: FILTERS[columnMeta[i].type],
+        filterFn: FILTERS[columnMeta[i]?.type || "text"],
         meta: columnMeta[i],
       })),
     [headers, numericCols, columnMeta]
@@ -97,6 +84,7 @@ function DataTable({ rows, sheetName, showSaveButton = false, handleCloseTable }
       data={data}
       headers={headers}
       numericCols={numericCols}
+      columnTypes={columnMeta}
       sheetName={sheetName}
       fileData={fileData}
       handleCloseTable={handleCloseTable}

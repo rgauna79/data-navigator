@@ -9,8 +9,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileExcel, faSpinner, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 
 function FileReaderPage() {
-  const { workbook, selectedSheet, fileData, columnAnalysis, loadError, isRestoringFile } =
-    useDataContext();
+  const {
+    workbook, selectedSheet, fileData, columnAnalysis, columnTypes, setColumnOverride,
+    loadError, isRestoringFile,
+  } = useDataContext();
   const { isLoggedIn } = useAuth();
 
   const hasSheetData = hasUsableData(fileData);
@@ -59,7 +61,7 @@ function FileReaderPage() {
         {/* Column summary — aparece automáticamente al cargar */}
         {columnAnalysis && columnAnalysis.length > 0 && (
           <div className="max-w-full mb-6 px-0">
-            <ColumnSummary analysis={columnAnalysis} />
+            <ColumnSummary analysis={columnAnalysis} onChangeType={setColumnOverride} />
           </div>
         )}
 
@@ -68,6 +70,7 @@ function FileReaderPage() {
           <div className="w-full">
             <DataTable
               rows={fileData}
+              columnTypes={columnTypes}
               sheetName={selectedSheet}
               showSaveButton={isLoggedIn}
             />

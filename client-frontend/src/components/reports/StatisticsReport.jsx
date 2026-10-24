@@ -3,12 +3,13 @@ import { isNumericColumn, numericValues } from "../../utils/excelUtils.js";
 const fmt = (n) =>
   n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function StatisticsReport({ filteredData, totalRows, includedOptions, headers }) {
+// numericColumns: índices de las columnas numéricas (según el tipo de cada
+// columna, incluidas las correcciones del usuario); si no se pasa, se detecta
+function StatisticsReport({ filteredData, totalRows, includedOptions, headers, numericColumns }) {
   const nCols = headers?.length || filteredData[0]?.length || 0;
-  const numericCols = [];
-  for (let idx = 0; idx < nCols; idx++) {
-    if (isNumericColumn(filteredData.map((row) => row[idx]))) numericCols.push(idx);
-  }
+  const numericCols =
+    numericColumns ??
+    [...Array(nCols).keys()].filter((idx) => isNumericColumn(filteredData.map((row) => row[idx])));
 
   const columnName = (idx) => headers?.[idx] || `Column ${idx + 1}`;
 
