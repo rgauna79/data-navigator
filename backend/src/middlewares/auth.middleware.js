@@ -38,3 +38,11 @@ export const authRequired = (req, res, next) => {
     next();
   });
 };
+
+// Solo administradores. Debe usarse después de verifyToken
+export const requireAdmin = (req, res, next) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  next();
+};
