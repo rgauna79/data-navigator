@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Bar, Line, Pie } from "react-chartjs-2";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChartBar, faChartLine, faChartPie, faFileCsv } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowTrendDown, faArrowTrendUp, faChartBar, faChartLine, faChartPie, faFileCsv, faMagnifyingGlass,
+} from "@fortawesome/free-solid-svg-icons";
 import { BLANK_LABEL, METRICS, PERIODS, downloadCsv, formatPeriodLabel } from "../../utils/reportUtils.js";
 import { useI18n } from "../../i18n/I18nContext.jsx";
 
@@ -13,7 +15,8 @@ const OTHER_COLOR = "156,163,175";
 
 // Resultado del informe "Group & summarize": gráfico, tabla y exportación a CSV.
 // result: salida de groupRows; config: configuración elegida en el Modal.
-function GroupReport({ result, config, headers, includedOptions, rowCount }) {
+// onDrill(grupo, etiqueta): muestra las filas de un grupo (clic en la tabla o el gráfico)
+function GroupReport({ result, config, headers, includedOptions, rowCount, onDrill }) {
   const { groups, total, skipped } = result;
   const { t, tn, locale, fmtNumber, fmtDecimal } = useI18n();
   const formatValue = (value) =>
@@ -36,6 +39,16 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
   const showRows = metric !== "count";
   const share = (value) =>
     showShare && value != null ? `${fmtNumber((value / total) * 100, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "";
+  const pct = (n) => `${n > 0 ? "+" : ""}${fmtNumber(n, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+
+  // Variación respecto al período anterior (solo al agrupar por fecha)
+  const changeAt = (i) => {
+    const prev = groups[i - 1];
+    const cur = groups[i];
+    if (!isDate || !prev || prev.value == null || cur.value == null || prev.value === 0) return null;
+    return ((cur.value - prev.value) / Math.abs(prev.value)) * 100;
+  };
+  const lastChange = isDate && groups.length > 1 ? changeAt(groups.length - 1) : null;
 
   // Etiqueta de cada grupo en el idioma de la interfaz
   const labelOf = (g) => {
@@ -65,6 +78,9 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
         borderColor: activeChart === "line" ? "rgba(59,130,246,1)" : groups.map((g, i) => colorFor(g, i, 1)),
         borderWidth: activeChart === "line" ? 2 : 1,
         borderRadius: activeChart === "bar" ? 6 : 0,
+        // Las barras y porciones se pueden pulsar para ver sus filas
+        hoverBackgroundColor:
+          activeChart === "line" ? undefined : groups.map((g, i) => colorFor(g, i, 0.9)),
         fill: activeChart === "line",
         tension: 0.3,
         // Suaviza sin pasarse de los valores reales (evita picos inexistentes)
@@ -78,6 +94,12 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    onClick: (event, elements) => {
+      if (onDrill && elements.length) onDrill(groups[elements[0].index], labelOf(groups[elements[0].index]));
+    },
+    onHover: (event, elements) => {
+      if (event.native?.target) event.native.target.style.cursor = onDrill && elements.length ? "pointer" : "default";
+    },
     plugins: {
       legend: { display: activeChart === "pie", position: "left" },
       tooltip: {
@@ -137,15 +159,22 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className={`grid grid-cols-1 gap-3 ${lastChange !== null ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
         {[
           { label: t("Groups"), value: fmtNumber(groups.filter((g) => g.rows > 0).length) },
           { label: t("Rows"), value: fmtNumber(rowCount) },
           { label: metric === "count" ? t("Total rows") : t("{metric} (all)", { metric: t(METRICS[metric]) }), value: formatValue(total) },
-        ].map(({ label, value }) => (
-          <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-xl px-4 py-3">
-            <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-            <p className="text-lg font-bold text-gray-900 dark:text-white">{value}</p>
+          ...(lastChange !== null
+            ? [{
+                label: t("{last} vs {previous}", { last: labelOf(groups.at(-1)), previous: labelOf(groups.at(-2)) }),
+                value: pct(lastChange),
+                tone: lastChange >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
+              }]
+            : []),
+        ].map(({ label, value, tone }) => (
+          <div key={label} className="bg-gray-50 dark:bg-gray-700/40 rounded-xl px-4 py-3 min-w-0">
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={label}>{label}</p>
+            <p className={`text-lg font-bold truncate ${tone || "text-gray-900 dark:text-white"}`}>{value}</p>
           </div>
         ))}
       </div>
@@ -186,6 +215,11 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
             <div className="h-72">
               <ChartComponent data={chartData} options={chartOptions} />
             </div>
+            {onDrill && (
+              <p className="text-xs text-gray-400 mt-2" data-html2canvas-ignore>
+                {t("Click a bar or a row to see the rows behind it.")}
+              </p>
+            )}
           </div>
 
           {/* Tabla */}
@@ -197,15 +231,46 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
                   <th className="px-4 py-2.5 text-right font-medium">{metricLabel}</th>
                   {showRows && <th className="px-4 py-2.5 text-right font-medium">{t("Rows")}</th>}
                   {showShare && <th className="px-4 py-2.5 text-right font-medium">{t("% of total")}</th>}
+                  {isDate && <th className="px-4 py-2.5 text-right font-medium">{t("vs previous")}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-gray-700 dark:text-gray-300">
-                {groups.map((g) => (
-                  <tr key={g.key} className={g.isOther ? "italic text-gray-500 dark:text-gray-400" : ""}>
-                    <td className="px-4 py-2">{labelOf(g)}</td>
+                {groups.map((g, i) => (
+                  <tr
+                    key={g.key}
+                    className={`${g.isOther ? "italic text-gray-500 dark:text-gray-400" : ""} ${
+                      onDrill && g.rows > 0 ? "hover:bg-blue-50/60 dark:hover:bg-blue-900/20" : ""
+                    }`}
+                  >
+                    <td className="px-4 py-2">
+                      {onDrill && g.rows > 0 ? (
+                        <button
+                          onClick={() => onDrill(g, labelOf(g))}
+                          className="group flex items-center gap-2 text-left hover:text-blue-600 dark:hover:text-blue-400"
+                          title={t("See the rows of this group")}
+                        >
+                          {labelOf(g)}
+                          <FontAwesomeIcon icon={faMagnifyingGlass} className="text-[10px] opacity-0 group-hover:opacity-100" />
+                        </button>
+                      ) : (
+                        labelOf(g)
+                      )}
+                    </td>
                     <td className="px-4 py-2 text-right tabular-nums">{formatValue(g.value)}</td>
                     {showRows && <td className="px-4 py-2 text-right tabular-nums">{fmtNumber(g.rows)}</td>}
                     {showShare && <td className="px-4 py-2 text-right tabular-nums">{share(g.value)}</td>}
+                    {isDate && (
+                      <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap">
+                        {changeAt(i) === null ? (
+                          <span className="text-gray-300 dark:text-gray-600">—</span>
+                        ) : (
+                          <span className={changeAt(i) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                            <FontAwesomeIcon icon={changeAt(i) >= 0 ? faArrowTrendUp : faArrowTrendDown} className="text-[10px] mr-1" />
+                            {pct(changeAt(i))}
+                          </span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -219,6 +284,7 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
                     </td>
                   )}
                   {showShare && <td className="px-4 py-2 text-right tabular-nums">{fmtNumber(100, { minimumFractionDigits: 1 })}%</td>}
+                  {isDate && <td />}
                 </tr>
               </tfoot>
             </table>

@@ -6,7 +6,9 @@ import { useI18n } from "../../i18n/I18nContext.jsx";
 
 // Diálogo para guardar la hoja con un nombre. Si ya existe un archivo con
 // ese nombre, el servidor responde 409 y se pide confirmación para sobrescribirlo.
-function SaveDialog({ defaultName, fileData, onClose, onSaved }) {
+function SaveDialog({ defaultName, fileData: rows, onClose, onSaved }) {
+  // Las filas eliminadas al limpiar los datos quedan vacías: no se guardan
+  const fileData = rows.filter((row, i) => i === 0 || row.length > 0);
   const { t, tServer } = useI18n();
   const [name, setName] = useState(defaultName || "");
   const [isSaving, setIsSaving] = useState(false);

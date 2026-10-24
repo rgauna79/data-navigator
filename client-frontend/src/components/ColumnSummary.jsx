@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ColumnDetail from "./ColumnDetail.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faHashtag,
@@ -6,6 +7,7 @@ import {
   faTag,
   faChevronDown,
   faChartLine,
+  faMagnifyingGlassChart,
 } from "@fortawesome/free-solid-svg-icons";
 import { tk, useI18n } from "../i18n/I18nContext.jsx";
 
@@ -102,13 +104,24 @@ function FillBadge({ col }) {
   );
 }
 
-function CardFooter({ col }) {
-  const { tn } = useI18n();
+function CardFooter({ col, onDetails }) {
+  const { t, tn } = useI18n();
   return (
     <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 text-[11px]">
-      <p className="text-gray-400 dark:text-gray-500 font-medium">
-        {tn("{count} value", "{count} values", col.count)} · {tn("{count} unique", "{count} unique", col.unique)}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-gray-400 dark:text-gray-500 font-medium">
+          {tn("{count} value", "{count} values", col.count)} · {tn("{count} unique", "{count} unique", col.unique)}
+        </p>
+        {onDetails && (
+          <button
+            onClick={onDetails}
+            aria-label={t("Details of {name}", { name: col.name })}
+            className="flex items-center gap-1 font-bold text-blue-600 dark:text-blue-400 hover:underline shrink-0"
+          >
+            <FontAwesomeIcon icon={faMagnifyingGlassChart} /> {t("Details")}
+          </button>
+        )}
+      </div>
       {col.invalid > 0 && (
         <p className="text-amber-600 dark:text-amber-400">
           {col.type === "date"
@@ -125,7 +138,7 @@ const statBox = "bg-gray-50 dark:bg-gray-700/50 rounded-lg px-2.5 py-1.5";
 const statLabel = "text-[10px] text-gray-400 dark:text-gray-500 font-semibold uppercase";
 const statValue = "text-xs font-bold text-gray-800 dark:text-gray-100";
 
-function NumericCard({ col, onChangeType }) {
+function NumericCard({ col, onChangeType, onDetails }) {
   const { t } = useI18n();
   const fmt = useFmt();
   return (
@@ -146,12 +159,12 @@ function NumericCard({ col, onChangeType }) {
           </div>
         ))}
       </div>
-      <CardFooter col={col} />
+      <CardFooter col={col} onDetails={onDetails} />
     </div>
   );
 }
 
-function DateCard({ col, onChangeType }) {
+function DateCard({ col, onChangeType, onDetails }) {
   const { t, fmtDate } = useI18n();
   return (
     <div className={cardClass}>
@@ -166,12 +179,12 @@ function DateCard({ col, onChangeType }) {
           <p className={statValue}>{fmtDate(col.max)}</p>
         </div>
       </div>
-      <CardFooter col={col} />
+      <CardFooter col={col} onDetails={onDetails} />
     </div>
   );
 }
 
-function CategoricalCard({ col, onChangeType }) {
+function CategoricalCard({ col, onChangeType, onDetails }) {
   const fmt = useFmt();
   const max = col.topValues?.[0]?.[1] || 1;
   return (
@@ -190,15 +203,17 @@ function CategoricalCard({ col, onChangeType }) {
           </div>
         ))}
       </div>
-      <CardFooter col={col} />
+      <CardFooter col={col} onDetails={onDetails} />
     </div>
   );
 }
 
 // analysis: resultado de analyzeColumns
 // onChangeType(índice, { type?, dateOrder? }): corrige el tipo de una columna
-function ColumnSummary({ analysis, onChangeType }) {
+// fileData y columnTypes: la hoja, para abrir el detalle de cada columna
+function ColumnSummary({ analysis, onChangeType, fileData, columnTypes }) {
   const [expanded, setExpanded] = useState(false);
+  const [detail, setDetail] = useState(null);
   const { t } = useI18n();
 
   if (!analysis || analysis.length === 0) return null;
@@ -206,9 +221,19 @@ function ColumnSummary({ analysis, onChangeType }) {
   const numeric = analysis.filter((c) => c.type === "numeric");
   const dates = analysis.filter((c) => c.type === "date");
   const categorical = analysis.filter((c) => c.type === "categorical");
+  const detailCol = detail !== null ? analysis.find((c) => c.index === detail) : null;
 
   return (
     <div className="w-full mt-6">
+      {detailCol && (
+        <ColumnDetail
+          col={detailCol}
+          fileData={fileData}
+          analysis={analysis}
+          columnTypes={columnTypes}
+          onClose={() => setDetail(null)}
+        />
+      )}
       <button
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
@@ -282,11 +307,17 @@ function ColumnSummary({ analysis, onChangeType }) {
             </p>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 mt-3">
-            {analysis.map((col) =>
-              col.type === "numeric" ? <NumericCard key={col.index} col={col} onChangeType={onChangeType} /> :
-              col.type === "date"    ? <DateCard    key={col.index} col={col} onChangeType={onChangeType} /> :
-                                       <CategoricalCard key={col.index} col={col} onChangeType={onChangeType} />
-            )}
+            {analysis.map((col) => {
+              const Card = col.type === "numeric" ? NumericCard : col.type === "date" ? DateCard : CategoricalCard;
+              return (
+                <Card
+                  key={col.index}
+                  col={col}
+                  onChangeType={onChangeType}
+                  onDetails={fileData ? () => setDetail(col.index) : undefined}
+                />
+              );
+            })}
           </div>
         </>
       )}

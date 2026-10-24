@@ -1,8 +1,9 @@
 // mostRepeatedOptions: [[valor, cantidad], ...] ordenados de mayor a menor
 // totalValidRows: filas con valor en la columna (para el porcentaje)
+// onDrill(valor): muestra las filas con ese valor
 import { useI18n } from "../../i18n/I18nContext.jsx";
 
-function MostRepeatedReport({ column, mostRepeatedOptions, totalValidRows }) {
+function MostRepeatedReport({ column, mostRepeatedOptions, totalValidRows, onDrill }) {
   const { t, fmtNumber } = useI18n();
   if (!mostRepeatedOptions || mostRepeatedOptions.length === 0) {
     return <p className="text-gray-500 dark:text-gray-400 text-sm">{t("No data to display.")}</p>;
@@ -31,7 +32,17 @@ function MostRepeatedReport({ column, mostRepeatedOptions, totalValidRows }) {
             </span>
             <div className="flex-1 min-w-0">
               <div className="flex items-end justify-between mb-1">
-                <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{option}</span>
+                {onDrill ? (
+                  <button
+                    onClick={() => onDrill(option)}
+                    title={t("See the rows with this value")}
+                    className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
+                  >
+                    {option}
+                  </button>
+                ) : (
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{option}</span>
+                )}
                 <span className="ml-2 shrink-0 text-right">
                   <span className="text-sm font-bold text-gray-900 dark:text-white">{fmtNumber(count)}</span>
                   <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider ml-2">

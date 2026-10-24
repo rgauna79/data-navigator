@@ -4,6 +4,7 @@ import { useI18n } from "../i18n/I18nContext.jsx";
 import DataTable from "../components/TableXLXS/DataTable.jsx";
 import FileInput from "../components/TableXLXS/FileInput.jsx";
 import ColumnSummary from "../components/ColumnSummary.jsx";
+import InsightsPanel from "../components/InsightsPanel.jsx";
 import { hasUsableData } from "../utils/excelUtils.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileExcel, faSpinner, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
@@ -64,7 +65,19 @@ function FileReaderPage() {
         {/* Column summary — aparece automáticamente al cargar */}
         {columnAnalysis?.length > 0 && (
           <div className="max-w-full mb-6">
-            <ColumnSummary analysis={columnAnalysis} onChangeType={setColumnOverride} />
+            <ColumnSummary
+              analysis={columnAnalysis}
+              onChangeType={setColumnOverride}
+              fileData={fileData}
+              columnTypes={columnTypes}
+            />
+          </div>
+        )}
+
+        {/* Conclusiones automáticas de la hoja */}
+        {selectedSheet && hasSheetData && !loadError && (
+          <div className="max-w-full mb-6">
+            <InsightsPanel fileData={fileData} analysis={columnAnalysis} columnTypes={columnTypes} />
           </div>
         )}
 
