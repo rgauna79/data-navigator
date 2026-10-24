@@ -16,12 +16,23 @@ export const textFilter = (row, columnId, value) =>
   normalize(row.getValue(columnId)).includes(normalize(value).trim());
 textFilter.autoRemove = (value) => isBlank(value) || !String(value).trim();
 
-// Rango numérico [min, max]; cualquiera de los dos puede estar vacío
+// Metadatos de la columna (tipo, orden de fechas, separador decimal).
+// _getAllCellsByColumnId es el índice (memorizado) que usa TanStack Table.
+const metaOf = (row, columnId) => {
+  const cell = row._getAllCellsByColumnId
+    ? row._getAllCellsByColumnId()[columnId]
+    : row.getAllCells().find((c) => c.column.id === columnId);
+  return cell?.column.columnDef.meta || {};
+};
+
+// Rango numérico [min, max]; cualquiera de los dos puede estar vacío.
+// Los límites se leen con el mismo formato que la columna ("1.000" en español).
 export const numberRangeFilter = (row, columnId, [min, max] = []) => {
-  const n = toNumber(row.getValue(columnId));
+  const { decimal } = metaOf(row, columnId);
+  const n = toNumber(row.getValue(columnId), decimal);
   if (isNaN(n)) return false;
-  const lo = toNumber(String(min ?? ""));
-  const hi = toNumber(String(max ?? ""));
+  const lo = toNumber(String(min ?? ""), decimal);
+  const hi = toNumber(String(max ?? ""), decimal);
   return (isNaN(lo) || n >= lo) && (isNaN(hi) || n <= hi);
 };
 numberRangeFilter.autoRemove = (value) =>
@@ -37,8 +48,7 @@ const fromInput = (s, endOfDay = false) => {
 // Rango de fechas { from, to } (ambos opcionales). La columna define el
 // orden día/mes con columnDef.meta.dateOrder.
 export const dateRangeFilter = (row, columnId, { from, to } = {}) => {
-  const order = row.getAllCells().find((c) => c.column.id === columnId)?.column.columnDef.meta?.dateOrder;
-  const d = parseDate(row.getValue(columnId), order);
+  const d = parseDate(row.getValue(columnId), metaOf(row, columnId).dateOrder);
   if (!d) return false;
   const start = fromInput(from);
   const end = fromInput(to, true);

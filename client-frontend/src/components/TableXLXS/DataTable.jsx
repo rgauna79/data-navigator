@@ -14,33 +14,11 @@ import {
   getHeaders,
   normalizeRows,
   resolveColumnTypes,
-  toNumber,
 } from "../../utils/excelUtils.js";
+import { createSorter } from "../../utils/tableSorting.js";
 import { dateRangeFilter, numberRangeFilter, textFilter } from "../../utils/tableFilters.js";
 
 const FILTERS = { numeric: numberRangeFilter, date: dateRangeFilter, text: textFilter };
-
-// Ordena por valor numérico ("1,200" > "950"); vacíos al final.
-// Ordenar compara cada valor muchas veces, así que la conversión a número se
-// guarda en caché (una por tabla, se descarta al cambiar los datos).
-const createNumericSort = () => {
-  const cache = new Map();
-  const numberOf = (value) => {
-    let n = cache.get(value);
-    if (n === undefined) {
-      n = toNumber(value);
-      cache.set(value, n);
-    }
-    return n;
-  };
-  return (a, b, columnId) => {
-    const x = numberOf(a.getValue(columnId));
-    const y = numberOf(b.getValue(columnId));
-    if (isNaN(x)) return isNaN(y) ? 0 : 1;
-    if (isNaN(y)) return -1;
-    return x - y;
-  };
-};
 
 // rows: matriz de la hoja (primera fila = encabezados)
 // columnTypes: tipos ya resueltos (con correcciones del usuario); si no se
@@ -84,8 +62,18 @@ function DataTable({
     [columnMeta]
   );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- nueva caché cuando cambian los datos
-  const numericSort = useMemo(() => createNumericSort(), [data]);
+  // Orden según el tipo de cada columna, con los vacíos siempre al final.
+  // La dirección del orden se lee de la tabla (se crea más abajo).
+  const tableRef = useRef(null);
+  const sorter = useMemo(
+    () =>
+      createSorter({
+        typeOf: (id) => columnMeta[Number(id)],
+        isDesc: (id) => Boolean(tableRef.current?.getState().sorting.find((s) => s.id === id)?.desc),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nueva caché cuando cambian los datos
+    [data, columnMeta]
+  );
 
   // ✅ TanStack v8: column defs usan `header` y `accessorFn`
   const columns = useMemo(
@@ -94,11 +82,11 @@ function DataTable({
         id: String(i),
         header,
         accessorFn: (row) => row[i],
-        sortingFn: numericCols.has(String(i)) ? numericSort : "alphanumeric",
+        sortingFn: sorter,
         filterFn: FILTERS[columnMeta[i]?.type || "text"],
         meta: columnMeta[i],
       })),
-    [headers, numericCols, columnMeta, numericSort]
+    [headers, columnMeta, sorter]
   );
 
   // ✅ TanStack v8: useReactTable con model getters
@@ -125,6 +113,7 @@ function DataTable({
         }
       : undefined,
   });
+  tableRef.current = table;
 
   return (
     <CommonTable

@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import {
   analyzeColumns,
   getHeaders,
+  inferDecimalSeparator,
   inferDateOrder,
   isDateColumn,
   isNumericColumn,
@@ -10,6 +11,7 @@ import {
   parseDate,
   resolveColumnTypes,
   sampleValues,
+  spread,
   toNumber,
 } from "./excelUtils.js";
 import { parseSheet } from "./sheetParser.js";
@@ -166,9 +168,9 @@ describe("resolveColumnTypes con correcciones manuales", () => {
 
   test("sin correcciones usa lo detectado", () => {
     expect(resolveColumnTypes(sheet)).toEqual([
-      { type: "numeric", detected: "numeric", overridden: false },
+      { type: "numeric", decimal: ".", detected: "numeric", overridden: false },
       { type: "date", dateOrder: "mdy", detected: "date", overridden: false },
-      { type: "numeric", detected: "numeric", overridden: false },
+      { type: "numeric", decimal: ".", detected: "numeric", overridden: false },
     ]);
   });
 
@@ -213,5 +215,71 @@ describe("sampleValues", () => {
   test("una columna grande se detecta por muestra", () => {
     const sheet = [["N"], ...Array.from({ length: 50000 }, (_, i) => [String(i)])];
     expect(resolveColumnTypes(sheet)[0].type).toBe("numeric");
+  });
+});
+
+describe("separador decimal por columna", () => {
+  test("una columna en español lee los miles aunque no haya decimales", () => {
+    const sheet = [["Importe"], ["1.234,50"], ["950"], ["1.200"], ["12.500"]];
+    const [col] = analyzeColumns(sheet);
+    expect(col.decimal).toBe(",");
+    expect(col.sum).toBeCloseTo(15884.5);
+  });
+
+  test("solo números con punto cada 3 cifras son miles en español", () => {
+    expect(inferDecimalSeparator(["1.200", "12.500", "950"])).toBe(",");
+    expect(inferDecimalSeparator(["2,000", "1,500", "300"])).toBe(".");
+  });
+
+  test("las pistas claras deciden sobre las ambiguas", () => {
+    expect(inferDecimalSeparator(["1.200", "3.75"])).toBe(".");
+    expect(inferDecimalSeparator(["2,000", "10,5"])).toBe(",");
+    expect(inferDecimalSeparator(["$1,234.50", "1,200"])).toBe(".");
+  });
+
+  test("toNumber con el separador de la columna", () => {
+    expect(toNumber("1.200", ",")).toBe(1200);
+    expect(toNumber("1.200", ".")).toBe(1.2);
+    expect(toNumber("1,5", ",")).toBe(1.5);
+    expect(toNumber("1,234", ".")).toBe(1234);
+    expect(toNumber("1.234.567,8", ",")).toBe(1234567.8);
+    // Un valor que no encaja con el formato de la columna se lee por sí solo
+    expect(toNumber("1,234.50", ",")).toBe(1234.5);
+  });
+
+  test("negativos contables con moneda y signo menos tipográfico", () => {
+    expect(toNumber("$(1,234.00)")).toBe(-1234);
+    expect(toNumber(" $ (1,234.00) ")).toBe(-1234);
+    expect(toNumber("−5")).toBe(-5);
+    expect(toNumber("1\u00a0234,56")).toBe(1234.56);
+  });
+});
+
+describe("fechas con mes en español", () => {
+  test.each([["15 ene 2024"], ["15-ene-2024"], ["15 de enero de 2024"], ["15 Ene. 2024"]])("%s", (value) => {
+    const d = parseDate(value);
+    expect([d.getFullYear(), d.getMonth(), d.getDate()]).toEqual([2024, 0, 15]);
+  });
+
+  test("diciembre y agosto", () => {
+    expect(parseDate("3 dic 2023").getMonth()).toBe(11);
+    expect(parseDate("20 agosto 2023").getMonth()).toBe(7);
+  });
+
+  test("hora con zona horaria", () => {
+    const d = parseDate("2024-01-15T10:30:00Z");
+    expect([d.getDate(), d.getHours(), d.getMinutes()]).toEqual([15, 10, 30]);
+  });
+});
+
+describe("spread", () => {
+  test("mediana y desviación estándar muestral (como STDEV.S)", () => {
+    const { median, stdDev } = spread([2, 4, 4, 4, 5, 5, 7, 9]);
+    expect(median).toBe(4.5);
+    expect(stdDev).toBeCloseTo(2.13809, 4);
+  });
+
+  test("con un solo valor no hay desviación", () => {
+    expect(spread([5])).toEqual({ median: 5, stdDev: undefined });
   });
 });

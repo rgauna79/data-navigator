@@ -10,7 +10,8 @@ const baseFileName = (name) =>
 // Exporta las filas visibles de la tabla (con búsqueda y orden aplicados,
 // todas las páginas) a CSV o Excel.
 // getRows: devuelve las filas a exportar en el momento del clic.
-function ExportMenu({ headers, getRows, numericCols, sheetName, isFiltered }) {
+// decimalOf(i): separador decimal de la columna i, para convertir a número al exportar a Excel
+function ExportMenu({ headers, getRows, numericCols, decimalOf, sheetName, isFiltered }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -40,7 +41,7 @@ function ExportMenu({ headers, getRows, numericCols, sheetName, isFiltered }) {
     // xlsx se carga solo al exportar (en la página de archivos guardados no está cargado)
     const { downloadXlsx } = await import("../../utils/sheetParser.js");
     const numeric = new Set([...numericCols].map(Number));
-    downloadXlsx(`${fileName}.xlsx`, sheetName, exportRows(headers, getRows(), numeric));
+    downloadXlsx(`${fileName}.xlsx`, sheetName, exportRows(headers, getRows(), numeric, decimalOf));
   };
 
   return (

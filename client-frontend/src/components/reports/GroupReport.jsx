@@ -130,7 +130,7 @@ function GroupReport({ result, config, headers, includedOptions, rowCount }) {
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: "Groups", value: groups.filter((g) => g.rows > 0).length.toLocaleString("en-US") },
           { label: "Rows", value: rowCount.toLocaleString("en-US") },

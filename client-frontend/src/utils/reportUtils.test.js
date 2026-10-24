@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { aggregate, applyFilters, exportRows, groupRows, periodOf, toCsv } from "./reportUtils.js";
+import { aggregate, applyFilters, describeFilter, exportRows, groupRows, periodOf, toCsv } from "./reportUtils.js";
 
 // Cliente, Categoría, Monto, Fecha
 const rows = [
@@ -134,5 +134,41 @@ describe("exportRows", () => {
 
   test("sin columnas numéricas conserva el texto", () => {
     expect(exportRows(["A"], [["1,5"]])).toEqual([["A"], ["1,5"]]);
+  });
+});
+
+describe("filtros numéricos y formato español", () => {
+  const rows = [["A", "1.200"], ["B", "950"], ["C", "12.500"], ["D", "-"]];
+  const analysis = [{}, { decimal: "," }];
+
+  test("rango mínimo/máximo con el separador de la columna", () => {
+    expect(applyFilters(rows, { 1: { min: "1.000", max: "" } }, analysis).map((r) => r[0])).toEqual(["A", "C"]);
+    expect(applyFilters(rows, { 1: { min: "", max: "1000" } }, analysis).map((r) => r[0])).toEqual(["B"]);
+    expect(applyFilters(rows, { 1: { min: "900", max: "1.500" } }, analysis).map((r) => r[0])).toEqual(["A", "B"]);
+  });
+
+  test("groupRows suma miles en español", () => {
+    const { groups, total } = groupRows({
+      rows: [["X", "1.200"], ["X", "950"], ["Y", "12.500"]],
+      groupIdx: 0,
+      groupType: "category",
+      metric: "sum",
+      valueIdx: 1,
+      decimal: ",",
+    });
+    expect(total).toBe(14650);
+    expect(groups.map((g) => [g.label, g.value])).toEqual([["Y", 12500], ["X", 2150]]);
+  });
+
+  test("exportRows convierte con el separador de cada columna", () => {
+    const out = exportRows(["N"], [["1.200"]], new Set([0]), () => ",");
+    expect(out[1][0]).toBe(1200);
+  });
+
+  test("describeFilter", () => {
+    expect(describeFilter({ min: "10", max: "20" })).toBe("10 – 20");
+    expect(describeFilter({ min: "10", max: "" })).toBe("≥ 10");
+    expect(describeFilter({ min: "", max: "20" })).toBe("≤ 20");
+    expect(describeFilter("North")).toBe("North");
   });
 });

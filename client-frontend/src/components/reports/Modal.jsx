@@ -5,7 +5,7 @@ import { faXmark, faChartBar, faChartPie, faLayerGroup, faListOl } from "@fortaw
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useDataContext } from "../../context/DataContext.jsx";
-import { minMax, parseDate, resolveColumnTypes } from "../../utils/excelUtils.js";
+import { minMax, parseDate, resolveColumnTypes, toNumber } from "../../utils/excelUtils.js";
 import { METRICS, PERIODS } from "../../utils/reportUtils.js";
 
 const SELECT_CLASS =
@@ -80,12 +80,17 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
     setTimeout(() => setError(""), 5000);
   };
 
+  const numericSet = useMemo(() => new Set(numericColumns), [numericColumns]);
+
   const handleCheckboxChange = (idx, checked) => {
     if (checked) {
       setLocalSelectedColumns((prev) => [...prev, idx]);
-      // Las columnas de fecha empiezan con el rango completo de la columna
+      // Las columnas de fecha empiezan con el rango completo de la columna;
+      // las numéricas, con un rango mínimo/máximo vacío
       if (dateColumns.has(idx)) {
         setLocalSelectedOptions((prev) => ({ ...prev, [idx]: getMinMaxDates(idx) }));
+      } else if (numericSet.has(idx)) {
+        setLocalSelectedOptions((prev) => ({ ...prev, [idx]: { min: "", max: "" } }));
       }
     } else {
       setLocalSelectedColumns((prev) => prev.filter((col) => col !== idx));
@@ -100,6 +105,10 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
   const handleSelectChange = (e) => {
     const { name, value } = e.target;
     setLocalSelectedOptions((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleRangeChange = (idx, field, value) => {
+    setLocalSelectedOptions((prev) => ({ ...prev, [idx]: { ...prev[idx], [field]: value } }));
   };
 
   const handleDateChange = (idx, field, date) => {
@@ -119,10 +128,6 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
         return;
       }
     } else {
-      if (localTypeReport === "statistics" && localSelectedColumns.length === 0) {
-        showError("Must select at least one column.");
-        return;
-      }
       if (localTypeReport === "group") {
         if (group.groupIdx === "") {
           showError("Please select a column to group by.");
@@ -133,13 +138,25 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
           return;
         }
       }
-      // Los filtros son obligatorios en "statistics" y opcionales en "group",
-      // pero cada columna marcada necesita un valor
+      // Los filtros son opcionales (sin filtros se usa toda la hoja), pero
+      // cada columna marcada necesita un valor
+      const decimalOf = (idx) => columnTypes[idx]?.decimal;
       for (const idx of localSelectedColumns) {
         const option = localSelectedOptions[idx];
         if (dateColumns.has(idx)) {
           if (!option?.from || !option?.to) {
             showError("Please select valid date ranges for all date columns.");
+            return;
+          }
+        } else if (numericSet.has(idx)) {
+          const min = toNumber(String(option?.min ?? ""), decimalOf(idx));
+          const max = toNumber(String(option?.max ?? ""), decimalOf(idx));
+          if (isNaN(min) && isNaN(max)) {
+            showError(`Enter a minimum or maximum for ${columns[idx].Header}.`);
+            return;
+          }
+          if (!isNaN(min) && !isNaN(max) && min > max) {
+            showError(`The minimum of ${columns[idx].Header} is greater than the maximum.`);
             return;
           }
         } else if (!option) {
@@ -328,8 +345,13 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
           {(localTypeReport === "statistics" || localTypeReport === "group") && (
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                {localTypeReport === "group" ? "Filter rows (optional)" : "Select columns to filter"}
+                Filter rows <span className="font-normal text-gray-400">(optional)</span>
               </p>
+              {localTypeReport === "statistics" && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  Without filters the report uses every row of the sheet.
+                </p>
+              )}
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {columns.map((column) => {
                   const idx = column.accessor;
@@ -371,6 +393,25 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                                   className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1.5 text-gray-900 dark:text-white"
                                 />
                               </div>
+                            </div>
+                          ) : numericSet.has(idx) ? (
+                            <div className="flex gap-2">
+                              <input
+                                inputMode="decimal"
+                                placeholder="Min"
+                                aria-label={`${column.Header} minimum`}
+                                value={range.min ?? ""}
+                                onChange={(e) => handleRangeChange(idx, "min", e.target.value)}
+                                className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                              />
+                              <input
+                                inputMode="decimal"
+                                placeholder="Max"
+                                aria-label={`${column.Header} maximum`}
+                                value={range.max ?? ""}
+                                onChange={(e) => handleRangeChange(idx, "max", e.target.value)}
+                                className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                              />
                             </div>
                           ) : (
                             <select

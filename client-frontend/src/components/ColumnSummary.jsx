@@ -63,6 +63,18 @@ function CardHeader({ col, icon, color, badge, onChangeType }) {
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+          {col.type === "numeric" && (
+            <select
+              aria-label={`${col.name} number format`}
+              title="Decimal separator of this column"
+              value={col.decimal || "."}
+              onChange={(e) => onChangeType(col.index, { decimal: e.target.value })}
+              className={selectClass}
+            >
+              <option value=".">1,234.5</option>
+              <option value=",">1.234,5</option>
+            </select>
+          )}
           {col.type === "date" && (
             <select
               aria-label={`${col.name} date order`}

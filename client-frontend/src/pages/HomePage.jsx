@@ -8,7 +8,7 @@ import {
   faChartBar,
   faArrowRight,
   faUpload,
-  faClockRotateLeft,
+  faCodeCompare,
   faSpinner,
   faChartPie,
   faLayerGroup,
@@ -306,7 +306,7 @@ function HomePage() {
               />
               <FeatureCard
                 to="/compare"
-                icon={faClockRotateLeft}
+                icon={faCodeCompare}
                 color="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400"
                 title="Data Auditor"
                 description="Compare spreadsheets and automatically detect discrepancies."

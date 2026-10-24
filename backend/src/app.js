@@ -6,6 +6,7 @@ import UserRoutes from "./routes/user.routes.js";
 import DataRoutes from "./routes/data.routes.js";
 import ReportRoutes from "./routes/report.routes.js";
 import cookieParser from "cookie-parser";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { csrfProtection } from "./middlewares/csrf.middleware.js";
@@ -44,12 +45,15 @@ app.use("/api/data", DataRoutes);
 // Saved reports routes
 app.use("/api/reports", ReportRoutes);
 
-if (process.env.NODE_ENV === "production") {
-  // Ruta relativa a este archivo, no al directorio desde donde se lanza node.
-  // STATIC_DIR permite servir el frontend desde otra carpeta (y en los tests).
-  const distPath =
-    process.env.STATIC_DIR ||
-    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../client-frontend/dist");
+// Ruta relativa a este archivo, no al directorio desde donde se lanza node.
+// STATIC_DIR permite servir el frontend desde otra carpeta (y en los tests).
+const distPath =
+  process.env.STATIC_DIR ||
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../client-frontend/dist");
+
+// Solo si el frontend está compilado junto al backend. Si se publica por
+// separado (como en Render) el backend sirve solo la API.
+if (process.env.NODE_ENV === "production" && fs.existsSync(path.join(distPath, "index.html"))) {
   app.use(express.static(distPath));
 
   // Las rutas del frontend (React Router) devuelven index.html.
