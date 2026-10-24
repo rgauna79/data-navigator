@@ -16,14 +16,17 @@ Data Navigator is a robust web application built on the MERN (MongoDB, Express.j
 
 ## Features
 
+- **English and Spanish**: The interface follows the browser language and can be switched with the ES/EN button. Numbers and dates are shown in the format of the chosen language (`2.592.283,68` in Spanish).
+- **Sample data**: No file at hand? "Try sample data" opens a year of example sales so every feature can be tried right away.
 - **Excel and CSV Files**: Read `.xlsx`, `.xls`, `.xlsm`, `.ods`, `.csv` and `.tsv` files. CSV files in UTF-8 or Windows-1252 are supported, and numbers and dates in English (`1,234.50`, `01/15/2024`) or Spanish (`1.234,50`, `15/01/2024`) format are recognised.
 - **Column types you can correct**: Each column is detected as number, date or text; if the detection is wrong (e.g. postal codes read as numbers, or `03/02/2024` read as month/day), change the type or the day/month order from the column summary. Tables, filters and reports use the corrected types.
 - **Dynamic Data Filtering**: Search, sort and paginate any sheet, filter each column by its type (text contains, number range, date range), show or hide columns, color numeric columns with a heatmap, then export the current view (all pages, visible columns, with filters and sort applied) to CSV or Excel.
 - **Data Cleaning**: Double click any cell in the reader to fix its value. Edits can be undone, are kept after a reload and are included when you save the sheet.
 - **Data Auditor (Compare)**: Compare two sheets — from the open file or from your saved files — column by column: sums, averages and medians with the percentage change, date ranges and top values, with a filter to show only the columns that differ.
-- **Customized Reporting**: Statistics with filters (sum, average, median, min, max, range and standard deviation), most repeated values (choose how many), and **Group & summarize** reports (count, sum, average, min or max of a column, grouped by category or by day/week/month/quarter/year, with optional filters, top N, charts and CSV export). Export any report to PDF.
+- **Customized Reporting**: Statistics with optional filters (sum, average, median, min, max, range, standard deviation and a histogram of every numeric column), most repeated values (choose how many), and **Group & summarize** reports (count, sum, average, min or max of a column, grouped by category or by day/week/month/quarter/year, with optional filters, top N, charts and CSV export). Export any report to PDF.
 - **Saved Reports**: Save a report with its data and open it again later from **My Reports**, even without the original file.
-- **Dashboard**: After signing in, the home page shows your recent files and reports.
+- **Dashboard**: After signing in, the home page shows how many files, rows and reports you have saved, and your recent files and reports: one click opens a saved file in the Reader or a saved report.
+- **Saved files in the Reader**: "Analyze" opens a saved file in the Reader, where you can clean it, compare it and create reports.
 - **Intuitive User Interface**: User-friendly interface designed for smooth navigation and efficient task execution.
 - **Data Storage and Management**: Store sheets in MongoDB under your account, then search, open, rename or delete them from the Saved Files page. Saving with an existing name asks before replacing it.
 - **Work survives a reload**: The open file and the last report are kept in the browser (IndexedDB) and cleared when you sign out.

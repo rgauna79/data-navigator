@@ -7,6 +7,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { useDataContext } from "../../context/DataContext.jsx";
 import { minMax, parseDate, resolveColumnTypes, toNumber } from "../../utils/excelUtils.js";
 import { METRICS, PERIODS } from "../../utils/reportUtils.js";
+import { tk, useI18n } from "../../i18n/I18nContext.jsx";
 
 const SELECT_CLASS =
   "w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500";
@@ -14,9 +15,9 @@ const SELECT_CLASS =
 const TOP_N_OPTIONS = [5, 10, 20, 0]; // 0 = todos
 
 const REPORT_TYPES = [
-  { value: "statistics", label: "Statistics", desc: "Overview", icon: faChartBar },
-  { value: "mostRepeated", label: "Most repeated", desc: "Top values", icon: faChartPie },
-  { value: "group", label: "Group & summarize", desc: "Pivot table", icon: faLayerGroup },
+  { value: "statistics", label: tk("Statistics"), desc: tk("Overview"), icon: faChartBar },
+  { value: "mostRepeated", label: tk("Most repeated"), desc: tk("Top values"), icon: faChartPie },
+  { value: "group", label: tk("Group & summarize"), desc: tk("Pivot table"), icon: faLayerGroup },
 ];
 
 // columns: [{ Header, accessor }] donde accessor es el índice de la columna.
@@ -25,6 +26,7 @@ const REPORT_TYPES = [
 // sheetName: hoja de origen, para el nombre del informe guardado
 function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName = "" }) {
   const { setReport } = useDataContext();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [localSelectedColumns, setLocalSelectedColumns] = useState([]);
@@ -114,7 +116,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
   const handleDateChange = (idx, field, date) => {
     const range = { ...localSelectedOptions[idx], [field]: date };
     if (range.from && range.to && range.from > range.to) {
-      showError("Start date cannot be after end date.");
+      showError(t("Start date cannot be after end date."));
       return;
     }
     setError("");
@@ -124,17 +126,17 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
   const handleConfirm = () => {
     if (localTypeReport === "mostRepeated") {
       if (localSelectedOptions.mostRepeated === undefined || localSelectedOptions.mostRepeated === "") {
-        showError("Please select a column to analyze.");
+        showError(t("Please select a column to analyze."));
         return;
       }
     } else {
       if (localTypeReport === "group") {
         if (group.groupIdx === "") {
-          showError("Please select a column to group by.");
+          showError(t("Please select a column to group by."));
           return;
         }
         if (group.metric !== "count" && group.valueIdx === "") {
-          showError("Please select the numeric column to summarize.");
+          showError(t("Please select the numeric column to summarize."));
           return;
         }
       }
@@ -145,22 +147,22 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
         const option = localSelectedOptions[idx];
         if (dateColumns.has(idx)) {
           if (!option?.from || !option?.to) {
-            showError("Please select valid date ranges for all date columns.");
+            showError(t("Please select valid date ranges for all date columns."));
             return;
           }
         } else if (numericSet.has(idx)) {
           const min = toNumber(String(option?.min ?? ""), decimalOf(idx));
           const max = toNumber(String(option?.max ?? ""), decimalOf(idx));
           if (isNaN(min) && isNaN(max)) {
-            showError(`Enter a minimum or maximum for ${columns[idx].Header}.`);
+            showError(t("Enter a minimum or maximum for {name}.", { name: columns[idx].Header }));
             return;
           }
           if (!isNaN(min) && !isNaN(max) && min > max) {
-            showError(`The minimum of ${columns[idx].Header} is greater than the maximum.`);
+            showError(t("The minimum of {name} is greater than the maximum.", { name: columns[idx].Header }));
             return;
           }
         } else if (!option) {
-          showError("Please select a record for all selected columns.");
+          showError(t("Please select a record for all selected columns."));
           return;
         }
       }
@@ -207,7 +209,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="text-lg font-black text-gray-900 dark:text-white">Generate Report</h2>
+          <h2 className="text-lg font-black text-gray-900 dark:text-white">{t("Generate Report")}</h2>
           <button
             onClick={handleClose}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -219,7 +221,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
         <div className="px-5 py-4 space-y-5">
           {/* Report type selector */}
           <div>
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Report type</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t("Report type")}</p>
             <div className="grid grid-cols-3 gap-2">
               {REPORT_TYPES.map(({ value, label, desc, icon }) => (
                 <label
@@ -238,8 +240,8 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                     className="sr-only"
                   />
                   <FontAwesomeIcon icon={icon} className="text-sm" />
-                  <span className="text-[11px] font-bold uppercase tracking-wide leading-tight">{label}</span>
-                  <span className="text-[10px] opacity-70">{desc}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide leading-tight">{t(label)}</span>
+                  <span className="text-[10px] opacity-70">{t(desc)}</span>
                 </label>
               ))}
             </div>
@@ -250,7 +252,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
             <div className="space-y-3">
               <div>
                 <label htmlFor="groupBySelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                  Group by
+                  {t("Group by")}
                 </label>
                 <select
                   id="groupBySelect"
@@ -258,10 +260,10 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                   onChange={(e) => updateGroup("groupIdx", e.target.value)}
                   className={SELECT_CLASS}
                 >
-                  <option value="">Select a column</option>
+                  <option value="">{t("Select a column")}</option>
                   {columns.map((column) => (
                     <option key={column.accessor} value={column.accessor}>
-                      {column.Header}{dateColumns.has(column.accessor) ? " (date)" : ""}
+                      {column.Header}{dateColumns.has(column.accessor) ? ` (${t("date")})` : ""}
                     </option>
                   ))}
                 </select>
@@ -270,7 +272,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label htmlFor="metricSelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                    Calculate
+                    {t("Calculate")}
                   </label>
                   <select
                     id="metricSelect"
@@ -279,14 +281,14 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                     className={SELECT_CLASS}
                   >
                     {Object.entries(METRICS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
+                      <option key={value} value={value}>{t(label)}</option>
                     ))}
                   </select>
                 </div>
                 {group.metric !== "count" && (
                   <div>
                     <label htmlFor="valueSelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                      Of column
+                      {t("Of column")}
                     </label>
                     <select
                       id="valueSelect"
@@ -294,20 +296,20 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                       onChange={(e) => updateGroup("valueIdx", e.target.value)}
                       className={SELECT_CLASS}
                     >
-                      <option value="">Select a column</option>
+                      <option value="">{t("Select a column")}</option>
                       {numericColumns.map((idx) => (
                         <option key={idx} value={idx}>{columns[idx].Header}</option>
                       ))}
                     </select>
                     {numericColumns.length === 0 && (
-                      <p className="text-xs text-gray-500 mt-1">This sheet has no numeric columns.</p>
+                      <p className="text-xs text-gray-500 mt-1">{t("This sheet has no numeric columns.")}</p>
                     )}
                   </div>
                 )}
                 {groupIsDate ? (
                   <div>
                     <label htmlFor="periodSelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                      Per
+                      {t("Per")}
                     </label>
                     <select
                       id="periodSelect"
@@ -316,14 +318,14 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                       className={SELECT_CLASS}
                     >
                       {Object.entries(PERIODS).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
+                        <option key={value} value={value}>{t(label)}</option>
                       ))}
                     </select>
                   </div>
                 ) : (
                   <div>
                     <label htmlFor="topNSelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                      Show
+                      {t("Show")}
                     </label>
                     <select
                       id="topNSelect"
@@ -332,7 +334,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                       className={SELECT_CLASS}
                     >
                       {TOP_N_OPTIONS.map((n) => (
-                        <option key={n} value={n}>{n ? `Top ${n}` : "All groups"}</option>
+                        <option key={n} value={n}>{n ? t("Top {n}", { n }) : t("All groups")}</option>
                       ))}
                     </select>
                   </div>
@@ -345,11 +347,11 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
           {(localTypeReport === "statistics" || localTypeReport === "group") && (
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Filter rows <span className="font-normal text-gray-400">(optional)</span>
+                {t("Filter rows")} <span className="font-normal text-gray-400">{t("(optional)")}</span>
               </p>
               {localTypeReport === "statistics" && (
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                  Without filters the report uses every row of the sheet.
+                  {t("Without filters the report uses every row of the sheet.")}
                 </p>
               )}
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
@@ -373,7 +375,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                         <div className="ml-6">
                           {dateColumns.has(idx) ? (
                             <div className="flex flex-col gap-1">
-                              <span className="text-xs text-gray-500 dark:text-gray-400">Date range</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">{t("Date range")}</span>
                               <div className="flex gap-2">
                                 <DatePicker
                                   selected={range.from || null}
@@ -398,16 +400,16 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                             <div className="flex gap-2">
                               <input
                                 inputMode="decimal"
-                                placeholder="Min"
-                                aria-label={`${column.Header} minimum`}
+                                placeholder={t("Min")}
+                                aria-label={t("{name} minimum", { name: column.Header })}
                                 value={range.min ?? ""}
                                 onChange={(e) => handleRangeChange(idx, "min", e.target.value)}
                                 className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                               />
                               <input
                                 inputMode="decimal"
-                                placeholder="Max"
-                                aria-label={`${column.Header} maximum`}
+                                placeholder={t("Max")}
+                                aria-label={t("{name} maximum", { name: column.Header })}
                                 value={range.max ?? ""}
                                 onChange={(e) => handleRangeChange(idx, "max", e.target.value)}
                                 className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
@@ -420,7 +422,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                               onChange={handleSelectChange}
                               className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                             >
-                              <option value="">Select a value</option>
+                              <option value="">{t("Select a value")}</option>
                               {getUniqueValues(idx).map((value) => (
                                 <option key={value} value={value}>{value}</option>
                               ))}
@@ -439,7 +441,7 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
           {localTypeReport === "mostRepeated" && (
             <div>
               <label htmlFor="mostRepeatedSelect" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-                Select column to analyze
+                {t("Select column to analyze")}
               </label>
               <select
                 name="mostRepeated"
@@ -448,13 +450,13 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
                 onChange={handleSelectChange}
                 className="w-full text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select a column</option>
+                <option value="">{t("Select a column")}</option>
                 {columns.map((column) => (
                   <option key={column.accessor} value={column.accessor}>{column.Header}</option>
                 ))}
               </select>
               <label htmlFor="topLimitInput" className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2 block">
-                Number of top values
+                {t("Number of top values")}
               </label>
               <div className="relative">
                 <FontAwesomeIcon icon={faListOl} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
@@ -485,14 +487,14 @@ function Modal({ handleClose, columns, columnTypes: typesProp, data, sheetName =
             onClick={handleClose}
             className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             onClick={handleConfirm}
             disabled={!localTypeReport}
             className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-xs active:scale-95 transition-all"
           >
-            Generate
+            {t("Generate")}
           </button>
         </div>
       </div>

@@ -1,8 +1,11 @@
 // mostRepeatedOptions: [[valor, cantidad], ...] ordenados de mayor a menor
 // totalValidRows: filas con valor en la columna (para el porcentaje)
+import { useI18n } from "../../i18n/I18nContext.jsx";
+
 function MostRepeatedReport({ column, mostRepeatedOptions, totalValidRows }) {
+  const { t, fmtNumber } = useI18n();
   if (!mostRepeatedOptions || mostRepeatedOptions.length === 0) {
-    return <p className="text-gray-500 dark:text-gray-400 text-sm">No data to display.</p>;
+    return <p className="text-gray-500 dark:text-gray-400 text-sm">{t("No data to display.")}</p>;
   }
 
   const max = mostRepeatedOptions[0][1] || 1;
@@ -12,10 +15,12 @@ function MostRepeatedReport({ column, mostRepeatedOptions, totalValidRows }) {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
         <h3 className="text-base font-bold text-gray-800 dark:text-white">
-          Top {mostRepeatedOptions.length} most repeated values{column ? ` in ${column}` : ""}
+          {column
+            ? t("Top {n} most repeated values in {column}", { n: mostRepeatedOptions.length, column })
+            : t("Top {n} most repeated values", { n: mostRepeatedOptions.length })}
         </h3>
         <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-lg">
-          Based on {total.toLocaleString("en-US")} records with a value
+          {t("Based on {count} records with a value", { count: fmtNumber(total) })}
         </span>
       </div>
       <div className="space-y-4">
@@ -28,9 +33,9 @@ function MostRepeatedReport({ column, mostRepeatedOptions, totalValidRows }) {
               <div className="flex items-end justify-between mb-1">
                 <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{option}</span>
                 <span className="ml-2 shrink-0 text-right">
-                  <span className="text-sm font-bold text-gray-900 dark:text-white">{count.toLocaleString("en-US")}</span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">{fmtNumber(count)}</span>
                   <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider ml-2">
-                    {total > 0 ? ((count / total) * 100).toFixed(1) : 0}%
+                    {fmtNumber(total > 0 ? (count / total) * 100 : 0, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                   </span>
                 </span>
               </div>

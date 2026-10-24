@@ -1,6 +1,7 @@
 // Lógica de los informes: filtros, agrupación y exportación.
 // Funciones puras para poder probarlas sin React.
 import { parseDate, toNumber } from "./excelUtils.js";
+import { tk } from "../i18n/tk.js";
 
 // Fin del día, para que el rango de fechas incluya el día "hasta"
 const endOfDay = (d) => {
@@ -39,12 +40,11 @@ export const applyFilters = (rows, filters = {}, analysis = []) => {
   );
 };
 
-const fmtFilterDate = (d) => new Date(d).toLocaleDateString("en-US");
-
-// Texto legible de un filtro de informe (ver matchRow)
-export const describeFilter = (value) => {
+// Texto legible de un filtro de informe (ver matchRow); locale para las fechas
+export const describeFilter = (value, locale = "en-US") => {
   if (value && typeof value === "object" && "from" in value) {
-    return `${fmtFilterDate(value.from)} → ${fmtFilterDate(value.to)}`;
+    const fmt = (d) => new Date(d).toLocaleDateString(locale);
+    return `${fmt(value.from)} → ${fmt(value.to)}`;
   }
   if (value && typeof value === "object") {
     const { min = "", max = "" } = value;
@@ -55,19 +55,19 @@ export const describeFilter = (value) => {
 };
 
 export const METRICS = {
-  count: "Count of rows",
-  sum: "Sum",
-  avg: "Average",
-  min: "Minimum",
-  max: "Maximum",
+  count: tk("Count of rows"),
+  sum: tk("Sum"),
+  avg: tk("Average"),
+  min: tk("Minimum"),
+  max: tk("Maximum"),
 };
 
 export const PERIODS = {
-  day: "Day",
-  week: "Week",
-  month: "Month",
-  quarter: "Quarter",
-  year: "Year",
+  day: tk("Day"),
+  week: tk("Week"),
+  month: tk("Month"),
+  quarter: tk("Quarter"),
+  year: tk("Year"),
 };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -115,6 +115,31 @@ const nextPeriod = (d, period) => {
   }
 };
 
+/**
+ * Etiqueta de un período en el idioma de la interfaz a partir de su clave
+ * (ver periodOf): "2024-03" -> "mar 2024" en español.
+ * t: función de traducción (para "Week {week}, {year}" y "Q{q} {year}").
+ */
+export const formatPeriodLabel = (key, period, locale = "en-US", t = (s, v) => s.replace(/\{(\w+)\}/g, (_, k) => v[k])) => {
+  const [y, rest] = [Number(key.slice(0, 4)), key.slice(5)];
+  switch (period) {
+    case "day":
+      return new Date(y, Number(rest.slice(0, 2)) - 1, Number(rest.slice(3, 5))).toLocaleDateString(locale, {
+        month: "short", day: "numeric", year: "numeric",
+      });
+    case "week":
+      return t("Week {week}, {year}", { week: Number(rest.slice(1)), year: y });
+    case "quarter":
+      return t("Q{q} {year}", { q: rest.slice(1), year: y });
+    case "year":
+      return String(y);
+    default: {
+      const month = new Date(y, Number(rest) - 1, 1).toLocaleDateString(locale, { month: "short" }).replace(".", "");
+      return `${month} ${y}`;
+    }
+  }
+};
+
 // Clave ordenable y etiqueta legible de un período
 export const periodOf = (date, period = "month") => {
   const start = periodStart(date, period);
@@ -157,6 +182,33 @@ export const aggregate = (rowCount, values, metric, decimal) => {
     default:
       throw new Error(`Unknown metric: ${metric}`);
   }
+};
+
+/**
+ * Histograma: reparte los números en intervalos del mismo ancho.
+ * La cantidad de intervalos sigue la regla de Sturges (entre 1 y maxBins).
+ * Devuelve [{ from, to, count }]; el último intervalo incluye el máximo.
+ */
+export const histogram = (values, maxBins = 12) => {
+  if (values.length === 0) return [];
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  if (min === max) return [{ from: min, to: max, count: values.length }];
+  const bins = Math.min(maxBins, Math.max(1, Math.ceil(Math.log2(values.length) + 1)));
+  const width = (max - min) / bins;
+  const result = Array.from({ length: bins }, (_, i) => ({
+    from: min + i * width,
+    to: i === bins - 1 ? max : min + (i + 1) * width,
+    count: 0,
+  }));
+  for (const v of values) {
+    result[Math.min(bins - 1, Math.floor((v - min) / width))].count++;
+  }
+  return result;
 };
 
 // Máximo de períodos a rellenar con huecos; evita, por ejemplo, miles de días vacíos
@@ -272,6 +324,8 @@ export const groupRows = ({
         decimal
       ),
       isOther: true,
+      // Número de grupos agrupados en "Other"
+      groupCount: rest.length,
     });
   }
   return { groups, total, skipped };

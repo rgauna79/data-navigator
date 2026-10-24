@@ -1,4 +1,7 @@
+import { useI18n } from "../../i18n/I18nContext.jsx";
+
 function Footer() {
+  const { t } = useI18n();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -9,14 +12,14 @@ function Footer() {
           <div className="text-gray-500 text-xs font-medium">
             © {currentYear}{" "}
             <span className="text-gray-300 font-bold">Data Navigator</span>.
-            <span className="hidden sm:inline"> All rights reserved.</span>
+            <span className="hidden sm:inline"> {t("All rights reserved.")}</span>
           </div>
 
           {/* Lado Derecho: Créditos y Contacto */}
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs">
             <div className="flex items-center gap-2">
               <span className="text-gray-600 font-bold uppercase tracking-widest text-[10px]">
-                Developer
+                {t("Developer")}
               </span>
               <a
                 href="https://github.com/rgauna79"
@@ -35,7 +38,7 @@ function Footer() {
               className="text-gray-500 hover:text-white transition-colors flex items-center gap-2"
             >
               <span className="text-gray-600 font-bold uppercase tracking-widest text-[10px]">
-                Contact
+                {t("Contact")}
               </span>
               <span className="font-medium">rgauna@gmail.com</span>
             </a>

@@ -13,7 +13,8 @@ import {
 // Colores de los gráficos según el modo claro/oscuro
 import "../utils/chartTheme.js";
 import { analyzeColumns, parseDate } from "../utils/excelUtils.js";
-import { applyFilters, describeFilter, groupRows } from "../utils/reportUtils.js";
+import { applyFilters, describeFilter, formatPeriodLabel, groupRows } from "../utils/reportUtils.js";
+import { tk, useI18n } from "../i18n/I18nContext.jsx";
 import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
 import GroupReport from "../components/reports/GroupReport.jsx";
@@ -41,21 +42,22 @@ const COLORS = [
 ];
 
 const CHART_TABS = [
-  { id: "pie",  label: "Pie",  icon: faChartPie  },
-  { id: "bar",  label: "Bar",  icon: faChartBar  },
-  { id: "line", label: "Trend",icon: faChartLine },
+  { id: "pie",  label: tk("Pie"),  icon: faChartPie  },
+  { id: "bar",  label: tk("Bar"),  icon: faChartBar  },
+  { id: "line", label: tk("Trend"),icon: faChartLine },
 ];
 
 const REPORT_TITLES = {
-  statistics: "Statistics report",
-  mostRepeated: "Most repeated values",
-  group: "Group & summarize",
+  statistics: tk("Statistics report"),
+  mostRepeated: tk("Most repeated values"),
+  group: tk("Group & summarize"),
 };
 
 // Pide el nombre del informe antes de guardarlo
 function SaveReportModal({ defaultName, onConfirm, onCancel }) {
   const [name, setName] = useState(defaultName);
   const [saving, setSaving] = useState(false);
+  const { t } = useI18n();
 
   const handleConfirm = async (e) => {
     e.preventDefault();
@@ -76,11 +78,11 @@ function SaveReportModal({ defaultName, onConfirm, onCancel }) {
         aria-labelledby="save-report-title"
         className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 w-full max-w-sm p-6"
       >
-        <h3 id="save-report-title" className="text-lg font-black text-gray-900 dark:text-white mb-1">Save report</h3>
+        <h3 id="save-report-title" className="text-lg font-black text-gray-900 dark:text-white mb-1">{t("Save report")}</h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Saved reports keep their data, so you can open them later from My Reports.
+          {t("Saved reports keep their data, so you can open them later from My Reports.")}
         </p>
-        <label htmlFor="reportName" className="sr-only">Report name</label>
+        <label htmlFor="reportName" className="sr-only">{t("Report name")}</label>
         <input
           id="reportName"
           autoFocus
@@ -96,7 +98,7 @@ function SaveReportModal({ defaultName, onConfirm, onCancel }) {
             onClick={onCancel}
             className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="submit"
@@ -104,7 +106,7 @@ function SaveReportModal({ defaultName, onConfirm, onCancel }) {
             className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl"
           >
             <FontAwesomeIcon icon={saving ? faSpinner : faFloppyDisk} spin={saving} />
-            {saving ? "Saving..." : "Save"}
+            {saving ? t("Saving...") : t("Save")}
           </button>
         </div>
       </form>
@@ -118,12 +120,13 @@ function ChartPage() {
     reportColumnTypes: columnTypes, reportSheetName, isRestoringReport,
   } = useDataContext();
   const { isLoggedIn } = useAuth();
+  const { t, tServer, locale } = useI18n();
   const reportsRef = useRef();
   const navigate = useNavigate();
   const [chartType, setChartType] = useState("pie");
   const [showSaveModal, setShowSaveModal] = useState(false);
 
-  const columnName = (idx) => headers?.[idx] ?? `Column ${Number(idx) + 1}`;
+  const columnName = (idx) => headers?.[idx] ?? t("Column {n}", { n: Number(idx) + 1 });
 
   // Análisis de columnas de los datos del informe (no del archivo abierto en el lector)
   const analysis = useMemo(
@@ -154,7 +157,7 @@ function ChartPage() {
 
   const includedOptions = Object.entries(selectedOptions)
     .filter(([, v]) => v !== "" && v != null)
-    .map(([idx, v]) => `${columnName(idx)}: ${describeFilter(v)}`);
+    .map(([idx, v]) => `${columnName(idx)}: ${describeFilter(v, locale)}`);
 
   const handlePrint = async () => {
     try {
@@ -193,9 +196,9 @@ function ChartPage() {
         snapshot: { headers, data, config, columnTypes },
       });
       setShowSaveModal(false);
-      toast.success("Report saved. Find it in My Reports.");
+      toast.success(t("Report saved. Find it in My Reports."));
     } catch (err) {
-      toast.error(err.response?.data?.message || "Could not save the report.");
+      toast.error(tServer(err.response?.data?.message, "Could not save the report."));
     }
   };
 
@@ -227,7 +230,7 @@ function ChartPage() {
     if (typeReport === "mostRepeated") {
       return sorted.length > 0
         ? <MostRepeatedReport column={columnName(mostRepeatedIdx)} mostRepeatedOptions={sorted} totalValidRows={validRows} />
-        : <p className="text-gray-500 text-sm">No data to display.</p>;
+        : <p className="text-gray-500 text-sm">{t("No data to display.")}</p>;
     }
     if (typeReport === "group" && groupResult) {
       return (
@@ -243,7 +246,7 @@ function ChartPage() {
   };
 
   const sharedDataset = {
-    label: "Count",
+    label: t("Count"),
     data: values,
     backgroundColor: values.map((_, i) => COLORS[i % COLORS.length].bg),
     borderColor: values.map((_, i) => COLORS[i % COLORS.length].border),
@@ -267,9 +270,9 @@ function ChartPage() {
     const months = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
     if (months.length === 0) return null;
     return {
-      labels: months.map(([k]) => k),
+      labels: months.map(([k]) => formatPeriodLabel(k, "month", locale, t)),
       datasets: [{
-        label: `Records per month (${dateCol.name})`,
+        label: t("Records per month ({name})", { name: dateCol.name }),
         data: months.map(([, v]) => v),
         borderColor: "rgba(59,130,246,1)",
         backgroundColor: "rgba(59,130,246,0.1)",
@@ -279,7 +282,7 @@ function ChartPage() {
         pointBackgroundColor: "rgba(59,130,246,1)",
       }],
     };
-  }, [dateCol, filteredData]);
+  }, [dateCol, filteredData, locale, t]);
 
   const baseOpts = {
     responsive: true, maintainAspectRatio: false,
@@ -295,7 +298,7 @@ function ChartPage() {
 
         {showSaveModal && (
           <SaveReportModal
-            defaultName={`${REPORT_TITLES[typeReport] || "Report"}${reportSheetName ? ` — ${reportSheetName}` : ""}`}
+            defaultName={`${t(REPORT_TITLES[typeReport] || "Report")}${reportSheetName ? ` — ${reportSheetName}` : ""}`}
             onConfirm={handleSaveReport}
             onCancel={() => setShowSaveModal(false)}
           />
@@ -309,7 +312,7 @@ function ChartPage() {
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                <h1 className="text-xl font-black text-gray-900 dark:text-white">Report Insights</h1>
+                <h1 className="text-xl font-black text-gray-900 dark:text-white">{t("Report Insights")}</h1>
                 {reportSheetName && typeReport && (
                   <span className="flex items-center gap-1.5 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md truncate max-w-[260px]">
                     <FontAwesomeIcon icon={faFileExcel} /> {reportSheetName}
@@ -317,13 +320,13 @@ function ChartPage() {
                 )}
               </div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {REPORT_TITLES[typeReport] || "No report selected"}
+                {t(REPORT_TITLES[typeReport] || "No report selected")}
               </p>
             </div>
           </div>
           <button onClick={() => navigate(-1)}
             className="flex items-center gap-2 self-start sm:self-auto px-3 py-1.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-            <FontAwesomeIcon icon={faArrowLeft} className="text-xs" /> Back
+            <FontAwesomeIcon icon={faArrowLeft} className="text-xs" /> {t("Back")}
           </button>
         </div>
 
@@ -338,7 +341,7 @@ function ChartPage() {
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-12 text-center">
             <FontAwesomeIcon icon={faChartPie} className="text-4xl text-gray-300 dark:text-gray-600 mb-4" />
             <p className="text-gray-500 dark:text-gray-400 text-sm">
-              No report data available. Go back to the file reader and generate a report first.
+              {t("No report data available. Go back to the file reader and generate a report first.")}
             </p>
           </div>
         )}
@@ -357,7 +360,7 @@ function ChartPage() {
                 {/* Chart type tabs */}
                 <div className="flex items-center gap-1 mb-5 bg-gray-100 dark:bg-gray-700 rounded-xl p-1 w-fit">
                   {/* La línea temporal no depende de la columna analizada: se muestra en Statistics */}
-                  {CHART_TABS.filter((t) => t.id !== "line").map(({ id, label, icon }) => (
+                  {CHART_TABS.filter((tab) => tab.id !== "line").map(({ id, label, icon }) => (
                     <button
                       key={id}
                       onClick={() => setChartType(id)}
@@ -368,7 +371,7 @@ function ChartPage() {
                       }`}
                     >
                       <FontAwesomeIcon icon={icon} className="text-xs" />
-                      {label}
+                      {t(label)}
                     </button>
                   ))}
                 </div>
@@ -385,7 +388,7 @@ function ChartPage() {
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
                 <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
                   <FontAwesomeIcon icon={faChartLine} className="text-blue-500" />
-                  Records over time · {dateCol?.name}
+                  {t("Records over time")} · {dateCol?.name}
                 </h2>
                 <div className="h-56">
                   <Line data={trendData} options={{
@@ -403,12 +406,12 @@ function ChartPage() {
               {isLoggedIn && (
                 <button onClick={() => setShowSaveModal(true)}
                   className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors">
-                  <FontAwesomeIcon icon={faFloppyDisk} /> Save report
+                  <FontAwesomeIcon icon={faFloppyDisk} /> {t("Save report")}
                 </button>
               )}
               <button onClick={handlePrint}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors">
-                <FontAwesomeIcon icon={faFilePdf} /> Export as PDF
+                <FontAwesomeIcon icon={faFilePdf} /> {t("Export as PDF")}
               </button>
             </div>
           </>

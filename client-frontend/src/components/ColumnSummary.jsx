@@ -7,18 +7,15 @@ import {
   faChevronDown,
   faChartLine,
 } from "@fortawesome/free-solid-svg-icons";
+import { tk, useI18n } from "../i18n/I18nContext.jsx";
 
-const fmt = (n) => {
-  if (n === undefined || n === null || isNaN(n)) return "—";
-  return Number.isInteger(n) ? n.toLocaleString() : parseFloat(n.toFixed(2)).toLocaleString();
+// Números con hasta 2 decimales en el formato del idioma
+const useFmt = () => {
+  const { fmtNumber } = useI18n();
+  return (n) => fmtNumber(n, { maximumFractionDigits: 2 });
 };
 
-const fmtDate = (d) => {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-};
-
-const TYPE_LABELS = { numeric: "Number", date: "Date", text: "Text" };
+const TYPE_LABELS = { numeric: tk("Number"), date: tk("Date"), text: tk("Text") };
 
 // Clases completas (Tailwind solo genera las que aparecen literalmente en el código)
 const ICON_STYLES = {
@@ -34,6 +31,7 @@ const selectClass =
 // los demás valores fuerzan el tipo. En columnas de fecha también se elige
 // el orden día/mes cuando la detección se equivoca (p. ej. 03/02/2024).
 function CardHeader({ col, icon, color, badge, onChangeType }) {
+  const { t } = useI18n();
   const current = col.overridden && col.type !== col.detected ? col.type : "";
   const typeValue = col.type === "categorical" ? "text" : col.type;
   const detected = col.detected === "categorical" ? "text" : col.detected;
@@ -53,20 +51,20 @@ function CardHeader({ col, icon, color, badge, onChangeType }) {
       {onChangeType && (
         <div className="flex flex-wrap gap-1">
           <select
-            aria-label={`${col.name} type`}
+            aria-label={t("{name} type", { name: col.name })}
             value={current && typeValue}
             onChange={(e) => onChangeType(col.index, { type: e.target.value })}
             className={selectClass}
           >
-            <option value="">Auto ({TYPE_LABELS[detected]})</option>
+            <option value="">{t("Auto ({type})", { type: t(TYPE_LABELS[detected]) })}</option>
             {Object.entries(TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value}>{t(label)}</option>
             ))}
           </select>
           {col.type === "numeric" && (
             <select
-              aria-label={`${col.name} number format`}
-              title="Decimal separator of this column"
+              aria-label={t("{name} number format", { name: col.name })}
+              title={t("Decimal separator of this column")}
               value={col.decimal || "."}
               onChange={(e) => onChangeType(col.index, { decimal: e.target.value })}
               className={selectClass}
@@ -77,13 +75,13 @@ function CardHeader({ col, icon, color, badge, onChangeType }) {
           )}
           {col.type === "date" && (
             <select
-              aria-label={`${col.name} date order`}
+              aria-label={t("{name} date order", { name: col.name })}
               value={col.dateOrder}
               onChange={(e) => onChangeType(col.index, { dateOrder: e.target.value })}
               className={selectClass}
             >
-              <option value="dmy">Day/Month</option>
-              <option value="mdy">Month/Day</option>
+              <option value="dmy">{t("Day/Month")}</option>
+              <option value="mdy">{t("Month/Day")}</option>
             </select>
           )}
         </div>
@@ -92,22 +90,30 @@ function CardHeader({ col, icon, color, badge, onChangeType }) {
   );
 }
 
-const FillBadge = ({ col }) => (
-  <span
-    className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-sm shrink-0"
-    title="Rows with a value in this column"
-  >
-    {col.fillRate}% fill
-  </span>
-);
+function FillBadge({ col }) {
+  const { t, fmtNumber } = useI18n();
+  return (
+    <span
+      className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-sm shrink-0"
+      title={t("Rows with a value in this column")}
+    >
+      {t("{rate}% fill", { rate: fmtNumber(Number(col.fillRate), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}
+    </span>
+  );
+}
 
 function CardFooter({ col }) {
+  const { tn } = useI18n();
   return (
     <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 text-[11px]">
-      <p className="text-gray-400 dark:text-gray-500 font-medium">{col.count} values · {col.unique} unique</p>
+      <p className="text-gray-400 dark:text-gray-500 font-medium">
+        {tn("{count} value", "{count} values", col.count)} · {tn("{count} unique", "{count} unique", col.unique)}
+      </p>
       {col.invalid > 0 && (
         <p className="text-amber-600 dark:text-amber-400">
-          {col.invalid} value{col.invalid === 1 ? "" : "s"} not read as {col.type === "date" ? "dates" : "numbers"}
+          {col.type === "date"
+            ? tn("{count} value not read as a date", "{count} values not read as dates", col.invalid)
+            : tn("{count} value not read as a number", "{count} values not read as numbers", col.invalid)}
         </p>
       )}
     </div>
@@ -120,17 +126,19 @@ const statLabel = "text-[10px] text-gray-400 dark:text-gray-500 font-semibold up
 const statValue = "text-xs font-bold text-gray-800 dark:text-gray-100";
 
 function NumericCard({ col, onChangeType }) {
+  const { t } = useI18n();
+  const fmt = useFmt();
   return (
     <div className={cardClass}>
       <CardHeader col={col} icon={faHashtag} color="blue" badge={<FillBadge col={col} />} onChangeType={onChangeType} />
       <div className="grid grid-cols-2 gap-2">
         {[
-          { label: "Sum", value: fmt(col.sum) },
-          { label: "Avg", value: fmt(col.avg) },
-          { label: "Median", value: fmt(col.median) },
-          { label: "Std dev", value: fmt(col.stdDev) },
-          { label: "Min", value: fmt(col.min) },
-          { label: "Max", value: fmt(col.max) },
+          { label: t("Sum"), value: fmt(col.sum) },
+          { label: t("Avg"), value: fmt(col.avg) },
+          { label: t("Median"), value: fmt(col.median) },
+          { label: t("Std dev"), value: fmt(col.stdDev) },
+          { label: t("Min"), value: fmt(col.min) },
+          { label: t("Max"), value: fmt(col.max) },
         ].map(({ label, value }) => (
           <div key={label} className={statBox}>
             <p className={statLabel}>{label}</p>
@@ -144,16 +152,17 @@ function NumericCard({ col, onChangeType }) {
 }
 
 function DateCard({ col, onChangeType }) {
+  const { t, fmtDate } = useI18n();
   return (
     <div className={cardClass}>
       <CardHeader col={col} icon={faCalendar} color="purple" badge={<FillBadge col={col} />} onChangeType={onChangeType} />
       <div className="space-y-2">
         <div className={statBox}>
-          <p className={statLabel}>From</p>
+          <p className={statLabel}>{t("From")}</p>
           <p className={statValue}>{fmtDate(col.min)}</p>
         </div>
         <div className={statBox}>
-          <p className={statLabel}>To</p>
+          <p className={statLabel}>{t("To")}</p>
           <p className={statValue}>{fmtDate(col.max)}</p>
         </div>
       </div>
@@ -163,6 +172,7 @@ function DateCard({ col, onChangeType }) {
 }
 
 function CategoricalCard({ col, onChangeType }) {
+  const fmt = useFmt();
   const max = col.topValues?.[0]?.[1] || 1;
   return (
     <div className={cardClass}>
@@ -172,7 +182,7 @@ function CategoricalCard({ col, onChangeType }) {
           <div key={val}>
             <div className="flex justify-between text-[11px] mb-0.5">
               <span className="text-gray-600 dark:text-gray-400 truncate max-w-[70%] font-medium">{val}</span>
-              <span className="text-gray-900 dark:text-white font-bold">{count}</span>
+              <span className="text-gray-900 dark:text-white font-bold">{fmt(count)}</span>
             </div>
             <div className="h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
               <div className="h-full bg-amber-400 rounded-full" style={{ width: `${(count / max) * 100}%` }} />
@@ -189,6 +199,7 @@ function CategoricalCard({ col, onChangeType }) {
 // onChangeType(índice, { type?, dateOrder? }): corrige el tipo de una columna
 function ColumnSummary({ analysis, onChangeType }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useI18n();
 
   if (!analysis || analysis.length === 0) return null;
 
@@ -218,25 +229,29 @@ function ColumnSummary({ analysis, onChangeType }) {
 
           <div className="text-left">
             <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
-              Dataset Intelligence
+              {t("Dataset Intelligence")}
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {numeric.length} numeric · {dates.length} date · {categorical.length} categorical
+              {t("{numeric} numeric · {dates} date · {categorical} categorical", {
+                numeric: numeric.length,
+                dates: dates.length,
+                categorical: categorical.length,
+              })}
             </p>
             <div className="flex flex-wrap gap-2 mt-1.5">
               {numeric.length > 0 && (
                 <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 text-[10px] font-bold text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800">
-                  <FontAwesomeIcon icon={faHashtag} /> NUMBERS
+                  <FontAwesomeIcon icon={faHashtag} /> {t("NUMBERS")}
                 </span>
               )}
               {dates.length > 0 && (
                 <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-900/20 text-[10px] font-bold text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800">
-                  <FontAwesomeIcon icon={faCalendar} /> DATES
+                  <FontAwesomeIcon icon={faCalendar} /> {t("DATES")}
                 </span>
               )}
               {categorical.length > 0 && (
                 <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/20 text-[10px] font-bold text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800">
-                  <FontAwesomeIcon icon={faTag} /> CATEGORIES
+                  <FontAwesomeIcon icon={faTag} /> {t("CATEGORIES")}
                 </span>
               )}
             </div>
@@ -245,7 +260,7 @@ function ColumnSummary({ analysis, onChangeType }) {
 
         <div className="flex items-center gap-3">
           <span className="hidden sm:block text-xs font-bold text-gray-400 uppercase tracking-widest">
-            {expanded ? "Collapse" : "Expand insights"}
+            {expanded ? t("Collapse") : t("Expand insights")}
           </span>
           <div
             className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${
@@ -263,7 +278,7 @@ function ColumnSummary({ analysis, onChangeType }) {
         <>
           {onChangeType && (
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-              Wrong type? Change it on any card: tables, filters and reports use the corrected type.
+              {t("Wrong type? Change it on any card: tables, filters and reports use the corrected type.")}
             </p>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 mt-3">

@@ -1,12 +1,13 @@
-import { useState } from "react";
 import { EXCEL_SESSION_KEY, useExcelContext } from "../context/ExcelContext";
+import { tk } from "../i18n/I18nContext.jsx";
 import { hasUsableData } from "../utils/excelUtils.js";
 import { loadSheetRows, openSheetFile } from "../utils/sheetClient.js";
 import { saveSession, updateSession } from "../utils/sessionStore.js";
 
 export const useExcelData = () => {
-  const [isLoading, setIsLoading] = useState(false);
   const {
+    isLoadingFile: isLoading,
+    setIsLoadingFile: setIsLoading,
     setSheetNames,
     setFileInfo,
     setSelectedSheet,
@@ -33,7 +34,7 @@ export const useExcelData = () => {
       updateSession(EXCEL_SESSION_KEY, { selectedSheet: sheetName });
       return hasUsableData(rows);
     } catch (error) {
-      setLoadError(error.message || "Could not load the sheet.");
+      setLoadError(error.message || tk("Could not load the sheet."));
       return false;
     } finally {
       setIsLoading(false);
@@ -54,7 +55,7 @@ export const useExcelData = () => {
       if (!sheetName) {
         setSelectedSheet("");
         setFileData([]);
-        setLoadError("This file does not contain any sheets.");
+        setLoadError(tk("This file does not contain any sheets."));
         return;
       }
 
@@ -75,7 +76,7 @@ export const useExcelData = () => {
       setFileInfo(null);
       setSelectedSheet("");
       setFileData([]);
-      setLoadError("Could not read the file. Make sure it is a valid spreadsheet or CSV file.");
+      setLoadError(tk("Could not read the file. Make sure it is a valid spreadsheet or CSV file."));
     } finally {
       setIsLoading(false);
     }

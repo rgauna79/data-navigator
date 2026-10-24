@@ -1,9 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faHome } from "@fortawesome/free-solid-svg-icons";
+import { useI18n } from "../i18n/I18nContext.jsx";
 
 function ErrorPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   return (
     <div className="flex-1 flex flex-col justify-center items-center bg-gray-50 dark:bg-gray-900 px-4 text-center ">
@@ -11,10 +13,10 @@ function ErrorPage() {
         404
       </p>
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-        Page not found
+        {t("Page not found")}
       </h1>
       <p className="text-gray-500 dark:text-gray-400 text-sm mb-8 max-w-sm">
-        The page you&apos;re looking for doesn&apos;t exist or has been moved.
+        {t("The page you're looking for doesn't exist or has been moved.")}
       </p>
       <div className="flex gap-3">
         <button
@@ -22,14 +24,14 @@ function ErrorPage() {
           className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors font-medium"
         >
           <FontAwesomeIcon icon={faArrowLeft} className="text-xs" />
-          Go back
+          {t("Go back")}
         </button>
         <Link
           to="/"
           className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
         >
           <FontAwesomeIcon icon={faHome} className="text-xs" />
-          Home
+          {t("Home")}
         </Link>
       </div>
     </div>

@@ -10,10 +10,12 @@ import {
   faEye,
   faEyeSlash,
 } from "@fortawesome/free-solid-svg-icons";
-import toast from "react-hot-toast"; // ✅ Importamos toast
+import toast from "react-hot-toast";
+import { useI18n } from "../i18n/I18nContext.jsx";
 
 function ProfilePage() {
   const { user, setUser, isLoading } = useAuth();
+  const { t, tServer } = useI18n();
   const [showPassword, setShowPassword] = useState(false);
   const [changePassword, setChangePassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -47,14 +49,14 @@ function ProfilePage() {
     const { password, ...profile } = formData;
     const payload = changePassword && password ? { ...profile, password } : profile;
 
-    const toastId = toast.loading("Updating profile...");
+    const toastId = toast.loading(t("Updating profile..."));
     try {
       const updated = await updateUserProfile(payload);
       setUser({ id: updated._id, username: updated.username, email: updated.email });
       setFormData((prev) => ({ ...prev, password: "" }));
-      toast.success("Profile updated successfully!", { id: toastId });
+      toast.success(t("Profile updated successfully!"), { id: toastId });
     } catch (err) {
-      toast.error(err.message || "Could not update profile.", { id: toastId });
+      toast.error(tServer(err.message, "Could not update profile."), { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -91,7 +93,7 @@ function ProfilePage() {
 
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-xs">
           <h2 className="text-lg font-black text-gray-900 dark:text-white mb-6">
-            Account Settings
+            {t("Account Settings")}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -99,7 +101,7 @@ function ProfilePage() {
                 htmlFor="username"
                 className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
               >
-                Username
+                {t("Username")}
               </label>
               <div className="relative">
                 <FontAwesomeIcon
@@ -122,7 +124,7 @@ function ProfilePage() {
                 htmlFor="email"
                 className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
               >
-                Email Address
+                {t("Email Address")}
               </label>
               <div className="relative">
                 <FontAwesomeIcon
@@ -152,7 +154,7 @@ function ProfilePage() {
                 htmlFor="togglePassword"
                 className="text-sm font-bold text-gray-700 dark:text-gray-300 cursor-pointer select-none"
               >
-                Update password
+                {t("Update password")}
               </label>
             </div>
 
@@ -162,7 +164,7 @@ function ProfilePage() {
                   htmlFor="password"
                   className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2"
                 >
-                  New password
+                  {t("New password")}
                 </label>
                 <div className="relative">
                   <FontAwesomeIcon
@@ -199,10 +201,10 @@ function ProfilePage() {
             >
               {isSaving ? (
                 <>
-                  <FontAwesomeIcon icon={faSpinner} spin /> Saving changes...
+                  <FontAwesomeIcon icon={faSpinner} spin /> {t("Saving changes...")}
                 </>
               ) : (
-                "Save Preferences"
+                t("Save Preferences")
               )}
             </button>
           </form>

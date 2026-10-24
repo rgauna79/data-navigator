@@ -14,6 +14,23 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import logo from "../../assets/images/logo.svg";
 import { NavFileIndicator } from "./FileIndicator.jsx";
+import { LANGUAGES, useI18n } from "../../i18n/I18nContext.jsx";
+
+// Botón ES/EN: muestra el idioma al que se cambia
+function LanguageToggle({ className = "" }) {
+  const { lang, setLang, t } = useI18n();
+  const next = lang === "es" ? "en" : "es";
+  return (
+    <button
+      onClick={() => setLang(next)}
+      title={t("Change language")}
+      aria-label={`${t("Change language")}: ${LANGUAGES[next]}`}
+      className={`text-[11px] font-black tracking-widest px-2.5 py-1.5 rounded-lg border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-colors ${className}`}
+    >
+      {next.toUpperCase()}
+    </button>
+  );
+}
 
 const NAV_LINKS = [
   { to: "/", label: "Home", icon: faHome, auth: false },
@@ -25,6 +42,7 @@ const NAV_LINKS = [
 
 function NavigationBar() {
   const { isLoggedIn, user, logout } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
@@ -93,7 +111,7 @@ function NavigationBar() {
                   }`}
                 >
                   <FontAwesomeIcon icon={icon} className="text-[10px]" />
-                  {label}
+                  {t(label)}
                 </Link>
               ))}
             </div>
@@ -106,6 +124,7 @@ function NavigationBar() {
 
           {/* LADO DERECHO: Usuario y Menú Hamburguesa */}
           <div className="flex items-center gap-2">
+            <LanguageToggle />
             <div className="hidden md:flex items-center gap-2 border-l border-gray-800 ml-2 pl-4">
               {isLoggedIn ? (
                 <div className="flex items-center gap-3">
@@ -119,9 +138,9 @@ function NavigationBar() {
                   </Link>
                   <button
                     onClick={handleLogout}
-                    aria-label="Sign out"
+                    aria-label={t("Sign out")}
                     className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                    title="Sign out"
+                    title={t("Sign out")}
                   >
                     <FontAwesomeIcon icon={faSignOutAlt} className="text-sm" />
                   </button>
@@ -132,13 +151,13 @@ function NavigationBar() {
                     to="/login"
                     className="text-xs font-bold text-gray-400 hover:text-white px-3 py-2 rounded-xl transition-colors"
                   >
-                    Login
+                    {t("Login")}
                   </Link>
                   <Link
                     to="/register"
                     className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all font-black uppercase tracking-widest shadow-lg shadow-blue-900/20"
                   >
-                    Join
+                    {t("Join")}
                   </Link>
                 </div>
               )}
@@ -147,7 +166,7 @@ function NavigationBar() {
             {/* Hamburguesa (Visible en < 1024px) */}
             <button
               onClick={() => setShowMenu((v) => !v)}
-              aria-label={showMenu ? "Close menu" : "Open menu"}
+              aria-label={showMenu ? t("Close menu") : t("Open menu")}
               aria-expanded={showMenu}
               className="lg:hidden flex items-center justify-center w-10 h-10 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-all border border-transparent hover:border-gray-700"
             >
@@ -178,7 +197,7 @@ function NavigationBar() {
               }`}
             >
               <FontAwesomeIcon icon={icon} className="w-5 text-center" />
-              {label}
+              {t(label)}
             </Link>
           ))}
 
@@ -192,7 +211,7 @@ function NavigationBar() {
                   <div className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center text-white text-[10px] font-black">
                     {user.username?.[0]?.toUpperCase()}
                   </div>
-                  My Profile
+                  {t("My Profile")}
                 </Link>
                 <button
                   onClick={handleLogout}
@@ -202,7 +221,7 @@ function NavigationBar() {
                     icon={faSignOutAlt}
                     className="w-5 text-center"
                   />
-                  Sign out
+                  {t("Sign out")}
                 </button>
               </div>
             ) : (
@@ -211,13 +230,13 @@ function NavigationBar() {
                   to="/login"
                   className="flex items-center justify-center px-4 py-3 rounded-xl text-sm font-bold text-gray-400 bg-gray-800 hover:text-white transition-colors"
                 >
-                  Login
+                  {t("Login")}
                 </Link>
                 <Link
                   to="/register"
                   className="flex items-center justify-center px-4 py-3 rounded-xl text-sm bg-blue-600 text-white font-black uppercase tracking-widest shadow-lg shadow-blue-900/20"
                 >
-                  Join
+                  {t("Join")}
                 </Link>
               </div>
             )}
