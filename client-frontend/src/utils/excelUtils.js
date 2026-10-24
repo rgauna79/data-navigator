@@ -194,11 +194,23 @@ export const dataRows = (fileData) =>
 
 // Tipo de una columna a partir de sus valores:
 // { type: "numeric" | "date" | "text", dateOrder?: "mdy" | "dmy" }
+// Para detectar el tipo basta una muestra: con hojas de decenas de miles de
+// filas revisar todos los valores congela la interfaz. La muestra se reparte
+// por toda la columna (no solo el principio). Los valores que no encajan con
+// el tipo se cuentan en el resumen y el usuario puede corregir el tipo.
+const DETECTION_SAMPLE = 2000;
+
+export const sampleValues = (values, max = DETECTION_SAMPLE) => {
+  const nonEmpty = values.filter((v) => !isEmpty(v));
+  if (nonEmpty.length <= max) return nonEmpty;
+  const step = nonEmpty.length / max;
+  return Array.from({ length: max }, (_, i) => nonEmpty[Math.floor(i * step)]);
+};
+
 export const detectColumnType = (values) => {
-  if (isNumericColumn(values)) return { type: "numeric" };
-  if (isDateColumn(values)) {
-    return { type: "date", dateOrder: inferDateOrder(values.filter((v) => !isEmpty(v))) };
-  }
+  const sample = sampleValues(values);
+  if (isNumericColumn(sample)) return { type: "numeric" };
+  if (isDateColumn(sample)) return { type: "date", dateOrder: inferDateOrder(sample) };
   return { type: "text" };
 };
 
@@ -217,8 +229,7 @@ export const resolveColumnTypes = (fileData, overrides = {}) => {
     const type = override.type || detected.type;
     const resolved = { type, detected: detected.type, overridden: Boolean(override.type || override.dateOrder) };
     if (type === "date") {
-      resolved.dateOrder =
-        override.dateOrder || detected.dateOrder || inferDateOrder(values.filter((v) => !isEmpty(v)));
+      resolved.dateOrder = override.dateOrder || detected.dateOrder || inferDateOrder(sampleValues(values));
     }
     return resolved;
   });

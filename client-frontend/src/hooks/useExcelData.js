@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { EXCEL_SESSION_KEY, useExcelContext } from "../context/ExcelContext";
 import { hasUsableData } from "../utils/excelUtils.js";
-import { parseSheet, findBestSheet, readWorkbook } from "../utils/sheetParser.js";
+import { loadSheetRows, openSheetFile } from "../utils/sheetClient.js";
 import { saveSession, updateSession } from "../utils/sessionStore.js";
 
 export const useExcelData = () => {
   const [isLoading, setIsLoading] = useState(false);
   const {
-    workbook,
-    setWorkbook,
+    setSheetNames,
     setFileInfo,
     setSelectedSheet,
     setFileData,
@@ -17,67 +16,69 @@ export const useExcelData = () => {
     resetColumnOverrides,
   } = useExcelContext();
 
-  // Carga una hoja concreta del workbook y actualiza el contexto.
-  // wb es opcional: si no se pasa, usa el workbook del estado.
-  // Devuelve true si la hoja tiene datos utilizables.
-  const loadSheet = (sheetName, wb) => {
-    const source = wb || workbook;
-    if (!source || !source.Sheets[sheetName]) {
-      setLoadError("The selected sheet does not exist.");
-      return false;
-    }
-    const formatted = parseSheet(source, sheetName);
-    const hasData = hasUsableData(formatted);
+  const showSheet = (sheetName, rows) => {
     setSelectedSheet(sheetName);
-    setFileData(formatted);
+    setFileData(rows);
     // Una hoja sin datos no es un error: FileReaderPage muestra un aviso propio
     setLoadError(null);
-    updateSession(EXCEL_SESSION_KEY, { selectedSheet: sheetName });
-    return hasData;
   };
 
-  const handleFileChange = (file) => {
+  // Carga otra hoja del archivo abierto (se procesa en el Web Worker).
+  // Devuelve true si la hoja tiene datos utilizables.
+  const loadSheet = async (sheetName) => {
+    setIsLoading(true);
+    try {
+      const { rows } = await loadSheetRows(sheetName);
+      showSheet(sheetName, rows);
+      updateSession(EXCEL_SESSION_KEY, { selectedSheet: sheetName });
+      return hasUsableData(rows);
+    } catch (error) {
+      setLoadError(error.message || "Could not load the sheet.");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileChange = async (file) => {
     setIsLoading(true);
     setLoadError(null);
     markFileOpened();
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const wb = readWorkbook(e.target.result, file.name);
-        setWorkbook(wb);
-        setFileInfo({ name: file.name, size: file.size });
-        resetColumnOverrides();
+    try {
+      // La lectura del archivo ocurre en el Web Worker para no congelar la interfaz
+      const { sheetNames, sheetName, rows } = await openSheetFile(await file.arrayBuffer(), file.name);
+      setSheetNames(sheetNames);
+      setFileInfo({ name: file.name, size: file.size });
+      resetColumnOverrides();
 
-        const bestSheet = findBestSheet(wb);
-        if (!bestSheet) {
-          setSelectedSheet("");
-          setFileData([]);
-          setLoadError("This file does not contain any sheets.");
-          return;
-        }
-
-        // Se guarda el archivo original para recuperarlo tras recargar la página
-        await saveSession(EXCEL_SESSION_KEY, {
-          file,
-          name: file.name,
-          size: file.size,
-          selectedSheet: bestSheet,
-        });
-
-        // Si ninguna hoja tiene datos, se selecciona igualmente la primera
-        // para mostrar el dropdown y el aviso de hoja vacía.
-        loadSheet(bestSheet, wb);
-      } catch (error) {
-        console.error("Error reading file:", error);
-        setFileInfo(null);
+      if (!sheetName) {
         setSelectedSheet("");
         setFileData([]);
-        setLoadError("Could not read the file. Make sure it is a valid spreadsheet or CSV file.");
-      } finally {
-        setIsLoading(false);
+        setLoadError("This file does not contain any sheets.");
+        return;
       }
-    };
-    reader.readAsArrayBuffer(file);
+
+      // Se guarda el archivo original para recuperarlo tras recargar la página
+      await saveSession(EXCEL_SESSION_KEY, {
+        file,
+        name: file.name,
+        size: file.size,
+        selectedSheet: sheetName,
+      });
+
+      // Si ninguna hoja tiene datos, se muestra igualmente la primera
+      // para que aparezca el selector de hojas y el aviso de hoja vacía.
+      showSheet(sheetName, rows);
+    } catch (error) {
+      console.error("Error reading file:", error);
+      setSheetNames([]);
+      setFileInfo(null);
+      setSelectedSheet("");
+      setFileData([]);
+      setLoadError("Could not read the file. Make sure it is a valid spreadsheet or CSV file.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return { isLoading, handleFileChange, loadSheet };

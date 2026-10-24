@@ -1,17 +1,10 @@
 import * as XLSX from "xlsx";
 import { formatJson, hasUsableData, normalizeRows } from "./excelUtils.js";
 
-// Formatos admitidos. SheetJS detecta el formato binario por el contenido;
-// los de texto se tratan aparte para controlar la codificación.
-export const SUPPORTED_EXTENSIONS = [".xlsx", ".xlsm", ".xls", ".ods", ".csv", ".tsv", ".txt"];
-const TEXT_EXTENSIONS = [".csv", ".tsv", ".txt"];
+import { TEXT_EXTENSIONS, extensionOf } from "./fileTypes.js";
 
-const extensionOf = (fileName = "") => {
-  const dot = fileName.lastIndexOf(".");
-  return dot === -1 ? "" : fileName.slice(dot).toLowerCase();
-};
-
-export const isSupportedFile = (fileName) => SUPPORTED_EXTENSIONS.includes(extensionOf(fileName));
+// Se reexportan para quien ya las importaba desde aquí
+export { SUPPORTED_EXTENSIONS, isSupportedFile } from "./fileTypes.js";
 
 // Decodifica un CSV: UTF-8 (con o sin BOM) y, si no es UTF-8 válido,
 // Windows-1252, que es lo que exporta Excel en Windows como "CSV".
@@ -63,17 +56,24 @@ export const isHiddenSheet = (workbook, sheetName) => {
   return Boolean(meta && meta.Hidden > 0);
 };
 
-// Devuelve la primera hoja no oculta con datos utilizables.
-// Si ninguna tiene datos, devuelve la primera hoja no oculta (o null).
-export const findBestSheet = (workbook) => {
+// Primera hoja a mostrar al abrir un archivo, ya procesada (cada hoja se
+// procesa una sola vez). Usa preferredSheet si existe; si no, la primera hoja
+// visible con datos; si ninguna tiene datos, la primera visible.
+// Devuelve { sheetName, rows } o null si el archivo no tiene hojas.
+export const openFirstSheet = (workbook, preferredSheet) => {
   if (!workbook?.SheetNames?.length) return null;
-  const visibleSheets = workbook.SheetNames.filter(
-    (name) => !isHiddenSheet(workbook, name)
-  );
-  for (const name of visibleSheets) {
-    if (hasUsableData(parseSheet(workbook, name))) return name;
+  if (preferredSheet && workbook.Sheets[preferredSheet]) {
+    return { sheetName: preferredSheet, rows: parseSheet(workbook, preferredSheet) };
   }
-  return visibleSheets[0] || workbook.SheetNames[0] || null;
+  const visibleSheets = workbook.SheetNames.filter((name) => !isHiddenSheet(workbook, name));
+  let firstVisible = null;
+  for (const name of visibleSheets) {
+    const rows = parseSheet(workbook, name);
+    if (hasUsableData(rows)) return { sheetName: name, rows };
+    firstVisible ??= { sheetName: name, rows };
+  }
+  const fallback = visibleSheets.length ? null : workbook.SheetNames[0];
+  return firstVisible || { sheetName: fallback, rows: parseSheet(workbook, fallback) };
 };
 
 // Descarga una matriz como archivo .xlsx (primera fila = encabezados)
