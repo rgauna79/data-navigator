@@ -10,3 +10,29 @@ updates:
    directory: "/"
    schedule:
      interval: weekly
+ - package-ecosystem: "npm"
+   directory: "/backend"
+   schedule:
+     interval: weekly
+   # Un solo PR para versiones menores y parches; las mayores van por separado
+   groups:
+     minor-and-patch:
+       update-types: ["minor", "patch"]
+ - package-ecosystem: "npm"
+   directory: "/client-frontend"
+   schedule:
+     interval: weekly
+   groups:
+     minor-and-patch:
+       update-types: ["minor", "patch"]
+   ignore:
+     # xlsx se instala desde el CDN de SheetJS; Dependabot no puede actualizarlo
+     - dependency-name: "xlsx"
+     # eslint-plugin-react todavía no soporta ESLint 10
+     - dependency-name: "eslint"
+       update-types: ["version-update:semver-major"]
+     - dependency-name: "@eslint/js"
+       update-types: ["version-update:semver-major"]
+     # TanStack Table 9 reescribe la API: requiere una migración propia
+     - dependency-name: "@tanstack/react-table"
+       update-types: ["version-update:semver-major"]

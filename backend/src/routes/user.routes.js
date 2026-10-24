@@ -3,7 +3,6 @@ import { verifyToken, requireAdmin } from "../middlewares/auth.middleware.js";
 import {
   getAllUsers,
   getUserById,
-  getProfile,
   updateUser,
   softDeleteUser,
   deleteUser,
@@ -15,8 +14,14 @@ const router = Router();
 
 // Perfil del usuario autenticado.
 // Debe declararse antes de "/:id" para que "profile" no se tome como id.
-router.get("/profile", verifyToken, getProfile);
-router.put("/profile", verifyToken, updateUser);
+router.get("/profile", verifyToken, (req, res) => {
+  res.json({
+    id: req.user._id,
+    username: req.user.username,
+    email: req.user.email,
+  });
+});
+router.put("/profile", verifyToken, validateSchema(updateUserSchema), updateUser);
 
 // Administración de usuarios: solo admins
 router.get("/", verifyToken, requireAdmin, getAllUsers);

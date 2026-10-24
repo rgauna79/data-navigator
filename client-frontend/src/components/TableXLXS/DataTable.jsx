@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,90 +7,101 @@ import {
   getPaginationRowModel,
 } from "@tanstack/react-table";
 import CommonTable from "./CommonTable.jsx";
-import { useDataContext } from "../../context/DataContext.jsx";
-import * as XLSX from "xlsx";
+import { useExcelContext } from "../../context/ExcelContext.jsx";
+import {
+  dataRows,
+  formatJson,
+  getHeaders,
+  normalizeRows,
+  resolveColumnTypes,
+  toNumber,
+} from "../../utils/excelUtils.js";
+import { dateRangeFilter, numberRangeFilter, textFilter } from "../../utils/tableFilters.js";
 
-function DataTable({ isLoggedIn, handleSaveTrigger, showSaveButton }) {
-  const { workbook, selectedSheet, fileData, setFileData } = useDataContext();
+const FILTERS = { numeric: numberRangeFilter, date: dateRangeFilter, text: textFilter };
+
+// Ordena por valor numérico ("1,200" > "950"); vacíos al final.
+// Ordenar compara cada valor muchas veces, así que la conversión a número se
+// guarda en caché (una por tabla, se descarta al cambiar los datos).
+const createNumericSort = () => {
+  const cache = new Map();
+  const numberOf = (value) => {
+    let n = cache.get(value);
+    if (n === undefined) {
+      n = toNumber(value);
+      cache.set(value, n);
+    }
+    return n;
+  };
+  return (a, b, columnId) => {
+    const x = numberOf(a.getValue(columnId));
+    const y = numberOf(b.getValue(columnId));
+    if (isNaN(x)) return isNaN(y) ? 0 : 1;
+    if (isNaN(y)) return -1;
+    return x - y;
+  };
+};
+
+// rows: matriz de la hoja (primera fila = encabezados)
+// columnTypes: tipos ya resueltos (con correcciones del usuario); si no se
+// pasan, se detectan automáticamente
+// normalized: las filas ya vienen recortadas y con el mismo ancho (las del
+// lector); evita recorrer otra vez hojas grandes
+// editable: las celdas se pueden editar con doble clic (solo la hoja abierta
+// en el lector: las ediciones se guardan en ExcelContext y se pueden deshacer)
+function DataTable({
+  rows, columnTypes: typesProp, normalized = false, editable = false, sheetName, showSaveButton = false,
+  handleCloseTable,
+}) {
   const [globalFilter, setGlobalFilter] = useState("");
-
-  // ✅ Estado para guardar el historial de cambios
-  const [history, setHistory] = useState([]);
-
-  const formatJson = (json) => {
-    return json.map((row) =>
-      row.map((cell) =>
-        typeof cell === "string" ? cell.trim().toUpperCase() : cell
-      )
-    );
-  };
-
+  const { editCell, undoEdit, editCount } = useExcelContext();
+  // Al editar una celda cambian los datos; no se vuelve a la primera página
+  const skipPageReset = useRef(false);
   useEffect(() => {
-    if (!workbook || !selectedSheet) return;
-    const sheet = workbook.Sheets[selectedSheet];
-    const json = XLSX.utils.sheet_to_json(sheet, { raw: false, header: 1 });
-    setFileData(formatJson(json));
-    setHistory([]); // ✅ Limpiamos el historial al cambiar de hoja
-  }, [workbook, selectedSheet]);
+    skipPageReset.current = false;
+  });
 
-  // ✅ Función para actualizar que ahora recibe el valor viejo
-  const updateData = (rowIndex, columnId, value, oldValue) => {
-    // 1. Guardamos la acción en el historial ANTES de cambiarla
-    setHistory((prev) => [...prev, { rowIndex, columnId, oldValue }]);
+  const fileData = useMemo(
+    () => (normalized ? rows || [] : normalizeRows(formatJson(rows || []))),
+    [rows, normalized]
+  );
+  const headers = useMemo(() => getHeaders(fileData), [fileData]);
 
-    // 2. Aplicamos el cambio
-    setFileData((old) =>
-      old.map((row, index) => {
-        if (index === rowIndex + 1) {
-          const newRow = [...row];
-          newRow[columnId] = value.toUpperCase();
-          return newRow;
-        }
-        return row;
-      })
-    );
-  };
+  const data = useMemo(() => dataRows(fileData), [fileData]);
 
-  // ✅ Función para Deshacer
-  const undoLastChange = () => {
-    setHistory((prev) => {
-      const newHistory = [...prev];
-      const lastAction = newHistory.pop(); // Sacamos el último cambio
+  // Posición de cada fila en la hoja (dataRows omite el encabezado y las filas vacías)
+  const sheetRowIndex = useMemo(() => new Map(fileData.map((row, i) => [row, i])), [fileData]);
 
-      if (!lastAction) return prev;
+  // Tipo de cada columna (numeric | date | text) para ordenar, filtrar y el mapa de calor
+  const columnMeta = useMemo(
+    () => typesProp || resolveColumnTypes(fileData),
+    [typesProp, fileData]
+  );
 
-      // Revertimos el cambio en los datos
-      setFileData((old) =>
-        old.map((row, index) => {
-          if (index === lastAction.rowIndex + 1) {
-            const newRow = [...row];
-            newRow[lastAction.columnId] = lastAction.oldValue;
-            return newRow;
-          }
-          return row;
-        })
-      );
+  // Índices de columnas numéricas (como string, igual que el id de columna)
+  const numericCols = useMemo(
+    () => new Set(columnMeta.map((t, i) => (t.type === "numeric" ? String(i) : null)).filter(Boolean)),
+    [columnMeta]
+  );
 
-      return newHistory; // Guardamos el historial actualizado
-    });
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- nueva caché cuando cambian los datos
+  const numericSort = useMemo(() => createNumericSort(), [data]);
 
-  const columns = useMemo(() => {
-    if (!fileData || fileData.length === 0) return [];
-    return Object.keys(fileData[0]).map((col) => ({
-      id: String(col),
-      header: String(fileData[0][col] ?? col),
-      accessorKey: col,
-    }));
-  }, [fileData]);
+  // ✅ TanStack v8: column defs usan `header` y `accessorFn`
+  const columns = useMemo(
+    () =>
+      headers.map((header, i) => ({
+        id: String(i),
+        header,
+        accessorFn: (row) => row[i],
+        sortingFn: numericCols.has(String(i)) ? numericSort : "alphanumeric",
+        filterFn: FILTERS[columnMeta[i]?.type || "text"],
+        meta: columnMeta[i],
+      })),
+    [headers, numericCols, columnMeta, numericSort]
+  );
 
-  const data = useMemo(() => {
-    if (!fileData || fileData.length === 0) return [];
-    return fileData
-      .slice(1)
-      .filter((row) => Object.values(row).some((cell) => cell !== ""));
-  }, [fileData]);
-
+  // ✅ TanStack v8: useReactTable con model getters
   const table = useReactTable({
     data,
     columns,
@@ -101,22 +112,36 @@ function DataTable({ isLoggedIn, handleSaveTrigger, showSaveButton }) {
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: 15 } },
-    meta: {
-      updateData,
-    },
+    autoResetPageIndex: !skipPageReset.current,
+    meta: editable
+      ? {
+          // row: fila original (row.original); col: índice de columna
+          updateData: (row, col, value) => {
+            const index = sheetRowIndex.get(row);
+            if (index === undefined) return;
+            skipPageReset.current = true;
+            editCell(index, col, value);
+          },
+        }
+      : undefined,
   });
 
   return (
     <CommonTable
       table={table}
       data={data}
-      isLoggedIn={isLoggedIn}
+      headers={headers}
+      numericCols={numericCols}
+      columnTypes={columnMeta}
+      sheetName={sheetName}
+      fileData={fileData}
+      handleCloseTable={handleCloseTable}
+      showSaveButton={showSaveButton}
       globalFilter={globalFilter}
       setGlobalFilter={setGlobalFilter}
-      showSaveButton={showSaveButton}
-      handleSaveTrigger={handleSaveTrigger}
-      canUndo={history.length > 0} // ✅ Pasamos si hay historial
-      onUndo={undoLastChange} // ✅ Pasamos la función de deshacer
+      editable={editable}
+      canUndo={editable && editCount > 0}
+      onUndo={undoEdit}
     />
   );
 }

@@ -1,17 +1,24 @@
 import User from "../models/user.models.js";
 import bcrypt from "bcryptjs";
 import { createAccessToken } from "../libs/jwt.js";
-import { TOKEN_SECRET } from "../config.js";
-import jwt from "jsonwebtoken";
 
 const isProduction = process.env.NODE_ENV === "production";
+// Con el frontend en otro dominio por HTTPS (p. ej. Render) la cookie debe
+// ser secure + sameSite none para que el navegador la envíe, aunque no se
+// haya definido NODE_ENV=production.
+const crossSite = isProduction || /^https:\/\//i.test(process.env.FRONTEND_URL || "");
 
-// Función reutilizable para la configuración de la cookie
+// Configuración de la cookie según el entorno.
+// secure + sameSite none solo con HTTPS (en local se usa lax).
 const cookieOptions = {
   httpOnly: true,
-  secure: true,   // Obligatorio para sameSite: 'none'
-  sameSite: "none",
+  secure: crossSite,
+  sameSite: crossSite ? "none" : "lax",
   maxAge: 24 * 60 * 60 * 1000, // 24 horas
+};
+
+const setAuthCookie = (res, token) => {
+  res.cookie("authToken", token, cookieOptions);
 };
 
 export const register = async (req, res) => {
@@ -39,13 +46,13 @@ export const register = async (req, res) => {
     const userSaved = await user.save();
     //Set cookie with auth token
     const token = await createAccessToken({ _id: userSaved._id });
-    res.cookie("authToken", token, {
-      httpOnly: isProduction,
-      secure: true,
-      sameSite: "none",
+    setAuthCookie(res, token);
+
+    res.status(201).json({
+      id: userSaved._id,
+      username: userSaved.username,
+      email: userSaved.email,
     });
-    res.status(201).json({ message: "Registration successful" });
-    //res.json(userSaved);
   } catch (error) {
     console.error("Error during registration:", error);
     res.status(500).json({ message: "Registration failed" });
@@ -57,23 +64,18 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
     const userFound = await User.findOne({ email });
 
-    if (!userFound) {
-      return res.status(400).json({ message: "User not found" });
-    }
-
-    const match = await bcrypt.compare(password, userFound.password);
+    // Mismo mensaje en todos los casos para no revelar qué emails existen
+    const match =
+      userFound &&
+      !userFound.isDeleted &&
+      (await bcrypt.compare(password, userFound.password));
 
     if (!match) {
-      return res.status(401).json({ message: "Wrong password" });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
     //Set cookie with auth token
     const token = await createAccessToken({ _id: userFound._id });
-    // res.cookie("authToken", token, {
-    //   httpOnly: isProduction,
-    //   secure: true,
-    //   sameSite: "none",
-    // });
-    res.cookie("authToken", token, cookieOptions); //Opciones seguras
+    setAuthCookie(res, token);
 
     res.json({
       id: userFound._id,
@@ -88,8 +90,8 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
-    //Remove cookie
-    res.clearCookie("authToken");
+    //Remove cookie with matching options
+    res.clearCookie("authToken", cookieOptions);
     res.json({ message: "Logout successful" });
   } catch (error) {
     console.error("Error during logout:", error);
@@ -99,7 +101,7 @@ export const logout = async (req, res) => {
 
 export const profile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select("-password");
     res.json(user);
   } catch (error) {
     console.error("Error during profile:", error);
@@ -107,53 +109,11 @@ export const profile = async (req, res) => {
   }
 };
 
-// export const verifyToken = async (req, res, next) => {
-//   try {
-//     const { authToken } = req.cookies;
-
-//     if (!authToken) {
-//       return res.status(401).json({ message: "No token provided" });
-//     }
-
-//     jwt.verify(authToken, TOKEN_SECRET, async (err, user) => {
-//       if (err) {
-//         return res.status(401).json({ message: "Unauthorized" });
-//       }
-
-//       const userFound = await User.findById(user._id);
-
-//       if (!userFound) {
-//         return res
-//           .status(401)
-//           .json({ message: "Unauthorized, user not found" });
-//       }
-//       return res.json({
-//         id: userFound._id,
-//         username: userFound.username,
-//         email: userFound.email,
-//       });
-//     });
-//   } catch (error) {
-//     console.error("Error during token verification:", error);
-//     res.status(500).json({ message: "Token verification failed" });
-//   }
-// };
-
-//nuevo Controlador verifyToken
-export const verifyToken = async (req, res) => {
-  const { authToken } = req.cookies;
-  if (!authToken) return res.status(401).json({ message: "Unauthorized" });
-
-  jwt.verify(authToken, TOKEN_SECRET, async (err, user) => {
-    if (err) return res.status(401).json({ message: "Unauthorized" });
-
-    const userFound = await User.findById(user._id);
-    if (!userFound) return res.status(401).json({ message: "Unauthorized" });
-
-    return res.json({
-      id: userFound._id,
-      username: userFound.username,
-      email: userFound.email,
-    });
+// La ruta usa el middleware verifyToken, que ya validó el token y cargó req.user
+export const verifyToken = (req, res) => {
+  res.json({
+    id: req.user._id,
+    username: req.user.username,
+    email: req.user.email,
   });
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -11,10 +11,19 @@ import {
   faClockRotateLeft,
   faSpinner,
   faChartPie,
+  faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
 import { HomeFileIndicator } from "../components/ui/FileIndicator.jsx";
-import axios from "../api/axios";
+import { listSavedFiles } from "../api/data.js";
+import { listReports } from "../api/reports.js";
 import toast from "react-hot-toast";
+
+const REPORT_LABELS = {
+  statistics: "Statistics",
+  mostRepeated: "Most repeated",
+  group: "Group & summarize",
+  groupBy: "Pivot table",
+};
 
 const FeatureCard = ({ to, icon, color, title, description, cta }) => (
   <Link
@@ -46,36 +55,32 @@ function HomePage() {
   const [recentReports, setRecentReports] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const username = user?.username;
+
   useEffect(() => {
-    if (isLoggedIn) {
-      toast(`Welcome back, ${user.username}!`, {
-        icon: "👋",
-        id: "welcome-toast",
-      });
-      fetchDashboardData();
-    }
-  }, [isLoggedIn, user]);
+    if (!isLoggedIn) return;
+    toast(`Welcome back, ${username}!`, { icon: "👋", id: "welcome-toast" });
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      const [filesRes, reportsRes] = await Promise.all([
-        axios.get("/data/savedfiles"),
-        axios.get("/reports"),
-      ]);
-
-      const files = Array.isArray(filesRes.data?.data)
-        ? filesRes.data.data
-        : [];
-      setRecentFiles(files.slice(0, 3)); // Tomamos solo los 3 más recientes
-      setRecentReports(reportsRes.data.slice(0, 3));
-    } catch (error) {
-      console.error("Dashboard error:", error);
-      toast.error("Failed to load your recent activity");
-    } finally {
-      setLoading(false);
-    }
-  };
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [filesRes, reportsRes] = await Promise.all([listSavedFiles(), listReports()]);
+        if (cancelled) return;
+        // Las listas vienen ordenadas de la más reciente a la más antigua
+        setRecentFiles(filesRes.data.slice(0, 3));
+        setRecentReports(reportsRes.data.slice(0, 3));
+      } catch (error) {
+        console.error("Dashboard error:", error);
+        if (!cancelled) toast.error("Failed to load your recent activity");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, username]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -107,7 +112,7 @@ function HomePage() {
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
               {/* Tarjeta: Archivos Recientes */}
-              <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-200 dark:border-gray-700 shadow-xs flex flex-col">
                 <div className="flex items-center justify-between mb-5 border-b border-gray-100 dark:border-gray-700 pb-3">
                   <h2 className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <FontAwesomeIcon
@@ -149,7 +154,7 @@ function HomePage() {
                               {file.sheetName}
                             </p>
                             <p className="text-[10px] text-gray-500 font-medium">
-                              {formatDate(file.updatedAt)}
+                              {file.rowCount?.toLocaleString()} row{file.rowCount === 1 ? "" : "s"} · {formatDate(file.updatedAt)}
                             </p>
                           </div>
                         </div>
@@ -176,7 +181,7 @@ function HomePage() {
               </div>
 
               {/* Tarjeta: Reportes Recientes */}
-              <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col">
+              <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-200 dark:border-gray-700 shadow-xs flex flex-col">
                 <div className="flex items-center justify-between mb-5 border-b border-gray-100 dark:border-gray-700 pb-3">
                   <h2 className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <FontAwesomeIcon
@@ -215,7 +220,9 @@ function HomePage() {
                               icon={
                                 report.type === "statistics"
                                   ? faChartBar
-                                  : faChartPie
+                                  : report.type === "mostRepeated"
+                                  ? faChartPie
+                                  : faLayerGroup
                               }
                             />
                           </div>
@@ -224,7 +231,7 @@ function HomePage() {
                               {report.name}
                             </p>
                             <p className="text-[10px] text-gray-500 font-medium capitalize">
-                              {report.type} · {formatDate(report.updatedAt)}
+                              {REPORT_LABELS[report.type] || report.type} · {formatDate(report.updatedAt)}
                             </p>
                           </div>
                         </div>
@@ -261,7 +268,7 @@ function HomePage() {
               </div>
               <Link
                 to="/filereader"
-                className="flex items-center gap-2 bg-white text-blue-600 font-bold text-sm px-6 py-3 rounded-xl hover:scale-95 transition-transform whitespace-nowrap shadow-sm"
+                className="flex items-center gap-2 bg-white text-blue-600 font-bold text-sm px-6 py-3 rounded-xl hover:scale-95 transition-transform whitespace-nowrap shadow-xs"
               >
                 <FontAwesomeIcon icon={faUpload} /> Open File Reader
               </Link>
@@ -276,13 +283,13 @@ function HomePage() {
                   Upload an Excel file
                 </h2>
                 <p className="text-blue-100 text-sm font-medium max-w-md">
-                  Read, filter, and explore any .xlsx or .csv file instantly
-                  directly in your browser without uploading to a server.
+                  Read, filter, and explore Excel, OpenDocument and CSV files
+                  instantly, directly in your browser without uploading them to a server.
                 </p>
               </div>
               <Link
                 to="/filereader"
-                className="flex items-center gap-2 bg-white text-blue-600 font-black text-sm px-6 py-3.5 rounded-xl hover:scale-95 transition-transform whitespace-nowrap shadow-sm"
+                className="flex items-center gap-2 bg-white text-blue-600 font-black text-sm px-6 py-3.5 rounded-xl hover:scale-95 transition-transform whitespace-nowrap shadow-xs"
               >
                 <FontAwesomeIcon icon={faUpload} /> Open File Reader
               </Link>
@@ -294,7 +301,7 @@ function HomePage() {
                 icon={faFileExcel}
                 color="bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400"
                 title="Excel Reader"
-                description="Load any .xlsx file, select sheets, filter columns and preview your data."
+                description="Load Excel, OpenDocument or CSV files, select sheets, filter columns and clean your data."
                 cta="Open reader"
               />
               <FeatureCard
@@ -310,12 +317,12 @@ function HomePage() {
                 icon={faChartBar}
                 color="bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400"
                 title="Dynamic Reports"
-                description="Generate Pivot tables, pie charts, and export them directly to PDF."
+                description="Statistics, top values and group & summarize reports with charts, exportable to PDF."
                 cta="View reports"
               />
             </div>
 
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-sm">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 shadow-xs">
               <div className="flex-1">
                 <h3 className="font-black text-xl text-gray-900 dark:text-white mb-2">
                   Save your work securely
@@ -328,7 +335,7 @@ function HomePage() {
               <div className="flex gap-3">
                 <Link
                   to="/register"
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all active:scale-95 shadow-sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all active:scale-95 shadow-xs"
                 >
                   Sign up free
                 </Link>

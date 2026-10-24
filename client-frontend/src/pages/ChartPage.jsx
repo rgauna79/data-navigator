@@ -1,75 +1,61 @@
-import React, { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { useDataContext } from "../context/DataContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { saveReport } from "../api/reports.js";
 import { Pie, Bar, Line } from "react-chartjs-2";
 import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Filler,
+  Chart as ChartJS, ArcElement, Tooltip, Legend,
+  CategoryScale, LinearScale, BarElement, PointElement,
+  LineElement, Title, Filler,
 } from "chart.js";
+// Colores de los gráficos según el modo claro/oscuro
+import "../utils/chartTheme.js";
+import { analyzeColumns, parseDate } from "../utils/excelUtils.js";
+import { applyFilters, groupRows } from "../utils/reportUtils.js";
 import StatisticsReport from "../components/reports/StatisticsReport.jsx";
 import MostRepeatedReport from "../components/reports/MostRepeatedReport.jsx";
-import GroupByReport from "../components/reports/GroupByReport.jsx";
+import GroupReport from "../components/reports/GroupReport.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faArrowLeft,
-  faChartBar,
-  faChartPie,
-  faChartLine,
-  faFloppyDisk,
-  faSpinner,
-  faCheck,
-  faFilePdf,
-  faFileExcel,
+  faFilePdf, faArrowLeft, faChartBar, faChartPie, faChartLine, faSpinner, faFloppyDisk, faFileExcel,
 } from "@fortawesome/free-solid-svg-icons";
-import jsPDF from "jspdf";
 
 ChartJS.register(
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Filler
+  ArcElement, Tooltip, Legend, CategoryScale, LinearScale,
+  BarElement, PointElement, LineElement, Title, Filler
 );
 
 const COLORS = [
-  { bg: "rgba(59,130,246,0.7)", border: "rgba(59,130,246,1)" },
-  { bg: "rgba(16,185,129,0.7)", border: "rgba(16,185,129,1)" },
-  { bg: "rgba(245,158,11,0.7)", border: "rgba(245,158,11,1)" },
-  { bg: "rgba(239,68,68,0.7)", border: "rgba(239,68,68,1)" },
+  { bg: "rgba(59,130,246,0.7)",  border: "rgba(59,130,246,1)"  },
+  { bg: "rgba(16,185,129,0.7)",  border: "rgba(16,185,129,1)"  },
+  { bg: "rgba(245,158,11,0.7)",  border: "rgba(245,158,11,1)"  },
+  { bg: "rgba(239,68,68,0.7)",   border: "rgba(239,68,68,1)"   },
+  { bg: "rgba(139,92,246,0.7)",  border: "rgba(139,92,246,1)"  },
 ];
 
 const CHART_TABS = [
-  { id: "pie", label: "Pie", icon: faChartPie },
-  { id: "bar", label: "Bar", icon: faChartBar },
-  { id: "line", label: "Trend", icon: faChartLine },
+  { id: "pie",  label: "Pie",  icon: faChartPie  },
+  { id: "bar",  label: "Bar",  icon: faChartBar  },
+  { id: "line", label: "Trend",icon: faChartLine },
 ];
 
-const cleanNumericValue = (val) => {
-  if (typeof val === "number") return val;
-  if (!val || typeof val !== "string") return NaN;
-  const clean = val.trim().replace(/[$\s,]/g, "");
-  return clean.includes("/") ? NaN : parseFloat(clean);
+const fmtDate = (d) => new Date(d).toLocaleDateString("en-US");
+
+const REPORT_TITLES = {
+  statistics: "Statistics report",
+  mostRepeated: "Most repeated values",
+  group: "Group & summarize",
 };
 
-function SaveReportModal({ onConfirm, onCancel, sheetName }) {
-  const [name, setName] = useState(
-    `${sheetName || "Sheet"} — ${new Date().toLocaleDateString()}`
-  );
+// Pide el nombre del informe antes de guardarlo
+function SaveReportModal({ defaultName, onConfirm, onCancel }) {
+  const [name, setName] = useState(defaultName);
   const [saving, setSaving] = useState(false);
-  const handleConfirm = async () => {
+
+  const handleConfirm = async (e) => {
+    e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
     try {
@@ -78,297 +64,120 @@ function SaveReportModal({ onConfirm, onCancel, sheetName }) {
       setSaving(false);
     }
   };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-        <h3 className="text-base font-semibold mb-1">Save report</h3>
+    <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <form
+        onSubmit={handleConfirm}
+        role="dialog"
+        aria-labelledby="save-report-title"
+        className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 w-full max-w-sm p-6"
+      >
+        <h3 id="save-report-title" className="text-lg font-black text-gray-900 dark:text-white mb-1">Save report</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Saved reports keep their data, so you can open them later from My Reports.
+        </p>
+        <label htmlFor="reportName" className="sr-only">Report name</label>
         <input
+          id="reportName"
           autoFocus
           type="text"
           value={name}
+          maxLength={200}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
-          className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4 outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full bg-gray-50 dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 text-sm font-bold mb-4 outline-hidden focus:ring-2 focus:ring-blue-500"
         />
         <div className="flex gap-2 justify-end">
           <button
+            type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg"
+            className="px-4 py-2 text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl"
           >
             Cancel
           </button>
           <button
-            onClick={handleConfirm}
+            type="submit"
             disabled={saving || !name.trim()}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl"
           >
-            {saving ? (
-              <>
-                <FontAwesomeIcon icon={faSpinner} spin /> Saving...
-              </>
-            ) : (
-              "Save"
-            )}
+            <FontAwesomeIcon icon={saving ? faSpinner : faFloppyDisk} spin={saving} />
+            {saving ? "Saving..." : "Save"}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
 
 function ChartPage() {
   const {
-    data,
-    fileData,
-    selectedOptions,
-    selectedColumns,
-    typeReport,
-    saveReport,
-    selectedSheet,
-    fileName,
+    data, headers, selectedOptions, typeReport, config,
+    reportColumnTypes: columnTypes, reportSheetName, isRestoringReport,
   } = useDataContext();
   const { isLoggedIn } = useAuth();
+  const reportsRef = useRef();
   const navigate = useNavigate();
-  const chartRef = useRef(null);
-  const [chartType, setChartType] = useState(
-    typeReport === "groupBy" ? "bar" : "pie"
-  );
+  const [chartType, setChartType] = useState("pie");
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [saveStatus, setSaveStatus] = useState(null);
 
-  const headers = fileData?.[0] || [];
-  const limit = selectedOptions?.limit || 10;
-  const sysKeys = [
-    "limit",
-    "aggregation",
-    "groupByCol",
-    "calcCol",
-    "mostRepeated",
-  ];
+  const columnName = (idx) => headers?.[idx] ?? `Column ${Number(idx) + 1}`;
 
-  // 1. Statistics Filter
-  const filteredData =
-    typeReport === "statistics"
-      ? data.filter((row) =>
-          Object.entries(selectedOptions).every(([key, value]) => {
-            if (sysKeys.includes(key) || !value || value === "") return true;
-            if (typeof value === "object" && value.from && value.to) {
-              const d = new Date(row[key]);
-              return d >= new Date(value.from) && d <= new Date(value.to);
-            }
-            return String(row[key]) === String(value);
-          })
-        )
-      : [];
+  const formatOptionValue = (value) => {
+    if (value && typeof value === "object" && "from" in value) {
+      return `${fmtDate(value.from)} → ${fmtDate(value.to)}`;
+    }
+    return value;
+  };
+
+  // Análisis de columnas de los datos del informe (no del archivo abierto en el lector)
+  const analysis = useMemo(
+    () => {
+      if (!headers?.length) return [];
+      const fileData = [headers, ...data];
+      // Informes guardados antes de existir columnTypes: se detectan de nuevo
+      return columnTypes ? analyzeColumns(fileData, columnTypes) : analyzeColumns(fileData);
+    },
+    [headers, data, columnTypes]
+  );
+
+  // "statistics" y "group" usan selectedOptions como filtros por columna
+  const filteredData = useMemo(() => {
+    if (typeReport !== "statistics" && typeReport !== "group") return data;
+    return applyFilters(data, selectedOptions, analysis);
+  }, [data, selectedOptions, typeReport, analysis]);
+
+  const groupResult = useMemo(() => {
+    if (typeReport !== "group" || !config) return null;
+    return groupRows({
+      ...config,
+      rows: filteredData,
+      dateOrder: analysis[config.groupIdx]?.dateOrder,
+    });
+  }, [typeReport, config, filteredData, analysis]);
 
   const includedOptions = Object.entries(selectedOptions)
-    .filter(
-      ([k, v]) =>
-        !sysKeys.includes(k) && v !== "" && v !== null && v !== undefined
-    )
-    .map(([k, v]) => {
-      const headerName = headers[k] || k;
-      const valStr =
-        typeof v === "object"
-          ? `${new Date(v.from).toLocaleDateString()} → ${new Date(
-              v.to
-            ).toLocaleDateString()}`
-          : v;
-      return `${headerName}: ${valStr}`;
-    });
+    .filter(([, v]) => v !== "" && v != null)
+    .map(([idx, v]) => `${columnName(idx)}: ${formatOptionValue(v)}`);
 
-  // 2. Most Repeated
-  const counts =
-    typeReport === "mostRepeated"
-      ? data.reduce((acc, row) => {
-          const v = row[selectedOptions.mostRepeated];
-          if (v != null && v !== "") acc[v] = (acc[v] || 0) + 1;
-          return acc;
-        }, {})
-      : {};
-  const sortedMostRepeated = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit);
-
-  // 3. Group By (Pivot)
-  const groupedData = (() => {
-    if (
-      typeReport !== "groupBy" ||
-      !selectedOptions.groupByCol ||
-      !selectedOptions.calcCol
-    )
-      return [];
-    const { groupByCol, calcCol, aggregation } = selectedOptions;
-    const groups = {};
-    data.forEach((row) => {
-      const gVal = String(row[groupByCol] || "(Empty)").trim();
-      const cVal = cleanNumericValue(row[calcCol]);
-      if (!groups[gVal]) groups[gVal] = { sum: 0, count: 0 };
-      if (!isNaN(cVal)) {
-        groups[gVal].sum += cVal;
-        groups[gVal].count += 1;
-      }
-    });
-    return Object.entries(groups)
-      .map(([label, stats]) => {
-        let value = 0;
-        if (aggregation === "sum") value = stats.sum;
-        else if (aggregation === "avg")
-          value = stats.count > 0 ? stats.sum / stats.count : 0;
-        else if (aggregation === "count") value = stats.count;
-        return { label, value };
-      })
-      .sort((a, b) => b.value - a.value)
-      .slice(0, limit);
-  })();
-
-  // --- GRAFICOS ---
-  let chartLabels =
-    typeReport === "mostRepeated"
-      ? sortedMostRepeated.map(([k]) => k)
-      : groupedData.map((d) => d.label);
-  let chartValues =
-    typeReport === "mostRepeated"
-      ? sortedMostRepeated.map(([, v]) => v)
-      : groupedData.map((d) => d.value);
-  const getColors = (n, type) =>
-    Array.from({ length: n }, (_, i) => COLORS[i % COLORS.length][type]);
-  const sharedDataset = {
-    label:
-      typeReport === "groupBy"
-        ? selectedOptions.aggregation?.toUpperCase()
-        : "Count",
-    data: chartValues,
-    backgroundColor: getColors(chartLabels.length, "bg"),
-    borderColor: getColors(chartLabels.length, "border"),
-    borderWidth: 1,
-  };
-  const pieData = { labels: chartLabels, datasets: [sharedDataset] };
-  const barData = {
-    labels: chartLabels,
-    datasets: [{ ...sharedDataset, borderRadius: 6 }],
-  };
-
-  // --- PDF EXPORT ---
-  const handlePrint = () => {
+  const handlePrint = async () => {
     try {
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageW = pdf.internal.pageSize.getWidth();
-      const margin = 15;
-      let y = margin;
-      pdf.setFontSize(18);
-      pdf.setFont("helvetica", "bold");
-      pdf.text("Data Navigator Report", margin, y);
-      y += 8;
-      pdf.setFontSize(10);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(120, 120, 120);
-      const fileContext = fileName
-        ? `${fileName.replace(".xlsx", "")} — ${selectedSheet}`
-        : selectedSheet || "Data Sheet";
-      const reportTitle =
-        typeReport === "statistics"
-          ? "Statistics"
-          : typeReport === "groupBy"
-          ? "Pivot Table Analysis"
-          : "Most Repeated Values";
-      pdf.text(
-        `${reportTitle} · ${fileContext} · ${new Date().toLocaleDateString()}`,
-        margin,
-        y
-      );
-      y += 10;
-      pdf.setDrawColor(220, 220, 220);
-      pdf.line(margin, y, pageW - margin, y);
-      y += 8;
-      pdf.setTextColor(0, 0, 0);
-
-      if (typeReport === "statistics") {
-        if (includedOptions.length > 0) {
-          pdf.setFontSize(11);
-          pdf.setFont("helvetica", "bold");
-          pdf.text("Filters applied:", margin, y);
-          y += 6;
-          pdf.setFont("helvetica", "normal");
-          pdf.setFontSize(9);
-          includedOptions.forEach((f) => {
-            pdf.text(`• ${f}`, margin + 4, y);
-            y += 5;
-          });
-          y += 4;
-        }
-        pdf.setFontSize(12);
-        pdf.setFont("helvetica", "bold");
-        pdf.text(`Total matching rows: ${filteredData.length}`, margin, y);
-        y += 10;
-      }
-
-      if (typeReport === "mostRepeated") {
-        pdf.setFontSize(11);
-        pdf.setFont("helvetica", "bold");
-        pdf.text(
-          `Column analyzed: ${
-            headers[selectedOptions.mostRepeated] ||
-            selectedOptions.mostRepeated
-          }`,
-          margin,
-          y
-        );
-        y += 8;
-        pdf.text(`Top ${sortedMostRepeated.length} values:`, margin, y);
-        y += 6;
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(10);
-        sortedMostRepeated.forEach(([val, count], i) => {
-          pdf.text(`${i + 1}. ${val || "(Empty)"} — ${count}`, margin + 4, y);
-          y += 6;
-        });
-        y += 6;
-      }
-
-      if (typeReport === "groupBy") {
-        pdf.setFontSize(11);
-        pdf.setFont("helvetica", "bold");
-        pdf.text(
-          `Grouped by: ${
-            headers[selectedOptions.groupByCol]
-          } | Operation: ${selectedOptions.aggregation.toUpperCase()} of ${
-            headers[selectedOptions.calcCol]
-          }`,
-          margin,
-          y
-        );
-        y += 8;
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(10);
-        groupedData.forEach((item, i) => {
-          const fmtVal = Number.isInteger(item.value)
-            ? item.value.toLocaleString()
-            : item.value.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
-          pdf.text(`${i + 1}. ${item.label} — ${fmtVal}`, margin + 4, y);
-          y += 6;
-        });
-        y += 6;
-      }
-
-      if (chartRef.current) {
-        const canvas = chartRef.current.canvas;
-        const imgH = (canvas.height / canvas.width) * (pageW - margin * 2);
-        if (y + imgH > pdf.internal.pageSize.getHeight() - margin) {
-          pdf.addPage();
-          y = margin;
-        }
-        pdf.addImage(
-          canvas.toDataURL("image/png", 1.0),
-          "PNG",
-          margin,
-          y,
-          pageW - margin * 2,
-          Math.min(imgH, 120)
-        );
+      if (!reportsRef.current) return;
+      // Se cargan solo al exportar para no aumentar el bundle de la página
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+      const pdf = new jsPDF("p", "pt", "letter");
+      const canvas = await html2canvas(reportsRef.current, { scale: 2 });
+      const margin = 40;
+      const pageWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+      const pageHeight = pdf.internal.pageSize.getHeight() - margin * 2;
+      // Mantiene la proporción de la captura y la reparte en varias páginas si hace falta
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
+      const img = canvas.toDataURL("image/png");
+      for (let offset = 0; offset < imgHeight; offset += pageHeight) {
+        if (offset > 0) pdf.addPage();
+        pdf.addImage(img, "PNG", margin, margin - offset, pageWidth, imgHeight);
       }
       window.open(URL.createObjectURL(pdf.output("blob")), "_blank");
     } catch (err) {
@@ -376,175 +185,239 @@ function ChartPage() {
     }
   };
 
+  // Guarda el informe con sus datos para volver a abrirlo desde My Reports
   const handleSaveReport = async (name) => {
     try {
       await saveReport({
         name,
         type: typeReport,
-        sheetName: selectedSheet || "",
+        sheetName: reportSheetName || "",
         selectedOptions,
-        selectedColumns,
-        resultSummary: {},
+        snapshot: { headers, data, config, columnTypes },
       });
       setShowSaveModal(false);
-      setSaveStatus("success");
-      setTimeout(() => setSaveStatus(null), 3000);
-    } catch {
-      setShowSaveModal(false);
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus(null), 3000);
+      toast.success("Report saved. Find it in My Reports.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Could not save the report.");
     }
   };
 
+  // Data for most-repeated report and charts
+  const mostRepeatedIdx = selectedOptions.mostRepeated;
+  // Informes generados antes de poder elegir la cantidad mostraban 5 valores
+  const topLimit = config?.limit ?? 5;
+  const { sorted, validRows } = useMemo(() => {
+    if (typeReport !== "mostRepeated") return { sorted: [], validRows: 0 };
+    const counts = {};
+    let validRows = 0;
+    data.forEach((row) => {
+      const v = row[mostRepeatedIdx];
+      if (v != null && v !== "") {
+        counts[v] = (counts[v] || 0) + 1;
+        validRows++;
+      }
+    });
+    return { sorted: Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, topLimit), validRows };
+  }, [data, mostRepeatedIdx, typeReport, topLimit]);
+  const labels = sorted.map(([k]) => k);
+  const values = sorted.map(([, v]) => v);
+
+  const generateReportData = () => {
+    if (!typeReport) return null;
+    if (typeReport === "statistics") {
+      return <StatisticsReport totalRows={filteredData.length} includedOptions={includedOptions} filteredData={filteredData} headers={headers} numericColumns={analysis.filter((c) => c.type === "numeric").map((c) => c.index)} />;
+    }
+    if (typeReport === "mostRepeated") {
+      return sorted.length > 0
+        ? <MostRepeatedReport column={columnName(mostRepeatedIdx)} mostRepeatedOptions={sorted} totalValidRows={validRows} />
+        : <p className="text-gray-500 text-sm">No data to display.</p>;
+    }
+    if (typeReport === "group" && groupResult) {
+      return (
+        <GroupReport
+          result={groupResult}
+          config={config}
+          headers={headers}
+          includedOptions={includedOptions}
+          rowCount={filteredData.length}
+        />
+      );
+    }
+  };
+
+  const sharedDataset = {
+    label: "Count",
+    data: values,
+    backgroundColor: values.map((_, i) => COLORS[i % COLORS.length].bg),
+    borderColor: values.map((_, i) => COLORS[i % COLORS.length].border),
+    borderWidth: 1,
+  };
+
+  const pieData  = { labels, datasets: [sharedDataset] };
+  const barData  = { labels, datasets: [{ ...sharedDataset, borderRadius: 6 }] };
+
+  // Trend line: agrupa por mes usando la primera columna de fecha detectada
+  const dateCol = analysis.find((c) => c.type === "date");
+  const trendData = useMemo(() => {
+    if (!dateCol) return null;
+    const byDate = {};
+    filteredData.forEach((row) => {
+      const d = parseDate(row[dateCol.index], dateCol.dateOrder);
+      if (!d) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      byDate[key] = (byDate[key] || 0) + 1;
+    });
+    const months = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
+    if (months.length === 0) return null;
+    return {
+      labels: months.map(([k]) => k),
+      datasets: [{
+        label: `Records per month (${dateCol.name})`,
+        data: months.map(([, v]) => v),
+        borderColor: "rgba(59,130,246,1)",
+        backgroundColor: "rgba(59,130,246,0.1)",
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointBackgroundColor: "rgba(59,130,246,1)",
+      }],
+    };
+  }, [dateCol, filteredData]);
+
+  const baseOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: "left" }, tooltip: { backgroundColor: "rgba(0,0,0,0.75)" } },
+  };
+
   const hasData = data && data.length > 0 && typeReport;
-  const showCharts =
-    (typeReport === "mostRepeated" && sortedMostRepeated.length > 0) ||
-    (typeReport === "groupBy" && groupedData.length > 0);
+  const showCharts = typeReport === "mostRepeated" && sorted.length > 0;
 
   return (
     <div className="flex-1 bg-gray-50 dark:bg-gray-900 min-h-[calc(100vh-64px)]">
-      {showSaveModal && (
-        <SaveReportModal
-          sheetName={selectedSheet}
-          onConfirm={handleSaveReport}
-          onCancel={() => setShowSaveModal(false)}
-        />
-      )}
       <div className="max-w-3xl mx-auto px-4 py-8">
+
+        {showSaveModal && (
+          <SaveReportModal
+            defaultName={`${REPORT_TITLES[typeReport] || "Report"}${reportSheetName ? ` — ${reportSheetName}` : ""}`}
+            onConfirm={handleSaveReport}
+            onCancel={() => setShowSaveModal(false)}
+          />
+        )}
+
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600">
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/40 rounded-xl flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
               <FontAwesomeIcon icon={faChartBar} />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                <h1 className="text-xl font-black text-gray-900">
-                  Report Insights
-                </h1>
-                {selectedSheet && (
-                  <span className="flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md truncate max-w-[300px]">
-                    <FontAwesomeIcon icon={faFileExcel} />{" "}
-                    {fileName
-                      ? `${fileName.replace(".xlsx", "")} — ${selectedSheet}`
-                      : selectedSheet}
+                <h1 className="text-xl font-black text-gray-900 dark:text-white">Report Insights</h1>
+                {reportSheetName && typeReport && (
+                  <span className="flex items-center gap-1.5 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md truncate max-w-[260px]">
+                    <FontAwesomeIcon icon={faFileExcel} /> {reportSheetName}
                   </span>
                 )}
               </div>
-              <p className="text-sm font-medium text-gray-500">
-                {typeReport === "statistics"
-                  ? "Statistics Overview"
-                  : typeReport === "groupBy"
-                  ? "Pivot Table Analysis"
-                  : `Top ${limit} values`}
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {REPORT_TITLES[typeReport] || "No report selected"}
               </p>
             </div>
           </div>
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold text-gray-500 hover:bg-gray-100 transition-all"
-          >
+          <button onClick={() => navigate(-1)}
+            className="flex items-center gap-2 self-start sm:self-auto px-3 py-1.5 rounded-lg text-sm font-bold text-gray-500 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <FontAwesomeIcon icon={faArrowLeft} className="text-xs" /> Back
           </button>
         </div>
 
-        {saveStatus === "success" && (
-          <div className="bg-green-50 border-green-200 text-green-700 text-sm px-4 py-3 rounded-xl mb-4 font-medium">
-            <FontAwesomeIcon icon={faCheck} /> Saved successfully.
+        {isRestoringReport && (
+          <div className="flex justify-center py-12 text-gray-400">
+            <FontAwesomeIcon icon={faSpinner} spin size="2x" />
           </div>
         )}
 
-        {!hasData && (
-          <div className="bg-white border-dashed border-gray-200 rounded-2xl py-16 text-center">
-            <FontAwesomeIcon
-              icon={faChartPie}
-              className="text-4xl text-gray-300 mb-4"
-            />
-            <p className="text-gray-500 font-medium">No data.</p>
+        {/* Empty state */}
+        {!hasData && !isRestoringReport && (
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-12 text-center">
+            <FontAwesomeIcon icon={faChartPie} className="text-4xl text-gray-300 dark:text-gray-600 mb-4" />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              No report data available. Go back to the file reader and generate a report first.
+            </p>
           </div>
         )}
 
         {hasData && (
           <>
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
-              {typeReport === "statistics" && (
-                <StatisticsReport
-                  totalRows={filteredData.length}
-                  includedOptions={includedOptions}
-                  filteredData={filteredData}
-                  headers={headers}
-                />
-              )}
-              {typeReport === "mostRepeated" && (
-                <MostRepeatedReport
-                  mostRepeatedOptions={sortedMostRepeated}
-                  totalValidRows={Object.values(counts).reduce(
-                    (a, b) => a + b,
-                    0
-                  )}
-                />
-              )}
-              {typeReport === "groupBy" && (
-                <GroupByReport
-                  aggData={groupedData}
-                  aggregation={selectedOptions.aggregation}
-                  gName={headers[selectedOptions.groupByCol]}
-                  cName={headers[selectedOptions.calcCol]}
-                />
-              )}
+            <div ref={reportsRef}>
+            {/* Report content */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
+              {generateReportData()}
             </div>
 
+            {/* Charts section */}
             {showCharts && (
-              <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-4 shadow-sm">
-                <div className="flex items-center gap-1 mb-5 bg-gray-100 rounded-xl p-1 w-fit">
-                  {CHART_TABS.filter((t) => t.id !== "line").map(
-                    ({ id, label, icon }) => (
-                      <button
-                        key={id}
-                        onClick={() => setChartType(id)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
-                          chartType === id
-                            ? "bg-white text-gray-900 shadow-sm"
-                            : "text-gray-500 hover:text-gray-700"
-                        }`}
-                      >
-                        <FontAwesomeIcon
-                          icon={icon}
-                          className={chartType === id ? "text-blue-500" : ""}
-                        />{" "}
-                        {label}
-                      </button>
-                    )
-                  )}
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
+                {/* Chart type tabs */}
+                <div className="flex items-center gap-1 mb-5 bg-gray-100 dark:bg-gray-700 rounded-xl p-1 w-fit">
+                  {CHART_TABS.filter(t => t.id !== "line" || trendData).map(({ id, label, icon }) => (
+                    <button
+                      key={id}
+                      onClick={() => setChartType(id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        chartType === id
+                          ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-xs"
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={icon} className="text-xs" />
+                      {label}
+                    </button>
+                  ))}
                 </div>
+
                 <div className="h-72">
-                  {chartType === "pie" && (
-                    <Pie
-                      ref={chartRef}
-                      data={pieData}
-                      options={{ responsive: true, maintainAspectRatio: false }}
-                    />
-                  )}
-                  {chartType === "bar" && (
-                    <Bar
-                      ref={chartRef}
-                      data={barData}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                      }}
-                    />
+                  {chartType === "pie"  && <Pie  data={pieData}   options={baseOpts} />}
+                  {chartType === "bar"  && <Bar  data={barData}   options={{ ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: false } } }} />}
+                  {chartType === "line" && trendData && (
+                    <Line data={trendData} options={{
+                      ...baseOpts,
+                      plugins: { ...baseOpts.plugins, legend: { display: false } },
+                      scales: { y: { beginAtZero: true } },
+                    }} />
                   )}
                 </div>
               </div>
             )}
 
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-sm"
-              >
-                <FontAwesomeIcon icon={faFilePdf} /> Export PDF
+            {/* Trend line standalone (statistics report) */}
+            {typeReport === "statistics" && trendData && (
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 mb-4">
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                  <FontAwesomeIcon icon={faChartLine} className="text-blue-500" />
+                  Records over time · {dateCol?.name}
+                </h2>
+                <div className="h-56">
+                  <Line data={trendData} options={{
+                    ...baseOpts,
+                    plugins: { ...baseOpts.plugins, legend: { display: false } },
+                    scales: { y: { beginAtZero: true } },
+                  }} />
+                </div>
+              </div>
+            )}
+
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2">
+              {isLoggedIn && (
+                <button onClick={() => setShowSaveModal(true)}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors">
+                  <FontAwesomeIcon icon={faFloppyDisk} /> Save report
+                </button>
+              )}
+              <button onClick={handlePrint}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors">
+                <FontAwesomeIcon icon={faFilePdf} /> Export as PDF
               </button>
             </div>
           </>

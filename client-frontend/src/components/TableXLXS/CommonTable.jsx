@@ -1,54 +1,116 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import Modal from "../reports/Modal.jsx";
+import SaveDialog from "./SaveDialog.jsx";
+import ExportMenu from "./ExportMenu.jsx";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faSpinner,
-  faFloppyDisk,
-  faXmark,
-  faChartBar,
-  faSearch,
-  faChevronUp,
-  faChevronDown,
-  faChevronLeft,
-  faChevronRight,
-  faAnglesLeft,
-  faAnglesRight,
-  faPalette,
-  faEye,
-  faDownload,
-  faFilter,
-  faTable,
-  faPen,
-  faRotateLeft,
+  faFloppyDisk, faXmark, faChartBar, faSearch,
+  faChevronUp, faChevronDown, faChevronLeft, faChevronRight,
+  faAnglesLeft, faAnglesRight, faPalette, faFilter, faEye, faPen, faRotateLeft,
 } from "@fortawesome/free-solid-svg-icons";
 import { flexRender } from "@tanstack/react-table";
-import { useDataContext } from "../../context/DataContext.jsx";
-import * as XLSX from "xlsx";
-import toast from "react-hot-toast";
+import { minMax, numericValues, toNumber } from "../../utils/excelUtils.js";
 
-// --- Componente de Celda Editable ---
-const EditableCell = ({ getValue, row: { index }, column: { id }, table }) => {
-  const initialValue = getValue();
+// Calcula min/max por columna numérica
+const getColumnRanges = (data, numericCols) => {
+  const ranges = {};
+  numericCols.forEach((col) => {
+    const vals = numericValues(data.map((r) => r[col]));
+    if (vals.length > 0) ranges[col] = minMax(vals);
+  });
+  return ranges;
+};
+
+const filterInput =
+  "w-full min-w-20 px-2 py-1 text-xs font-normal normal-case tracking-normal bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500";
+
+const toolbarButton = (active) =>
+  `flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl border transition-all shadow-xs ${
+    active
+      ? "bg-blue-600 border-blue-600 text-white"
+      : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-blue-400"
+  }`;
+
+// Filtro de una columna según su tipo (ver DataTable: meta.type)
+function ColumnFilter({ column }) {
+  const type = column.columnDef.meta?.type;
+  const value = column.getFilterValue();
+  const label = column.columnDef.header;
+
+  if (type === "numeric") {
+    const [min = "", max = ""] = value || [];
+    return (
+      <div className="flex gap-1">
+        <input
+          inputMode="decimal"
+          placeholder="Min"
+          aria-label={`${label} minimum`}
+          value={min}
+          onChange={(e) => column.setFilterValue([e.target.value, max])}
+          className={filterInput}
+        />
+        <input
+          inputMode="decimal"
+          placeholder="Max"
+          aria-label={`${label} maximum`}
+          value={max}
+          onChange={(e) => column.setFilterValue([min, e.target.value])}
+          className={filterInput}
+        />
+      </div>
+    );
+  }
+
+  if (type === "date") {
+    const { from = "", to = "" } = value || {};
+    return (
+      <div className="flex flex-col gap-1">
+        <input
+          type="date"
+          aria-label={`${label} from`}
+          value={from}
+          onChange={(e) => column.setFilterValue({ from: e.target.value, to })}
+          className={filterInput}
+        />
+        <input
+          type="date"
+          aria-label={`${label} to`}
+          value={to}
+          onChange={(e) => column.setFilterValue({ from, to: e.target.value })}
+          className={filterInput}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <input
+      placeholder="Contains..."
+      aria-label={`Filter ${label}`}
+      value={value ?? ""}
+      onChange={(e) => column.setFilterValue(e.target.value)}
+      className={filterInput}
+    />
+  );
+}
+
+// Celda que se edita con doble clic (limpieza de datos). Enter o salir del
+// campo guarda el cambio; Escape lo descarta.
+function EditableCell({ cell, table }) {
+  const initialValue = cell.getValue() ?? "";
   const [value, setValue] = useState(initialValue);
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
+  const startEditing = () => {
     setValue(initialValue);
-  }, [initialValue]);
-
-  const onBlur = () => {
-    setIsEditing(false);
-    if (value !== initialValue) {
-      // ✅ Pasamos el initialValue al updateData para el historial
-      table.options.meta?.updateData(index, id, value, initialValue);
-    }
+    setIsEditing(true);
   };
 
-  const onKeyDown = (e) => {
-    if (e.key === "Enter") onBlur();
-    if (e.key === "Escape") {
-      setValue(initialValue);
-      setIsEditing(false);
+  const commit = () => {
+    setIsEditing(false);
+    if (String(value) !== String(initialValue)) {
+      table.options.meta.updateData(cell.row.original, Number(cell.column.id), value);
     }
   };
 
@@ -56,406 +118,316 @@ const EditableCell = ({ getValue, row: { index }, column: { id }, table }) => {
     return (
       <input
         autoFocus
+        aria-label={`Edit ${cell.column.columnDef.header}`}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onBlur={onBlur}
-        onKeyDown={onKeyDown}
-        className="w-full bg-blue-50 dark:bg-blue-900/30 border border-blue-500 rounded px-2 py-0.5 outline-none text-gray-900 dark:text-white font-bold shadow-sm"
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") setIsEditing(false);
+        }}
+        className="w-full min-w-24 bg-blue-50 dark:bg-blue-900/30 border border-blue-500 rounded-sm px-2 py-0.5 outline-hidden text-gray-900 dark:text-white font-bold shadow-xs"
       />
     );
   }
 
   return (
     <div
-      onDoubleClick={() => table.options.meta?.updateData && setIsEditing(true)}
-      className={`group cursor-text min-h-[24px] flex items-center justify-between gap-2 px-1 -mx-1 rounded transition-colors ${
-        table.options.meta?.updateData
-          ? "hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"
-          : ""
-      }`}
-      title={table.options.meta?.updateData ? "Double click to edit" : ""}
+      onDoubleClick={startEditing}
+      className="group cursor-text min-h-[24px] flex items-center justify-between gap-2 px-1 -mx-1 rounded-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400"
+      title="Double click to edit"
     >
-      <span className="truncate">{value}</span>
-      {table.options.meta?.updateData && (
-        <FontAwesomeIcon
-          icon={faPen}
-          className="text-[10px] opacity-0 group-hover:opacity-100 text-blue-500 transition-opacity"
-        />
+      <span className="truncate">{initialValue}</span>
+      <FontAwesomeIcon icon={faPen} className="text-[10px] opacity-0 group-hover:opacity-100 text-blue-500 transition-opacity" />
+    </div>
+  );
+}
+
+// Menú para mostrar u ocultar columnas
+function ColumnsMenu({ table }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const hidden = table.getAllLeafColumns().filter((c) => !c.getIsVisible()).length;
+
+  // Cierra el menú al hacer clic fuera o pulsar Escape
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false);
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className={toolbarButton(hidden > 0)}>
+        <FontAwesomeIcon icon={faEye} className="text-xs" /> Columns
+        {hidden > 0 && <span className="text-xs rounded-full px-1.5 bg-white/25">{hidden} hidden</span>}
+        <FontAwesomeIcon icon={faChevronDown} className="text-[10px] opacity-60" />
+      </button>
+      {open && (
+        <div className="absolute left-0 mt-2 w-60 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-30 overflow-hidden">
+          <div className="p-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+            <label className="flex items-center gap-2 px-2 py-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={table.getIsAllColumnsVisible()}
+                onChange={table.getToggleAllColumnsVisibilityHandler()}
+                className="rounded-sm border-gray-300 text-blue-600"
+              />
+              <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">Show all</span>
+            </label>
+          </div>
+          <div className="max-h-60 overflow-y-auto p-2 space-y-1">
+            {table.getAllLeafColumns().map((column) => (
+              <label
+                key={column.id}
+                className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={column.getIsVisible()}
+                  onChange={column.getToggleVisibilityHandler()}
+                  className="rounded-sm border-gray-300 text-blue-600"
+                />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                  {column.columnDef.header}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
-};
+}
 
-// --- Funciones de Utilidad ---
-const detectNumericColumns = (data) => {
-  if (!data || data.length === 0) return new Set();
-  const numeric = new Set();
-  Object.keys(data[0]).forEach((key) => {
-    const vals = data.map((r) => r[key]).filter((v) => v !== "" && v !== null);
-    const numCount = vals.filter(
-      (v) => !isNaN(parseFloat(v)) && isFinite(v)
-    ).length;
-    if (vals.length > 0 && numCount / vals.length > 0.6) numeric.add(key);
-  });
-  return numeric;
-};
-
-const getColumnRanges = (data, numericCols) => {
-  const ranges = {};
-  numericCols.forEach((col) => {
-    const vals = data.map((r) => parseFloat(r[col])).filter((v) => !isNaN(v));
-    if (vals.length > 0)
-      ranges[col] = { min: Math.min(...vals), max: Math.max(...vals) };
-  });
-  return ranges;
-};
-
+// Genera clase de color condicional para una celda numérica
 const getHeatClass = (value, range) => {
   if (!range || range.max === range.min) return "";
-  const pct = (parseFloat(value) - range.min) / (range.max - range.min);
-  if (pct >= 0.8)
-    return "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-medium";
-  if (pct >= 0.6)
-    return "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300";
-  if (pct >= 0.4)
-    return "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300";
-  if (pct >= 0.2)
-    return "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300";
+  const n = toNumber(value);
+  if (isNaN(n)) return "";
+  const pct = (n - range.min) / (range.max - range.min);
+  if (pct >= 0.8) return "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 font-medium";
+  if (pct >= 0.6) return "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300";
+  if (pct >= 0.4) return "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300";
+  if (pct >= 0.2) return "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300";
   return "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300";
 };
 
-// --- Componente Principal ---
 function CommonTable({
-  data,
-  table,
-  handleCloseTable,
-  handleSaveTrigger,
-  showSaveButton = false,
-  globalFilter,
-  setGlobalFilter,
-  canUndo = false, // ✅ Recibimos canUndo
-  onUndo = () => {}, // ✅ Recibimos onUndo
+  data, table, headers, numericCols, columnTypes, sheetName, fileData, handleCloseTable,
+  showSaveButton = false, globalFilter, setGlobalFilter,
+  editable = false, canUndo = false, onUndo,
 }) {
-  const { selectedSheet, isSaving } = useDataContext();
   const [showModal, setShowModal] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [heatmap, setHeatmap] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const activeColumnFilters = table.getState().columnFilters.length;
 
-  const [showExportMenu, setShowExportMenu] = useState(false);
-  const [showVisMenu, setShowVisMenu] = useState(false);
+  const colRanges = useMemo(() => getColumnRanges(data, numericCols), [data, numericCols]);
 
-  const exportRef = useRef(null);
-  const visRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (exportRef.current && !exportRef.current.contains(event.target))
-        setShowExportMenu(false);
-      if (visRef.current && !visRef.current.contains(event.target))
-        setShowVisMenu(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const numericCols = useMemo(() => detectNumericColumns(data), [data]);
-  const colRanges = useMemo(
-    () => getColumnRanges(data, numericCols),
-    [data, numericCols]
-  );
-
-  const handleExport = (format, exportAllRows) => {
-    const rowsToExport = exportAllRows
-      ? table.getCoreRowModel().rows
-      : table.getFilteredRowModel().rows;
-    const exportData = rowsToExport.map((row) => {
-      const obj = {};
-      row.getVisibleCells().forEach((cell) => {
-        obj[cell.column.columnDef.header] = cell.getValue();
-      });
-      return obj;
-    });
-
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const fileName = `${selectedSheet || "export"}_${
-      exportAllRows ? "ALL" : "FILTERED"
-    }`;
-
-    if (format === "excel") {
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, selectedSheet || "Sheet1");
-      XLSX.writeFile(wb, `${fileName}.xlsx`);
-    } else if (format === "csv") {
-      const csv = XLSX.utils.sheet_to_csv(ws);
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(
-        new Blob([csv], { type: "text/csv;charset=utf-8;" })
-      );
-      a.download = `${fileName}.csv`;
-      a.click();
-    }
-    setShowExportMenu(false);
-    toast.success(`Exported ${fileName} successfully!`);
+  const handleSaved = (name) => {
+    setShowSaveDialog(false);
+    toast.success(`"${name}" saved successfully!`);
   };
+
+  // La exportación respeta las columnas visibles
+  const visibleIdx = table.getVisibleLeafColumns().map((c) => Number(c.id));
+  const exportHeaders = visibleIdx.map((i) => headers[i]);
+  const exportNumeric = new Set(
+    visibleIdx.map((orig, pos) => (numericCols.has(String(orig)) ? String(pos) : null)).filter(Boolean)
+  );
 
   const { pageIndex, pageSize } = table.getState().pagination;
   const pageCount = table.getPageCount();
-  const columns = table
-    .getAllColumns()
-    .map((col) => ({ Header: col.columnDef.header, accessor: col.id }));
+  const canPreviousPage = table.getCanPreviousPage();
+  const canNextPage = table.getCanNextPage();
+  const columns = headers.map((header, i) => ({ Header: header, accessor: i }));
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {data && data.length > 0 && (
+      {data && data.length > 0 ? (
         <>
           {showModal && (
-            <Modal
-              handleClose={() => setShowModal(false)}
-              columns={columns}
-              data={data}
+            <Modal handleClose={() => setShowModal(false)} columns={columns} columnTypes={columnTypes} data={data} sheetName={sheetName} />
+          )}
+          {showSaveDialog && (
+            <SaveDialog
+              defaultName={sheetName}
+              fileData={fileData}
+              onClose={() => setShowSaveDialog(false)}
+              onSaved={handleSaved}
             />
           )}
 
-          <div className="flex flex-wrap items-center gap-2 justify-between">
-            <div className="flex flex-wrap items-center gap-2 flex-1">
-              <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
-                <FontAwesomeIcon
-                  icon={faSearch}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"
-                />
-                <input
-                  type="text"
-                  value={globalFilter ?? ""}
-                  onChange={(e) => setGlobalFilter(e.target.value)}
-                  placeholder="Search all columns..."
-                  className="w-full pl-9 pr-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors shadow-sm"
-                />
-              </div>
-
-              {numericCols.size > 0 && (
-                <button
-                  onClick={() => setHeatmap((v) => !v)}
-                  className={`flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl border transition-all shadow-sm ${
-                    heatmap
-                      ? "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/30"
-                      : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  <FontAwesomeIcon
-                    icon={faPalette}
-                    className={heatmap ? "text-amber-500" : ""}
-                  />{" "}
-                  Heatmap
-                </button>
-              )}
-
-              <div className="relative" ref={visRef}>
-                <button
-                  onClick={() => setShowVisMenu(!showVisMenu)}
-                  className="flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 transition-all shadow-sm"
-                >
-                  <FontAwesomeIcon icon={faEye} /> Columns{" "}
-                  <FontAwesomeIcon
-                    icon={faChevronDown}
-                    className="text-[10px] ml-1 opacity-50"
-                  />
-                </button>
-
-                {showVisMenu && (
-                  <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
-                    <div className="p-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                      <label className="flex items-center gap-2 px-2 py-1 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={table.getIsAllColumnsVisible()}
-                          onChange={table.getToggleAllColumnsVisibilityHandler()}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300">
-                          Toggle All
-                        </span>
-                      </label>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto p-2 space-y-1">
-                      {table.getAllLeafColumns().map((column) => (
-                        <label
-                          key={column.id}
-                          className="flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={column.getIsVisible()}
-                            onChange={column.getToggleVisibilityHandler()}
-                            className="rounded border-gray-300 text-blue-600"
-                          />
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-                            {column.columnDef.header}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+          {/* Search, view options and export */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[200px] sm:max-w-sm">
+              <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <input
+                type="text"
+                value={globalFilter ?? ""}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                placeholder="Search all columns..."
+                className="w-full pl-9 pr-4 py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors shadow-xs"
+              />
             </div>
+            {numericCols.size > 0 && (
+              <button
+                onClick={() => setHeatmap((v) => !v)}
+                title="Toggle color heatmap for numeric columns"
+                aria-pressed={heatmap}
+                className={toolbarButton(heatmap)}
+              >
+                <FontAwesomeIcon icon={faPalette} className="text-xs" />
+                Heatmap
+              </button>
+            )}
+            <button onClick={() => setShowFilters((v) => !v)} aria-pressed={showFilters} className={toolbarButton(showFilters)}>
+              <FontAwesomeIcon icon={faFilter} className="text-xs" />
+              Filters
+              {activeColumnFilters > 0 && (
+                <span className={`text-xs rounded-full px-1.5 ${showFilters ? "bg-white/25" : "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"}`}>
+                  {activeColumnFilters}
+                </span>
+              )}
+            </button>
+            {activeColumnFilters > 0 && (
+              <button
+                onClick={() => table.resetColumnFilters()}
+                className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline px-1"
+              >
+                Clear filters
+              </button>
+            )}
+            <ColumnsMenu table={table} />
+            <ExportMenu
+              headers={exportHeaders}
+              // Filas filtradas y ordenadas, sin paginar, solo con las columnas visibles
+              getRows={() => table.getPrePaginationRowModel().rows.map((r) => visibleIdx.map((i) => r.original[i]))}
+              numericCols={exportNumeric}
+              sheetName={sheetName}
+              isFiltered={Boolean(globalFilter) || activeColumnFilters > 0}
+            />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-gray-200 dark:border-gray-700 pt-4 mt-2">
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-gray-200 dark:border-gray-700 pt-4">
             <button
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95"
               onClick={() => setShowModal(true)}
             >
               <FontAwesomeIcon icon={faChartBar} /> Generate Report
             </button>
-
             {showSaveButton && (
               <button
-                disabled={isSaving}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95"
-                onClick={handleSaveTrigger}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95"
+                onClick={() => setShowSaveDialog(true)}
               >
-                {isSaving ? (
-                  <>
-                    <FontAwesomeIcon icon={faSpinner} spin /> Saving...
-                  </>
-                ) : (
-                  <>
-                    <FontAwesomeIcon icon={faFloppyDisk} /> Save Data
-                  </>
-                )}
+                <FontAwesomeIcon icon={faFloppyDisk} /> Save Data
               </button>
             )}
-
-            {/* ✅ Botón Undo */}
             {canUndo && (
               <button
                 onClick={onUndo}
-                className="flex items-center gap-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95 animate-in pop-in"
+                className="flex items-center gap-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-400 font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-xs active:scale-95"
                 title="Undo last edit"
               >
-                <FontAwesomeIcon icon={faRotateLeft} /> Undo
+                <FontAwesomeIcon icon={faRotateLeft} /> Undo edit
               </button>
             )}
-
-            <div className="flex items-center gap-2 ml-auto">
-              <div className="relative" ref={exportRef}>
-                <button
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 dark:bg-gray-700 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95"
-                >
-                  <FontAwesomeIcon icon={faDownload} /> Export{" "}
-                  <FontAwesomeIcon
-                    icon={faChevronDown}
-                    className="text-[10px] ml-1 opacity-50"
-                  />
-                </button>
-
-                {showExportMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
-                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100">
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        Excel (.xlsx)
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleExport("excel", true)}
-                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 transition-colors flex items-center justify-between"
-                    >
-                      <span>
-                        <FontAwesomeIcon
-                          icon={faTable}
-                          className="mr-2 text-gray-400"
-                        />
-                        All Data
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => handleExport("excel", false)}
-                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 transition-colors flex items-center justify-between"
-                    >
-                      <span>
-                        <FontAwesomeIcon
-                          icon={faFilter}
-                          className="mr-2 text-gray-400"
-                        />
-                        Filtered View
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {handleCloseTable && (
-                <button
-                  className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-sm px-3 py-2 rounded-xl transition-all shadow-sm active:scale-95"
-                  onClick={handleCloseTable}
-                >
-                  <FontAwesomeIcon icon={faXmark} />
-                </button>
-              )}
-            </div>
+            {editable && (
+              <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline">
+                Double click a cell to edit it
+              </span>
+            )}
+            {handleCloseTable && (
+              <button
+                className="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-sm px-4 py-2 rounded-xl transition-all ml-auto"
+                onClick={handleCloseTable}
+              >
+                <FontAwesomeIcon icon={faXmark} /> Close
+              </button>
+            )}
           </div>
 
-          <div className="w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800 mt-2">
+          {/* Heatmap legend */}
+          {heatmap && numericCols.size > 0 && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <span>Low</span>
+              {["bg-green-100","bg-blue-100","bg-yellow-100","bg-orange-100","bg-red-100"].map((c) => (
+                <span key={c} className={`w-5 h-3 rounded-xs ${c} border border-gray-200`} />
+              ))}
+              <span>High</span>
+              <span className="ml-2 text-gray-400">· numeric columns only</span>
+            </div>
+          )}
+
+          {/* Table */}
+          <div className="w-full overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs bg-white dark:bg-gray-800">
             <table className="w-full text-sm text-left border-collapse">
-              <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-400">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
                       <th
                         key={header.id}
                         onClick={header.column.getToggleSortingHandler()}
-                        className="px-4 py-3.5 font-bold text-xs uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-gray-100 transition-colors"
+                        className={`px-4 py-3.5 font-bold text-xs uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-gray-700 ${
+                          header.column.getCanSort() ? "cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700/60" : ""
+                        } ${numericCols.has(header.id) && heatmap ? "bg-blue-50/50 dark:bg-blue-900/10" : ""}`}
                       >
-                        <span className="flex items-center gap-2">
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                          {header.column.getIsSorted() === "asc" && (
-                            <FontAwesomeIcon
-                              icon={faChevronUp}
-                              className="text-blue-500 text-xs"
-                            />
-                          )}
-                          {header.column.getIsSorted() === "desc" && (
-                            <FontAwesomeIcon
-                              icon={faChevronDown}
-                              className="text-blue-500 text-xs"
-                            />
-                          )}
+                        <span className="flex items-center gap-1.5">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {header.column.getIsSorted() === "asc" && <FontAwesomeIcon icon={faChevronUp} className="text-blue-500 text-xs" />}
+                          {header.column.getIsSorted() === "desc" && <FontAwesomeIcon icon={faChevronDown} className="text-blue-500 text-xs" />}
                         </span>
                       </th>
                     ))}
                   </tr>
                 ))}
+                {showFilters && (
+                  <tr>
+                    {table.getHeaderGroups()[0].headers.map((header) => (
+                      <th key={header.id} className="px-2 py-2 align-top border-b border-gray-200 dark:border-gray-700">
+                        <ColumnFilter column={header.column} />
+                      </th>
+                    ))}
+                  </tr>
+                )}
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {table.getRowModel().rows.map((row, i) => (
-                  <tr
-                    key={row.id}
-                    className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
-                  >
+                {table.getRowModel().rows.length === 0 && (
+                  <tr>
+                    <td colSpan={visibleIdx.length || 1} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No rows match the current search or filters.
+                    </td>
+                  </tr>
+                )}
+                {table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
                     {row.getVisibleCells().map((cell) => {
                       const isNumeric = numericCols.has(cell.column.id);
                       const val = cell.getValue();
-                      const heatClass =
-                        heatmap && isNumeric && val !== "" && val !== null
-                          ? getHeatClass(val, colRanges[cell.column.id])
-                          : "";
-
+                      const heatClass = heatmap && isNumeric && val !== "" && val !== null
+                        ? getHeatClass(val, colRanges[cell.column.id])
+                        : "";
                       return (
                         <td
                           key={cell.id}
-                          className={`px-4 py-2 whitespace-nowrap font-medium ${
+                          className={`px-4 py-2 whitespace-nowrap font-medium transition-colors ${
                             heatClass || "text-gray-700 dark:text-gray-300"
                           }`}
                         >
-                          <EditableCell
-                            getValue={cell.getValue}
-                            row={cell.row}
-                            column={cell.column}
-                            table={table}
-                          />
+                          {editable
+                            ? <EditableCell cell={cell} table={table} />
+                            : flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       );
                     })}
@@ -465,69 +437,44 @@ function CommonTable({
             </table>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 shadow-sm">
+          {/* Pagination */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs">
             <div className="flex items-center gap-3">
               <span className="font-medium">Rows per page:</span>
               <select
                 value={pageSize}
                 onChange={(e) => table.setPageSize(Number(e.target.value))}
-                className="border rounded-lg px-3 py-1.5 text-sm font-bold"
+                className="border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-lg px-3 py-1.5 text-sm font-bold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
-                {[10, 15, 25, 50, 100].map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
+                {[10, 15, 25, 50, 100].map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-medium">
-                Page{" "}
-                <strong className="text-gray-900 dark:text-white">
-                  {pageIndex + 1}
-                </strong>{" "}
-                of{" "}
-                <strong className="text-gray-900 dark:text-white">
-                  {pageCount || 1}
-                </strong>
-              </span>
-              <div className="flex items-center gap-1">
-                {[
-                  {
-                    icon: faAnglesLeft,
-                    action: () => table.setPageIndex(0),
-                    disabled: !table.getCanPreviousPage(),
-                  },
-                  {
-                    icon: faChevronLeft,
-                    action: () => table.previousPage(),
-                    disabled: !table.getCanPreviousPage(),
-                  },
-                  {
-                    icon: faChevronRight,
-                    action: () => table.nextPage(),
-                    disabled: !table.getCanNextPage(),
-                  },
-                  {
-                    icon: faAnglesRight,
-                    action: () => table.setPageIndex(pageCount - 1),
-                    disabled: !table.getCanNextPage(),
-                  },
-                ].map(({ icon, action, disabled }, i) => (
-                  <button
-                    key={i}
-                    onClick={action}
-                    disabled={disabled}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 disabled:opacity-30 hover:bg-gray-100 transition-colors"
-                  >
-                    <FontAwesomeIcon icon={icon} className="text-xs" />
-                  </button>
-                ))}
-              </div>
+            <span className="text-xs font-medium">
+              Page <strong className="text-gray-900 dark:text-white">{pageIndex + 1}</strong> of{" "}
+              <strong className="text-gray-900 dark:text-white">{pageCount || 1}</strong>
+              {" "}· {table.getFilteredRowModel().rows.length.toLocaleString()} rows
+            </span>
+            <div className="flex items-center gap-1">
+              {[
+                { icon: faAnglesLeft,   label: "First page",    action: () => table.setPageIndex(0),           disabled: !canPreviousPage },
+                { icon: faChevronLeft,  label: "Previous page", action: () => table.previousPage(),             disabled: !canPreviousPage },
+                { icon: faChevronRight, label: "Next page",     action: () => table.nextPage(),                 disabled: !canNextPage },
+                { icon: faAnglesRight,  label: "Last page",     action: () => table.setPageIndex(pageCount-1), disabled: !canNextPage },
+              ].map(({ icon, label, action, disabled }) => (
+                <button key={label} onClick={action} disabled={disabled} aria-label={label}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                  <FontAwesomeIcon icon={icon} className="text-xs" />
+                </button>
+              ))}
             </div>
           </div>
         </>
+      ) : (
+        <div className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-8 text-center">
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            No data to display.
+          </p>
+        </div>
       )}
     </div>
   );

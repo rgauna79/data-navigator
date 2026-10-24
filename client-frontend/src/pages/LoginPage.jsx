@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -26,7 +26,7 @@ function LoginPage() {
     setIsLoading(true);
     try {
       await login(formData);
-    } catch (error) {
+    } catch {
       toast.error("Invalid email or password"); // ✅ Toast de error
     } finally {
       setIsLoading(false);
@@ -39,7 +39,7 @@ function LoginPage() {
 
   return (
     <div className="flex-1 flex justify-center items-center bg-gray-50 dark:bg-gray-900  px-4 py-8">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 sm:p-10 rounded-[2rem] shadow-sm">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 sm:p-10 rounded-4xl shadow-xs">
         <h1 className="text-3xl font-black mb-2 text-gray-900 dark:text-white tracking-tight">
           Welcome back
         </h1>
@@ -69,7 +69,7 @@ function LoginPage() {
               onChange={handleChange}
               placeholder="you@example.com"
               required
-              className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-xl px-4 py-3 text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
             />
           </div>
 
@@ -89,7 +89,7 @@ function LoginPage() {
                 onChange={handleChange}
                 placeholder="••••••••"
                 required
-                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-xl px-4 py-3 pr-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white placeholder-gray-400 rounded-xl px-4 py-3 pr-12 text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
               />
               <button
                 type="button"
@@ -107,7 +107,7 @@ function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-sm shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 text-sm mt-4"
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-xs shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 text-sm mt-4"
           >
             {isLoading ? (
               <>
@@ -120,7 +120,7 @@ function LoginPage() {
         </form>
 
         <p className="mt-8 text-center text-gray-500 dark:text-gray-400 text-sm font-medium">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link
             to="/register"
             className="text-blue-600 dark:text-blue-400 hover:underline font-bold"

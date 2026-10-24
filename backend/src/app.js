@@ -4,37 +4,79 @@ import morgan from "morgan";
 import AuthRoutes from "./routes/auth.routes.js";
 import UserRoutes from "./routes/user.routes.js";
 import DataRoutes from "./routes/data.routes.js";
-import ReportRoutes from "./routes/report.routes.js"; // ✅ nuevo
+import ReportRoutes from "./routes/report.routes.js";
 import cookieParser from "cookie-parser";
 import path from "path";
+import { fileURLToPath } from "url";
+import { csrfProtection } from "./middlewares/csrf.middleware.js";
 
 const app = express();
-const frontendUrl = (
-  process.env.FRONTEND_URL || "http://localhost:5173"
-).replace(/\/$/, "");
+// Límite del cuerpo JSON: las hojas guardadas se envían completas.
+// MongoDB no admite documentos de más de 16 MB.
+export const JSON_LIMIT = process.env.JSON_LIMIT || "15mb";
+
+const frontendUrl = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
 
 console.log("FRONTEND_URL: ", frontendUrl);
 
 app.set("trust proxy", 1);
 
-app.use(cors({ origin: frontendUrl, credentials: true }));
+app.use(
+  cors({
+    origin: frontendUrl,
+    credentials: true,
+  })
+);
 app.use(morgan("dev"));
 app.use(cookieParser());
-app.use(express.json({ limit: "20mb" }));
-app.use(express.urlencoded({ limit: "20mb", extended: true }));
+app.use(express.json({ limit: JSON_LIMIT }));
+app.use("/api", csrfProtection([frontendUrl]));
 
+// Authentication routes
 app.use("/api/auth", AuthRoutes);
+
+// User management routes
 app.use("/api/users", UserRoutes);
+
+// Data management routes
 app.use("/api/data", DataRoutes);
-app.use("/api/reports", ReportRoutes); // ✅ nuevo
+
+// Saved reports routes
+app.use("/api/reports", ReportRoutes);
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.resolve("client-frontend", "dist")));
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve("client-frontend", "dist", "index.html"));
+  // Ruta relativa a este archivo, no al directorio desde donde se lanza node.
+  // STATIC_DIR permite servir el frontend desde otra carpeta (y en los tests).
+  const distPath =
+    process.env.STATIC_DIR ||
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../client-frontend/dist");
+  app.use(express.static(distPath));
+
+  // Las rutas del frontend (React Router) devuelven index.html.
+  // Express 5 exige nombrar el comodín: "/{*splat}" en lugar de "*".
+  // Las rutas /api desconocidas siguen dando 404 en lugar de la página.
+  app.get("/{*splat}", (req, res, next) => {
+    if (req.path.startsWith("/api/")) return next();
+    res.sendFile(path.join(distPath, "index.html"));
   });
 }
 
-app.get("/", (req, res) => res.send("API is running!"));
+app.get("/", (req, res) => {
+  res.send("API is running!");
+});
+
+// Manejo de errores de express.json (cuerpo demasiado grande o JSON inválido)
+app.use((err, req, res, next) => {
+  if (err.type === "entity.too.large") {
+    return res
+      .status(413)
+      .json({ message: `Data is too large to save (max ${JSON_LIMIT}).` });
+  }
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ message: "Invalid JSON body" });
+  }
+  console.error(err);
+  res.status(500).json({ message: "Internal server error" });
+});
 
 export default app;

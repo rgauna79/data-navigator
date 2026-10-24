@@ -1,112 +1,71 @@
+import mongoose from "mongoose";
 import ReportModel from "../models/report.models.js";
-import jwt from "jsonwebtoken";
-import { TOKEN_SECRET } from "../config.js";
 
-// Helper: extraer userId del cookie
-const getUserId = (req) => {
-  const { authToken } = req.cookies;
-  if (!authToken) return null;
-  try {
-    const decoded = jwt.verify(authToken, TOKEN_SECRET);
-    return decoded._id;
-  } catch {
+// Documento por encima del límite de 16 MB de MongoDB
+const isTooLarge = (error) =>
+  error.code === "ERR_OUT_OF_RANGE" || /maximum.*size|too large/i.test(error.message);
+
+// Busca un informe del usuario actual. Responde 404 si no existe o es de otro usuario.
+const findOwnedReport = async (req, res, projection) => {
+  const { id } = req.params;
+  if (!mongoose.isValidObjectId(id)) {
+    res.status(404).json({ message: "Report not found" });
     return null;
   }
+  const report = await ReportModel.findOne({ _id: id, createdBy: req.user._id }, projection);
+  if (!report) res.status(404).json({ message: "Report not found" });
+  return report;
 };
 
-// GET /api/reports — listar reportes del usuario logueado
+// GET /api/reports — lista los informes del usuario (sin las filas de datos;
+// se incluyen los encabezados para mostrar los filtros)
 export const getAllReports = async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const reports = await ReportModel.find({ createdBy: userId })
+    const reports = await ReportModel.find({ createdBy: req.user._id }, { "snapshot.data": 0, resultSummary: 0 })
       .sort({ createdAt: -1 })
-      .select("-resultSummary"); // omitir el snapshot pesado en el listado
-
-    return res.status(200).json(reports);
+      .lean();
+    res.json(reports);
   } catch (error) {
     console.error("Error getting reports:", error);
-    res.status(500).json({ error: "Failed to get reports" });
+    res.status(500).json({ message: "Failed to get reports" });
   }
 };
 
-// GET /api/reports/:id — obtener un reporte completo
+// GET /api/reports/:id — informe completo, con los datos para volver a abrirlo
 export const getReportById = async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const report = await ReportModel.findOne({
-      _id: req.params.id,
-      createdBy: userId,
-    });
-
-    if (!report) return res.status(404).json({ message: "Report not found" });
-
-    return res.status(200).json(report);
+    const report = await findOwnedReport(req, res);
+    if (report) res.json(report);
   } catch (error) {
     console.error("Error getting report:", error);
-    res.status(500).json({ error: "Failed to get report" });
+    res.status(500).json({ message: "Failed to get report" });
   }
 };
 
-// POST /api/reports — guardar un reporte
+// POST /api/reports — guarda un informe (el cuerpo ya está validado)
 export const saveReport = async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const {
-      name,
-      type,
-      sheetName,
-      selectedOptions,
-      selectedColumns,
-      resultSummary,
-    } = req.body;
-
-    if (!name || !type || !sheetName) {
-      return res
-        .status(400)
-        .json({ message: "name, type and sheetName are required" });
-    }
-
-    const report = await ReportModel.create({
-      name,
-      type,
-      sheetName,
-      selectedOptions: selectedOptions || {},
-      selectedColumns: selectedColumns || [],
-      resultSummary: resultSummary || {},
-      createdBy: userId,
-    });
-
-    return res
-      .status(201)
-      .json({ message: "Report saved successfully", report });
+    const report = await ReportModel.create({ ...req.body, createdBy: req.user._id });
+    const { snapshot, ...summary } = report.toObject();
+    res.status(201).json({ message: "Report saved successfully", report: summary });
   } catch (error) {
+    if (isTooLarge(error)) {
+      return res.status(413).json({ message: "Report is too large to save" });
+    }
     console.error("Error saving report:", error);
-    res.status(500).json({ error: "Failed to save report" });
+    res.status(500).json({ message: "Failed to save report" });
   }
 };
 
-// DELETE /api/reports/:id — eliminar un reporte
+// DELETE /api/reports/:id
 export const deleteReport = async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const deleted = await ReportModel.findOneAndDelete({
-      _id: req.params.id,
-      createdBy: userId,
-    });
-
-    if (!deleted) return res.status(404).json({ message: "Report not found" });
-
-    return res.status(200).json({ message: "Report deleted successfully" });
+    const report = await findOwnedReport(req, res, { _id: 1 });
+    if (!report) return;
+    await ReportModel.deleteOne({ _id: report._id });
+    res.json({ message: "Report deleted successfully" });
   } catch (error) {
     console.error("Error deleting report:", error);
-    res.status(500).json({ error: "Failed to delete report" });
+    res.status(500).json({ message: "Failed to delete report" });
   }
 };
