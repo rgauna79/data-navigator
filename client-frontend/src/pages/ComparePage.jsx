@@ -1,6 +1,9 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useDataContext } from "../context/DataContext";
-import { analyzeColumns } from "../hooks/useExcelData.js";
+import { useAuth } from "../context/AuthContext";
+import { getSavedFile, listSavedFiles } from "../api/data.js";
+import { analyzeColumns, formatJson, normalizeRows } from "../utils/excelUtils.js";
+import { loadSheetRows } from "../utils/sheetClient.js";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCodeCompare,
@@ -11,11 +14,10 @@ import {
   faDatabase,
   faFilter,
   faSearch,
-  faTriangleExclamation,
   faArrowTrendUp,
   faArrowTrendDown,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
-import * as XLSX from "xlsx";
 
 // --- COMPONENT: COMPARISON CARD ---
 function CompareCard({ colA, colB, nameA, nameB }) {
@@ -56,7 +58,7 @@ function CompareCard({ colA, colB, nameA, nameB }) {
 
   return (
     <div
-      className={`bg-white dark:bg-gray-800 border rounded-2xl overflow-hidden flex flex-col h-full shadow-sm hover:shadow-md transition-shadow ${
+      className={`bg-white dark:bg-gray-800 border rounded-2xl overflow-hidden flex flex-col h-full shadow-xs hover:shadow-md transition-shadow ${
         typeMismatch ? "border-red-300" : "border-gray-200 dark:border-gray-700"
       }`}
     >
@@ -201,7 +203,7 @@ function CompareCard({ colA, colB, nameA, nameB }) {
                   <span className="text-gray-400 font-bold uppercase">
                     Unique
                   </span>
-                  <span className="font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded">
+                  <span className="font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-sm">
                     {c?.unique || 0}
                   </span>
                 </div>
@@ -216,35 +218,48 @@ function CompareCard({ colA, colB, nameA, nameB }) {
 
 // --- MAIN PAGE ---
 function ComparePage() {
-  const { workbook, dataSaved, readAllData } = useDataContext();
+  const { sheetNames, selectedSheet, fileData } = useDataContext();
+  const { isLoggedIn } = useAuth();
   const [sheetA, setSheetA] = useState(null);
   const [sheetB, setSheetB] = useState(null);
   const [onlyDiffs, setOnlyDiffs] = useState(false);
   const [search, setSearch] = useState("");
+  const [savedSheets, setSavedSheets] = useState([]);
+  const [loadingSide, setLoadingSide] = useState(null);
+  const [error, setError] = useState("");
 
+  // Archivos guardados (solo metadatos; el contenido se pide al elegir uno)
   useEffect(() => {
-    readAllData();
-  }, []);
+    if (!isLoggedIn) return;
+    listSavedFiles()
+      .then((res) => setSavedSheets(res.data))
+      .catch(() => setError("Could not load your saved files."));
+  }, [isLoggedIn]);
 
-  const savedSheets = useMemo(
-    () => (Array.isArray(dataSaved) ? dataSaved : dataSaved?.data || []),
-    [dataSaved]
-  );
-
-  const loadSheet = (name, source, setter) => {
+  // source: "loaded" (hoja del archivo abierto en el lector) o "saved" (base de datos)
+  const loadSheet = async (name, source, setter, side) => {
+    setError("");
     if (!name) {
       setter(null);
       return;
     }
-    if (source === "loaded" && workbook) {
-      const json = XLSX.utils.sheet_to_json(workbook.Sheets[name], {
-        header: 1,
-        raw: false,
-      });
-      setter({ name, data: json });
-    } else {
-      const found = savedSheets.find((s) => s.sheetName === name);
-      if (found) setter({ name, data: found.fileData });
+    setLoadingSide(side);
+    try {
+      if (source === "loaded") {
+        // La hoja abierta incluye las ediciones hechas en el lector
+        const rows = name === selectedSheet ? fileData : (await loadSheetRows(name)).rows;
+        setter({ name, source, data: rows });
+      } else {
+        const found = savedSheets.find((s) => s.sheetName === name);
+        if (!found) return;
+        const res = await getSavedFile(found._id);
+        setter({ name, source, data: normalizeRows(formatJson(res.data.fileData || [])) });
+      }
+    } catch {
+      setError(`Could not load "${name}".`);
+      setter(null);
+    } finally {
+      setLoadingSide(null);
     }
   };
 
@@ -306,19 +321,29 @@ function ComparePage() {
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <SheetPicker
             label="Primary Source (A)"
-            workbook={workbook}
+            sheetNames={sheetNames}
             savedSheets={savedSheets}
+            canUseSaved={isLoggedIn}
+            isLoading={loadingSide === "A"}
             value={sheetA}
-            onChange={(n, s) => loadSheet(n, s, setSheetA)}
+            onChange={(n, s) => loadSheet(n, s, setSheetA, "A")}
           />
           <SheetPicker
             label="Comparison Target (B)"
-            workbook={workbook}
+            sheetNames={sheetNames}
             savedSheets={savedSheets}
+            canUseSaved={isLoggedIn}
+            isLoading={loadingSide === "B"}
             value={sheetB}
-            onChange={(n, s) => loadSheet(n, s, setSheetB)}
+            onChange={(n, s) => loadSheet(n, s, setSheetB, "B")}
           />
         </div>
+
+        {error && (
+          <div className="max-w-4xl mx-auto mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300 text-sm font-bold px-4 py-3 rounded-xl">
+            {error}
+          </div>
+        )}
 
         {sheetA && sheetB && (
           <div className="max-w-4xl mx-auto mb-10 flex flex-col sm:flex-row gap-4">
@@ -332,7 +357,7 @@ function ComparePage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Filter specific columns..."
-                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-12 pr-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
+                className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl pl-12 pr-4 py-3 text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-hidden transition-all shadow-xs"
               />
             </div>
             <button
@@ -356,7 +381,7 @@ function ComparePage() {
                 Analysis Matrix
               </span>
               <div className="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
-              <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase shadow-sm">
+              <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase shadow-xs">
                 {displayCols.length} Columns
               </span>
             </div>
@@ -373,7 +398,7 @@ function ComparePage() {
             </div>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2.5rem] py-24 text-center shadow-sm">
+          <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2.5rem] py-24 text-center shadow-xs">
             <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
               <FontAwesomeIcon icon={faCodeCompare} className="text-3xl" />
             </div>
@@ -391,45 +416,32 @@ function ComparePage() {
   );
 }
 
-function SheetPicker({ label, workbook, savedSheets, value, onChange }) {
+function SheetPicker({ label, sheetNames, savedSheets, canUseSaved, isLoading, value, onChange }) {
   const [source, setSource] = useState("loaded");
-  const options =
-    source === "loaded"
-      ? workbook?.SheetNames || []
-      : savedSheets.map((s) => s.sheetName);
+  const options = source === "loaded" ? sheetNames : savedSheets.map((s) => s.sheetName);
+  const sources = [
+    { id: "loaded", icon: faFileExcel, label: "Excel", color: "text-green-500" },
+    ...(canUseSaved ? [{ id: "saved", icon: faDatabase, label: "Database", color: "text-purple-500" }] : []),
+  ];
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-sm">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-xs">
       <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-5 block">
         {label}
       </label>
       <div className="flex gap-2 mb-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-1.5 border border-gray-100 dark:border-gray-800">
-        {[
-          {
-            id: "loaded",
-            icon: faFileExcel,
-            label: "Excel",
-            color: "text-green-500",
-            bg: "bg-green-50",
-          },
-          {
-            id: "saved",
-            icon: faDatabase,
-            label: "Database",
-            color: "text-purple-500",
-            bg: "bg-purple-50",
-          },
-        ].map((s) => (
+        {sources.map((s) => (
           <button
             key={s.id}
             onClick={() => {
               setSource(s.id);
               onChange(null, s.id);
             }}
+            aria-pressed={source === s.id}
             className={`flex-1 flex items-center justify-center gap-2 text-[10px] font-black uppercase py-2.5 rounded-xl transition-all ${
               source === s.id
-                ? "bg-white dark:bg-gray-800 text-gray-900 shadow-md border border-gray-100 dark:border-gray-700"
-                : "text-gray-400 hover:text-gray-600"
+                ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-md border border-gray-100 dark:border-gray-700"
+                : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             }`}
           >
             <FontAwesomeIcon icon={s.icon} className={`${s.color}`} />
@@ -438,17 +450,28 @@ function SheetPicker({ label, workbook, savedSheets, value, onChange }) {
         ))}
       </div>
       <select
-        value={value?.name || ""}
+        aria-label={`${label} sheet`}
+        value={value?.source === source ? value.name : ""}
         onChange={(e) => onChange(e.target.value, source)}
-        className="w-full text-sm font-bold bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
+        disabled={isLoading}
+        className="w-full text-sm font-bold bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-100 dark:border-gray-600 rounded-2xl px-4 py-3 outline-hidden focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer disabled:opacity-60"
       >
-        <option value="">Select sheet...</option>
+        <option value="">
+          {options.length === 0
+            ? source === "loaded" ? "Open a file in the Reader first" : "No saved files"
+            : "Select sheet..."}
+        </option>
         {options.map((n) => (
           <option key={n} value={n}>
             {n}
           </option>
         ))}
       </select>
+      {isLoading && (
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+          <FontAwesomeIcon icon={faSpinner} spin /> Loading sheet...
+        </p>
+      )}
     </div>
   );
 }

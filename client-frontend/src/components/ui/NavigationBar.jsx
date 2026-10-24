@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -11,7 +11,6 @@ import {
   faDatabase,
   faClockRotateLeft,
   faCodeCompare,
-  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import logo from "../../assets/images/logo.svg";
 import { NavFileIndicator } from "./FileIndicator.jsx";
@@ -64,7 +63,7 @@ function NavigationBar() {
 
   return (
     <nav
-      className="bg-gray-900 border-b border-gray-800 sticky top-0 z-[100] w-full"
+      className="bg-gray-900 border-b border-gray-800 sticky top-0 z-100 w-full"
       ref={menuRef}
     >
       <div className="max-w-[1400px] mx-auto px-4">
@@ -73,10 +72,10 @@ function NavigationBar() {
           <div className="flex items-center gap-4 lg:gap-8 min-w-0">
             <Link
               to="/"
-              className="flex-shrink-0 transition-transform active:scale-95"
+              className="shrink-0 transition-transform active:scale-95"
             >
               <img
-                className="h-9 w-auto rounded-lg shadow-sm"
+                className="h-9 w-auto rounded-lg shadow-xs"
                 src={logo}
                 alt="Data Navigator"
               />
@@ -101,7 +100,7 @@ function NavigationBar() {
           </div>
 
           {/* CENTRO: Indicador de Archivo (Se oculta en tablets/móviles pequeños para no estorbar) */}
-          <div className="hidden md:block flex-shrink-0">
+          <div className="hidden md:block shrink-0">
             <NavFileIndicator />
           </div>
 
@@ -120,6 +119,7 @@ function NavigationBar() {
                   </Link>
                   <button
                     onClick={handleLogout}
+                    aria-label="Sign out"
                     className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
                     title="Sign out"
                   >
@@ -147,6 +147,8 @@ function NavigationBar() {
             {/* Hamburguesa (Visible en < 1024px) */}
             <button
               onClick={() => setShowMenu((v) => !v)}
+              aria-label={showMenu ? "Close menu" : "Open menu"}
+              aria-expanded={showMenu}
               className="lg:hidden flex items-center justify-center w-10 h-10 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 transition-all border border-transparent hover:border-gray-700"
             >
               <FontAwesomeIcon

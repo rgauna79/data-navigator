@@ -1,12 +1,9 @@
 export const validateSchema = (schema) => (req, res, next) => {
-  try {
-    schema.parse(req.body);
-    next();
-  } catch (error) {
-    if (error.errors[0].message) {
-      res.status(400).json({ error: error.errors[0].message });
-    } else {
-      res.status(400).json({ error: error.errors });
-    }
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    return res.status(400).json({ message: result.error.issues[0].message });
   }
+  // Usar los datos validados descarta campos no declarados en el esquema
+  req.body = result.data;
+  next();
 };

@@ -7,14 +7,16 @@ const ReportSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // "groupBy" es el tipo de las versiones anteriores; los informes nuevos
+    // de agrupación usan "group"
     type: {
       type: String,
-      enum: ["statistics", "mostRepeated", "groupBy"], // ✅ Añadir "groupBy"
+      enum: ["statistics", "mostRepeated", "group", "groupBy"],
       required: true,
     },
     sheetName: {
       type: String,
-      required: true,
+      default: "",
     },
     selectedOptions: {
       type: Object,
@@ -24,18 +26,19 @@ const ReportSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    // Snapshot del resultado para no recalcular
-    resultSummary: {
+    // Copia de los datos y la configuración del informe para volver a
+    // abrirlo sin tener el archivo original: { headers, data, config, columnTypes }
+    snapshot: {
       type: Object,
-      default: {},
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true, minimize: false }
 );
 
 export default mongoose.model("Report", ReportSchema);

@@ -1,0 +1,6 @@
+PORT = 3000
+# Copia este archivo a .env y completa los valores reales
+MONGO_URI="mongodb+srv://<USER>:<PASSWORD>@<CLUSTER>.mongodb.net/data_navigator?retryWrites=true&w=majority"
+FRONTEND_URL="http://localhost:5173"
+# Genera uno con: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+TOKEN_SECRET="<TU_SECRETO_AL_AZAR>"

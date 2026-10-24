@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
@@ -23,19 +23,19 @@ export const RegisterPage = () => {
     try {
       await signup(data);
       // El Toast de bienvenida lo mandará el HomePage
-    } catch (error) {
+    } catch {
       toast.error("Registration failed. Please check your data.");
     }
   };
 
   return (
     <div className="flex-1 flex justify-center items-center bg-gray-50 dark:bg-gray-900  px-4 py-8">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 sm:p-10 rounded-[2rem] shadow-sm">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-8 sm:p-10 rounded-4xl shadow-xs">
         <h1 className="text-3xl font-black mb-2 text-gray-900 dark:text-white tracking-tight">
           Create account
         </h1>
         <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-8">
-          Join Data Navigator today. It's free!
+          Join Data Navigator today. It&apos;s free!
         </p>
 
         {authErrors && (
@@ -85,7 +85,7 @@ export const RegisterPage = () => {
                 type={type}
                 id={id}
                 placeholder={placeholder}
-                className={`w-full bg-gray-50 dark:bg-gray-700 border rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm font-medium ${
+                className={`w-full bg-gray-50 dark:bg-gray-700 border rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors text-sm font-medium ${
                   errors[id]
                     ? "border-red-500"
                     : "border-gray-200 dark:border-gray-600"
@@ -103,7 +103,7 @@ export const RegisterPage = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-sm shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 text-sm mt-4"
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-xs shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 text-sm mt-4"
           >
             {isSubmitting ? (
               <>

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getUserProfile, updateUserProfile } from "../context/UserContext";
+import { updateUserProfile } from "../api/auth";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSpinner,
@@ -13,7 +13,7 @@ import {
 import toast from "react-hot-toast"; // ✅ Importamos toast
 
 function ProfilePage() {
-  const { user, isLoading } = useAuth();
+  const { user, setUser, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [changePassword, setChangePassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -43,16 +43,21 @@ function ProfilePage() {
     e.preventDefault();
     setIsSaving(true);
 
-    // ✅ Toast automático con Loader, Success y Error integrados
-    toast
-      .promise(updateUserProfile(formData), {
-        loading: "Updating profile...",
-        success: "Profile updated successfully!",
-        error: (err) => err.message || "Could not update profile.",
-      })
-      .finally(() => {
-        setIsSaving(false);
-      });
+    // Solo se envía la contraseña si el usuario eligió cambiarla
+    const { password, ...profile } = formData;
+    const payload = changePassword && password ? { ...profile, password } : profile;
+
+    const toastId = toast.loading("Updating profile...");
+    try {
+      const updated = await updateUserProfile(payload);
+      setUser({ id: updated._id, username: updated.username, email: updated.email });
+      setFormData((prev) => ({ ...prev, password: "" }));
+      toast.success("Profile updated successfully!", { id: toastId });
+    } catch (err) {
+      toast.error(err.message || "Could not update profile.", { id: toastId });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading) {
@@ -71,7 +76,7 @@ function ProfilePage() {
     <div className="flex-1 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-lg mx-auto px-4 py-12">
         <div className="flex items-center gap-5 mb-8">
-          <div className="w-20 h-20 rounded-[1.25rem] bg-blue-600 flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-blue-200 dark:shadow-none flex-shrink-0">
+          <div className="w-20 h-20 rounded-[1.25rem] bg-blue-600 flex items-center justify-center text-white text-3xl font-black shadow-lg shadow-blue-200 dark:shadow-none shrink-0">
             {user?.username?.[0]?.toUpperCase()}
           </div>
           <div>
@@ -84,7 +89,7 @@ function ProfilePage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-xs">
           <h2 className="text-lg font-black text-gray-900 dark:text-white mb-6">
             Account Settings
           </h2>
@@ -107,7 +112,7 @@ function ProfilePage() {
                   name="username"
                   value={formData.username}
                   onChange={handleChange}
-                  className="w-full pl-11 pr-4 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="w-full pl-11 pr-4 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
                 />
               </div>
             </div>
@@ -130,7 +135,7 @@ function ProfilePage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-11 pr-4 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="w-full pl-11 pr-4 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
                 />
               </div>
             </div>
@@ -141,7 +146,7 @@ function ProfilePage() {
                 id="togglePassword"
                 checked={changePassword}
                 onChange={handleTogglePassword}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                className="w-4 h-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
               <label
                 htmlFor="togglePassword"
@@ -171,7 +176,7 @@ function ProfilePage() {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="••••••••"
-                    className="w-full pl-11 pr-12 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                    className="w-full pl-11 pr-12 py-3 text-sm font-medium bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-colors"
                   />
                   <button
                     type="button"
@@ -190,7 +195,7 @@ function ProfilePage() {
             <button
               type="submit"
               disabled={isSaving}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-sm shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 text-sm mt-4"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-xs shadow-blue-200 dark:shadow-none flex items-center justify-center gap-2 text-sm mt-4"
             >
               {isSaving ? (
                 <>

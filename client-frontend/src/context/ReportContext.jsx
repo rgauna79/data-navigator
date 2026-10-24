@@ -1,126 +1,91 @@
-import React, { createContext, useContext, useState } from "react";
-import { saveData, readData } from "../api/data.js";
-import {
-  getReportsRequest,
-  saveReportRequest,
-  deleteReportRequest,
-} from "../api/reports.js";
+// context/ReportContext.jsx
+// ✅ Maneja el informe actual y sus opciones de configuración.
+// El último informe se guarda en IndexedDB para que sobreviva a una recarga.
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { clearSession, loadSession, saveSession } from "../utils/sessionStore.js";
 
 const ReportContext = createContext();
 
 export const useReportContext = () => {
   const context = useContext(ReportContext);
-  if (!context)
-    throw new Error("useReportContext must be used within ReportProvider");
+  if (!context) throw new Error("useReportContext must be used within ReportProvider");
   return context;
 };
+
+const SESSION_KEY = "report";
 
 export const ReportProvider = ({ children }) => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [typeReport, setTypeReport] = useState("");
   const [data, setData] = useState([]);
-  const [error, setError] = useState(null);
-  const [dataSaved, setDataSaved] = useState([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(false);
-  const [savedReports, setSavedReports] = useState([]);
-  const [isLoadingReports, setIsLoadingReports] = useState(false);
-  const [reportError, setReportError] = useState(null);
+  // Encabezados de la hoja del informe (índice -> nombre)
+  const [headers, setHeaders] = useState([]);
+  // Configuración del informe "group": agrupación, métrica, etc.
+  const [config, setConfig] = useState(null);
+  // Tipo de cada columna al generar el informe (con correcciones del usuario)
+  const [columnTypes, setColumnTypes] = useState(null);
+  // Hoja de origen del informe (para el nombre al guardarlo)
+  const [sheetName, setSheetName] = useState("");
+  const [isRestoringReport, setIsRestoringReport] = useState(true);
+  const restored = useRef(false);
 
-  // ✅ nuevo: resetSaveStatus no necesita estado propio — se maneja en FileReaderPage
-  // pero lo exponemos como no-op para compatibilidad
-  const resetSaveStatus = () => {};
+  // Recupera el último informe al cargar la app
+  useEffect(() => {
+    loadSession(SESSION_KEY).then((saved) => {
+      // Si ya se generó un informe nuevo mientras se leía, no se pisa
+      if (saved && !restored.current) {
+        setSelectedOptions(saved.selectedOptions);
+        setTypeReport(saved.typeReport);
+        setData(saved.data);
+        setHeaders(saved.headers);
+        setConfig(saved.config ?? null);
+        setColumnTypes(saved.columnTypes ?? null);
+        setSheetName(saved.sheetName ?? "");
+      }
+      restored.current = true;
+      setIsRestoringReport(false);
+    });
+  }, []);
 
-  const handleSaveData = async ({ sheetName, fileData, overwrite = false }) => {
-    setIsSaving(true);
-    setError(null);
-    try {
-      // ✅ Pasar overwrite al backend
-      await saveData({ sheetName, fileData, overwrite });
-      // Refrescar lista de sheets guardadas
-      await readAllData();
-    } catch (err) {
-      setError(err);
-      throw err;
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // Genera un informe nuevo y lo persiste
+  const setReport = useCallback((report) => {
+    restored.current = true;
+    setSelectedOptions(report.selectedOptions);
+    setTypeReport(report.typeReport);
+    setData(report.data);
+    setHeaders(report.headers);
+    setConfig(report.config ?? null);
+    setColumnTypes(report.columnTypes ?? null);
+    setSheetName(report.sheetName ?? "");
+    saveSession(SESSION_KEY, report);
+  }, []);
 
-  const readAllData = async () => {
-    setIsLoadingData(true);
-    setError(null);
-    try {
-      const response = await readData();
-      const raw = response.data;
-      const arr = Array.isArray(raw)
-        ? raw
-        : Array.isArray(raw?.data)
-        ? raw.data
-        : [];
-      setDataSaved(arr);
-    } catch (err) {
-      setError(err);
-    } finally {
-      setIsLoadingData(false);
-    }
-  };
-
-  const fetchSavedReports = async () => {
-    setIsLoadingReports(true);
-    setReportError(null);
-    try {
-      const res = await getReportsRequest();
-      setSavedReports(res.data);
-    } catch (err) {
-      setReportError(err?.response?.data?.message || "Failed to load reports");
-    } finally {
-      setIsLoadingReports(false);
-    }
-  };
-
-  const saveReport = async (reportData) => {
-    try {
-      await saveReportRequest(reportData);
-      await fetchSavedReports();
-    } catch (err) {
-      throw new Error(err?.response?.data?.message || "Failed to save report");
-    }
-  };
-
-  const deleteReport = async (id) => {
-    try {
-      await deleteReportRequest(id);
-      setSavedReports((prev) => prev.filter((r) => r._id !== id));
-    } catch (err) {
-      throw new Error(
-        err?.response?.data?.message || "Failed to delete report"
-      );
-    }
-  };
+  const resetReport = useCallback(() => {
+    setSelectedOptions({});
+    setTypeReport("");
+    setData([]);
+    setHeaders([]);
+    setConfig(null);
+    setColumnTypes(null);
+    setSheetName("");
+    clearSession(SESSION_KEY);
+  }, []);
 
   return (
     <ReportContext.Provider
       value={{
         selectedOptions,
-        setSelectedOptions,
         typeReport,
-        setTypeReport,
         data,
-        setData,
-        error,
-        dataSaved,
-        isSaving,
-        isLoadingData,
-        handleSaveData,
-        readAllData,
-        resetSaveStatus,
-        savedReports,
-        isLoadingReports,
-        reportError,
-        fetchSavedReports,
-        saveReport,
-        deleteReport,
+        headers,
+        config,
+        // Nombre distinto al columnTypes de ExcelContext: useDataContext une ambos
+        reportColumnTypes: columnTypes,
+        // Nombre distinto al selectedSheet de ExcelContext
+        reportSheetName: sheetName,
+        isRestoringReport,
+        setReport,
+        resetReport,
       }}
     >
       {children}
